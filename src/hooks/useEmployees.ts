@@ -41,13 +41,6 @@ export function useEmployees(filters: Filters) {
         console.error("Error fetching employees:", error);
       }
       setEmployees(data ?? []);
-
-      // Get distinct departments for filter
-      const { data: allEmps } = await supabase
-        .from("employees")
-        .select("departamento");
-      const depts = [...new Set((allEmps ?? []).map((e) => e.departamento).filter(Boolean))] as string[];
-      setDepartamentos(depts.sort());
     } catch (err) {
       console.error("Error in fetchEmployees:", err);
     } finally {
@@ -55,9 +48,23 @@ export function useEmployees(filters: Filters) {
     }
   }, [filters.search, filters.status, filters.departamento]);
 
+  // Fetch departments from the departments table (active only)
+  const fetchDepartments = useCallback(async () => {
+    const { data } = await supabase
+      .from("departments")
+      .select("name")
+      .eq("status", "active")
+      .order("name");
+    setDepartamentos((data ?? []).map((d: any) => d.name));
+  }, []);
+
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, [fetchDepartments]);
 
   const createEmployee = async (data: EmployeeInsert) => {
     const { error } = await supabase.from("employees").insert(data);
