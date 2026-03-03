@@ -11,6 +11,7 @@ import Login from "@/pages/Login";
 import Placeholder from "@/pages/Placeholder";
 import Presenca from "@/pages/Presenca";
 import Pessoas from "@/pages/Pessoas";
+import Financeiro from "@/pages/Financeiro";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +30,7 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/presenca" element={<Presenca />} />
                 <Route path="/pessoas" element={<Pessoas />} />
-                <Route path="/financeiro" element={<Placeholder />} />
+                <Route path="/financeiro" element={<Financeiro />} />
                 <Route path="/assistente" element={<Placeholder />} />
                 <Route path="/configuracoes" element={<Placeholder />} />
               </Route>
