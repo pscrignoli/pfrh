@@ -6,6 +6,7 @@ import {
   Bot,
   Settings,
   LogOut,
+  Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -31,16 +32,13 @@ const mainItems = [
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
 ];
 
-const bottomItems = [
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
-];
-
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut, user } = useAuth();
+  const { signOut, roles } = useAuth();
   const navigate = useNavigate();
+  const isSuperAdmin = roles.includes("super_admin");
 
   const handleSignOut = async () => {
     await signOut();
@@ -90,20 +88,32 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
-          {bottomItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
+          {isSuperAdmin && (
+            <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={isActive(item.url)}
-                tooltip={item.title}
+                isActive={isActive("/super-admin")}
+                tooltip="Super Admin"
               >
-                <NavLink to={item.url}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.title}</span>
+                <NavLink to="/super-admin">
+                  <Shield className="h-4 w-4" />
+                  <span>Super Admin</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          ))}
+          )}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/configuracoes")}
+              tooltip="Configurações"
+            >
+              <NavLink to="/configuracoes">
+                <Settings className="h-4 w-4" />
+                <span>Configurações</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sair"
