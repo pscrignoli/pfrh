@@ -18,34 +18,41 @@ export function useEmployees(filters: Filters) {
   const [loading, setLoading] = useState(true);
 
   const fetchEmployees = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("employees")
-      .select("*")
-      .order("nome_completo");
+    try {
+      setLoading(true);
+      let query = supabase
+        .from("employees")
+        .select("*")
+        .order("nome_completo");
 
-    if (filters.status) {
-      query = query.eq("status", filters.status as Employee["status"]);
+      if (filters.status) {
+        query = query.eq("status", filters.status as Employee["status"]);
+      }
+      if (filters.departamento) {
+        query = query.eq("departamento", filters.departamento);
+      }
+      if (filters.search.trim()) {
+        const term = `%${filters.search.trim()}%`;
+        query = query.or(`nome_completo.ilike.${term},numero_cpf.ilike.${term}`);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error fetching employees:", error);
+      }
+      setEmployees(data ?? []);
+
+      // Get distinct departments for filter
+      const { data: allEmps } = await supabase
+        .from("employees")
+        .select("departamento");
+      const depts = [...new Set((allEmps ?? []).map((e) => e.departamento).filter(Boolean))] as string[];
+      setDepartamentos(depts.sort());
+    } catch (err) {
+      console.error("Error in fetchEmployees:", err);
+    } finally {
+      setLoading(false);
     }
-    if (filters.departamento) {
-      query = query.eq("departamento", filters.departamento);
-    }
-    if (filters.search.trim()) {
-      const term = `%${filters.search.trim()}%`;
-      query = query.or(`nome_completo.ilike.${term},numero_cpf.ilike.${term}`);
-    }
-
-    const { data } = await query;
-    setEmployees(data ?? []);
-
-    // Get distinct departments for filter
-    const { data: allEmps } = await supabase
-      .from("employees")
-      .select("departamento");
-    const depts = [...new Set((allEmps ?? []).map((e) => e.departamento).filter(Boolean))] as string[];
-    setDepartamentos(depts.sort());
-
-    setLoading(false);
   }, [filters.search, filters.status, filters.departamento]);
 
   useEffect(() => {
