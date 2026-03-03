@@ -26,7 +26,7 @@ import {
 const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard },
   { title: "Presença e Jornada", url: "/presenca", icon: Clock },
-  { title: "Gestão de Pessoas", url: "/pessoas", icon: Users },
+  { title: "Colaboradores", url: "/colaboradores", icon: Users },
   { title: "Financeiro e Controladoria", url: "/financeiro", icon: DollarSign },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
 ];
