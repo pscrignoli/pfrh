@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      departments: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          name: string
+          status: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       document_embeddings: {
         Row: {
           content: string

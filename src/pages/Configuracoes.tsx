@@ -14,9 +14,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Constants } from "@/integrations/supabase/types";
-import { Settings, Shield, Plug, BookOpen, Upload, Trash2, Save, Loader2 } from "lucide-react";
+import { Settings, Shield, Plug, BookOpen, Upload, Trash2, Save, Loader2, Building2, Plus, Pencil } from "lucide-react";
+import { useDepartments } from "@/hooks/useDepartments";
 
 // ── Types ──
 interface UserWithRole {
@@ -42,10 +46,9 @@ function AccessTab() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     const { data: roles } = await supabase.from("user_roles").select("*");
-    // We can only see roles we have access to; build list from user_roles
     const userList: UserWithRole[] = (roles ?? []).map((r) => ({
       userId: r.user_id,
-      email: r.user_id, // We'll show user_id since we can't query auth.users
+      email: r.user_id,
       role: r.role,
       roleId: r.id,
     }));
@@ -94,7 +97,7 @@ function AccessTab() {
           </TableHeader>
           <TableBody>
             {users.map((u) => (
-              <TableRow key={u.userId}>
+              <TableRow key={u.userId + u.roleId}>
                 <TableCell className="font-mono text-xs">{u.userId.slice(0, 8)}...</TableCell>
                 <TableCell>
                   <Badge variant="outline">{u.role ?? "Sem papel"}</Badge>
@@ -135,6 +138,7 @@ function AccessTab() {
 function IntegrationTab() {
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -145,6 +149,7 @@ function IntegrationTab() {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.value) setUrl(data.value);
+        setLoading(false);
       });
   }, []);
 
@@ -165,6 +170,8 @@ function IntegrationTab() {
       setSaving(false);
     }
   };
+
+  if (loading) return <Skeleton className="h-48 w-full" />;
 
   return (
     <Card>
@@ -204,6 +211,7 @@ function KnowledgeBaseTab() {
   const [docs, setDocs] = useState<DocEmbedding[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dragOver, setDragOver] = useState(false);
 
   const fetchDocs = useCallback(async () => {
     const { data } = await supabase
@@ -216,9 +224,11 @@ function KnowledgeBaseTab() {
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Limite de 20MB.", variant: "destructive" });
+      return;
+    }
 
     setUploading(true);
     try {
@@ -244,21 +254,31 @@ function KnowledgeBaseTab() {
       toast({ title: "Erro no upload", description: e.message, variant: "destructive" });
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file);
+    e.target.value = "";
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) await uploadFile(file);
+  };
+
   const handleDelete = async (doc: DocEmbedding) => {
+    if (!confirm("Tem certeza que deseja remover este documento?")) return;
     try {
-      const meta = doc.source_document;
       await supabase.from("document_embeddings").delete().eq("id", doc.id);
-
-      // Try to delete from storage too
-      const filePath = (doc as any).metadata?.file_path;
-      if (filePath) {
-        await supabase.storage.from("hr_documents").remove([filePath]);
+      const meta = (doc as any).metadata;
+      if (meta?.file_path) {
+        await supabase.storage.from("hr_documents").remove([meta.file_path]);
       }
-
       toast({ title: "Documento removido." });
       await fetchDocs();
     } catch (e: any) {
@@ -279,7 +299,14 @@ function KnowledgeBaseTab() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+          <label
+            className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              dragOver ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">
@@ -344,6 +371,146 @@ function KnowledgeBaseTab() {
   );
 }
 
+// ── Departments Tab ──
+function DepartmentsTab() {
+  const { departments, loading, createDepartment, updateDepartment, deleteDepartment } = useDepartments();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDept, setEditDept] = useState<{ id: string; name: string; code: string; status: string } | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+
+  const openNew = () => {
+    setEditDept(null);
+    setName("");
+    setCode("");
+    setDialogOpen(true);
+  };
+
+  const openEdit = (dept: any) => {
+    setEditDept(dept);
+    setName(dept.name);
+    setCode(dept.code ?? "");
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast({ title: "Nome é obrigatório", variant: "destructive" });
+      return;
+    }
+    try {
+      if (editDept) {
+        await updateDepartment(editDept.id, { name: name.trim(), code: code.trim() || undefined });
+        toast({ title: "Departamento atualizado." });
+      } else {
+        await createDepartment(name.trim(), code.trim());
+        toast({ title: "Departamento criado." });
+      }
+      setDialogOpen(false);
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const toggleStatus = async (dept: any) => {
+    try {
+      await updateDepartment(dept.id, { status: dept.status === "active" ? "inactive" : "active" });
+      toast({ title: `Departamento ${dept.status === "active" ? "desativado" : "ativado"}.` });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Departamentos
+              </CardTitle>
+              <CardDescription>Gerencie os departamentos disponíveis para os colaboradores.</CardDescription>
+            </div>
+            <Button onClick={openNew} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Departamento
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-6"><Skeleton className="h-24 w-full" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-32">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {departments.map((dept) => (
+                  <TableRow key={dept.id}>
+                    <TableCell className="font-medium">{dept.name}</TableCell>
+                    <TableCell className="font-mono text-xs">{dept.code || "—"}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={dept.status === "active" ? "default" : "secondary"}
+                        className="cursor-pointer"
+                        onClick={() => toggleStatus(dept)}
+                      >
+                        {dept.status === "active" ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {departments.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      Nenhum departamento cadastrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editDept ? "Editar Departamento" : "Novo Departamento"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome *</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Recursos Humanos" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Código (Centro de Custo)</label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: CC-001" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleSave}>{editDept ? "Salvar" : "Criar"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ── Main Page ──
 export default function Configuracoes() {
   const { role, roles, loading } = useAuth();
@@ -366,12 +533,16 @@ export default function Configuracoes() {
       <Tabs defaultValue="acessos">
         <TabsList>
           <TabsTrigger value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
           <TabsTrigger value="conhecimento">Base de Conhecimento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="acessos" className="mt-4">
           <AccessTab />
+        </TabsContent>
+        <TabsContent value="departamentos" className="mt-4">
+          <DepartmentsTab />
         </TabsContent>
         <TabsContent value="integracoes" className="mt-4">
           <IntegrationTab />

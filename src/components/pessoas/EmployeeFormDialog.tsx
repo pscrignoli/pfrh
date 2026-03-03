@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Employee, EmployeeInsert } from "@/hooks/useEmployees";
 import { Constants } from "@/integrations/supabase/types";
+import { useDepartments } from "@/hooks/useDepartments";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -53,7 +54,7 @@ interface Props {
 
 export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }: Props) {
   const isEdit = !!employee;
-
+  const { departments } = useDepartments(true);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: employee
@@ -213,7 +214,14 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
                   <FormField control={form.control} name="departamento" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Departamento</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {departments.map((d) => (
+                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )} />
                 </div>
