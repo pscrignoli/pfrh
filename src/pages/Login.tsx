@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +11,20 @@ import { AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  // Auto-redirect when session becomes available
+  useEffect(() => {
+    if (session) {
+      navigate("/", { replace: true });
+    }
+  }, [session, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,9 +36,8 @@ export default function Login() {
       password,
     });
 
-    setLoading(false);
-
     if (authError) {
+      setLoading(false);
       if (authError.message.includes("Invalid login")) {
         setError("Credenciais inválidas. Verifique seu e-mail e senha.");
       } else if (authError.message.includes("Email not confirmed")) {
@@ -39,8 +47,7 @@ export default function Login() {
       }
       return;
     }
-
-    navigate("/", { replace: true });
+    // Navigation handled by useEffect when session updates
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
