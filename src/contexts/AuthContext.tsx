@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   role: AppRole | null;
+  roles: AppRole[];
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -18,27 +19,26 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   role: null,
+  roles: [],
   loading: true,
   signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-async function fetchUserRole(userId: string): Promise<AppRole | null> {
+async function fetchUserRoles(userId: string): Promise<AppRole[]> {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
+    .eq("user_id", userId);
 
-  if (error || !data) return null;
-  return data.role;
+  if (error || !data) return [];
+  return data.map((d) => d.role);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(currentSession);
       if (currentSession?.user) {
-        const userRole = await fetchUserRole(currentSession.user.id);
-        if (mounted) setRole(userRole);
+        const userRoles = await fetchUserRoles(currentSession.user.id);
+        if (mounted) setRoles(userRoles);
       }
       if (mounted) setLoading(false);
     }).catch(() => {
@@ -70,17 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === "SIGNED_OUT") {
           setSession(null);
-          setRole(null);
+          setRoles([]);
           setLoading(false);
           return;
         }
 
         setSession(newSession);
         if (newSession?.user) {
-          const userRole = await fetchUserRole(newSession.user.id);
-          if (mounted) setRole(userRole);
+          const userRoles = await fetchUserRoles(newSession.user.id);
+          if (mounted) setRoles(userRoles);
         } else {
-          setRole(null);
+          setRoles([]);
         }
         setLoading(false);
       }
@@ -100,8 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    setRole(null);
+    setRoles([]);
   };
+
+  // Keep backward compat: role = first non-super_admin role, or super_admin if only role
+  const role: AppRole | null = roles.find(r => r !== "super_admin") ?? roles[0] ?? null;
 
   return (
     <AuthContext.Provider
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         role,
+        roles,
         loading,
         signOut,
       }}

@@ -16,6 +16,7 @@ import Pessoas from "@/pages/Pessoas";
 import Financeiro from "@/pages/Financeiro";
 import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
+import SuperAdmin from "@/pages/SuperAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/financeiro" element={<Financeiro />} />
                 <Route path="/assistente" element={<Assistente />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
+                <Route path="/super-admin" element={<SuperAdmin />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

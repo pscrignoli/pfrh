@@ -534,7 +534,11 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin_rh" | "gestor_financeiro" | "assistente_dp"
+      app_role:
+        | "admin_rh"
+        | "gestor_financeiro"
+        | "assistente_dp"
+        | "super_admin"
       contract_type: "clt" | "pj" | "estagio" | "temporario" | "aprendiz"
       employee_status: "ativo" | "inativo" | "ferias" | "afastado" | "desligado"
       gender_type: "masculino" | "feminino" | "outro" | "nao_informado"
@@ -666,7 +670,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin_rh", "gestor_financeiro", "assistente_dp"],
+      app_role: [
+        "admin_rh",
+        "gestor_financeiro",
+        "assistente_dp",
+        "super_admin",
+      ],
       contract_type: ["clt", "pj", "estagio", "temporario", "aprendiz"],
       employee_status: ["ativo", "inativo", "ferias", "afastado", "desligado"],
       gender_type: ["masculino", "feminino", "outro", "nao_informado"],

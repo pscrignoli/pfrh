@@ -346,10 +346,10 @@ function KnowledgeBaseTab() {
 
 // ── Main Page ──
 export default function Configuracoes() {
-  const { role, loading } = useAuth();
+  const { role, roles, loading } = useAuth();
 
   if (loading) return <Skeleton className="h-96 w-full" />;
-  if (role !== "admin_rh") return <Navigate to="/" replace />;
+  if (role !== "admin_rh" && !roles.includes("super_admin")) return <Navigate to="/" replace />;
 
   return (
     <div className="space-y-6">
