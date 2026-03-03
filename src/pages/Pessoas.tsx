@@ -51,15 +51,6 @@ export default function Pessoas() {
     setFormOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -126,25 +117,32 @@ export default function Pessoas() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((emp) => (
-                <TableRow
-                  key={emp.id}
-                  className="cursor-pointer"
-                  onClick={() => setDetailEmployee(emp)}
-                >
-                  <TableCell className="font-mono text-xs">{emp.matricula_interna || "—"}</TableCell>
-                  <TableCell className="font-medium">{emp.nome_completo}</TableCell>
-                  <TableCell>{emp.empresa || "—"}</TableCell>
-                  <TableCell>{emp.departamento || "—"}</TableCell>
-                  <TableCell>{emp.cargo || "—"}</TableCell>
-                  <TableCell>
-                    <Badge className={`border-0 ${statusColors[emp.status] ?? ""}`}>
-                      {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
-                    </Badge>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8">
+                    <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
-              ))}
-              {employees.length === 0 && (
+              ) : employees.length > 0 ? (
+                employees.map((emp) => (
+                  <TableRow
+                    key={emp.id}
+                    className="cursor-pointer"
+                    onClick={() => setDetailEmployee(emp)}
+                  >
+                    <TableCell className="font-mono text-xs">{emp.matricula_interna || "—"}</TableCell>
+                    <TableCell className="font-medium">{emp.nome_completo}</TableCell>
+                    <TableCell>{emp.empresa || "—"}</TableCell>
+                    <TableCell>{emp.departamento || "—"}</TableCell>
+                    <TableCell>{emp.cargo || "—"}</TableCell>
+                    <TableCell>
+                      <Badge className={`border-0 ${statusColors[emp.status] ?? ""}`}>
+                        {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                     Nenhum colaborador encontrado.
