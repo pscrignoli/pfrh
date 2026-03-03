@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Placeholder from "@/pages/Placeholder";
+import Presenca from "@/pages/Presenca";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,7 @@ const App = () => (
             <Route element={<PrivateRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/presenca" element={<Placeholder />} />
+                <Route path="/presenca" element={<Presenca />} />
                 <Route path="/pessoas" element={<Placeholder />} />
                 <Route path="/financeiro" element={<Placeholder />} />
                 <Route path="/assistente" element={<Placeholder />} />
