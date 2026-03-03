@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -43,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session first
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       if (!mounted) return;
       setSession(currentSession);
@@ -56,10 +56,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) setLoading(false);
     });
 
-    // Then listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
         if (!mounted) return;
+
+        if (event === "TOKEN_REFRESHED" && !newSession) {
+          toast({
+            title: "Sessão expirada",
+            description: "Sua sessão expirou. Faça login novamente.",
+            variant: "destructive",
+          });
+        }
+
+        if (event === "SIGNED_OUT") {
+          setSession(null);
+          setRole(null);
+          setLoading(false);
+          return;
+        }
+
         setSession(newSession);
         if (newSession?.user) {
           const userRole = await fetchUserRole(newSession.user.id);
@@ -71,7 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Safety timeout — never stay stuck loading
     const timeout = setTimeout(() => {
       if (mounted) setLoading(false);
     }, 5000);
