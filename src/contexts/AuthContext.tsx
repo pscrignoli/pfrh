@@ -41,12 +41,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Get initial session first
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      if (!mounted) return;
+      setSession(currentSession);
+      if (currentSession?.user) {
+        const userRole = await fetchUserRole(currentSession.user.id);
+        if (mounted) setRole(userRole);
+      }
+      if (mounted) setLoading(false);
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+
+    // Then listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
+        if (!mounted) return;
         setSession(newSession);
         if (newSession?.user) {
           const userRole = await fetchUserRole(newSession.user.id);
-          setRole(userRole);
+          if (mounted) setRole(userRole);
         } else {
           setRole(null);
         }
@@ -54,16 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      if (currentSession?.user) {
-        const userRole = await fetchUserRole(currentSession.user.id);
-        setRole(userRole);
-      }
-      setLoading(false);
-    });
+    // Safety timeout — never stay stuck loading
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 5000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
