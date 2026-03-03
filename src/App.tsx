@@ -8,6 +8,8 @@ import { PrivateRoute } from "@/components/PrivateRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import ResetPassword from "@/pages/ResetPassword";
 import Placeholder from "@/pages/Placeholder";
 import Presenca from "@/pages/Presenca";
 import Pessoas from "@/pages/Pessoas";
@@ -27,6 +29,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<PrivateRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
