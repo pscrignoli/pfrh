@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -26,87 +26,68 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+async function fetchUserRoles(userId: string): Promise<AppRole[]> {
+  try {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (error || !data) return [];
+    return data.map((d) => d.role);
+  } catch {
+    return [];
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialized = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    const loadRoles = async (userId: string): Promise<AppRole[]> => {
-      try {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId);
-        if (error || !data) return [];
-        return data.map((d) => d.role);
-      } catch {
-        return [];
-      }
-    };
-
-    const handleSession = async (s: Session | null) => {
+    const hydrateAuth = async (currentSession: Session | null) => {
       if (!mounted) return;
-      setSession(s);
-      if (s?.user) {
-        const userRoles = await loadRoles(s.user.id);
+
+      setSession(currentSession);
+
+      if (currentSession?.user) {
+        const userRoles = await fetchUserRoles(currentSession.user.id);
         if (mounted) setRoles(userRoles);
       } else {
         setRoles([]);
       }
+
       if (mounted) setLoading(false);
     };
 
-    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
 
-        // Skip INITIAL_SESSION — handled via getSession
-        if (event === "INITIAL_SESSION") return;
-
-        if (event === "SIGNED_OUT") {
-          setSession(null);
-          setRoles([]);
-          setLoading(false);
-          return;
-        }
-
         if (event === "TOKEN_REFRESHED" && !newSession) {
-          setSession(null);
-          setRoles([]);
-          setLoading(false);
           toast({
             title: "Sessão expirada",
             description: "Sua sessão expirou. Faça login novamente.",
             variant: "destructive",
           });
-          return;
         }
 
-        await handleSession(newSession);
+        await hydrateAuth(newSession);
       }
     );
 
-    // Get initial session (only once)
-    if (!initialized.current) {
-      initialized.current = true;
-      supabase.auth.getSession().then(({ data: { session: s } }) => {
-        handleSession(s);
-      }).catch(() => {
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: currentSession } }) => hydrateAuth(currentSession))
+      .catch(() => {
         if (mounted) setLoading(false);
       });
-    }
 
-    // Safety timeout: never stay loading forever
     const timeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn("[Auth] Safety timeout triggered — forcing loading=false");
-        setLoading(false);
-      }
+      if (mounted) setLoading(false);
     }, 5000);
 
     return () => {
@@ -117,12 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    await supabase.auth.signOut();
     setSession(null);
     setRoles([]);
-    await supabase.auth.signOut();
+    setLoading(false);
   };
 
-  const role: AppRole | null = roles.find(r => r !== "super_admin") ?? roles[0] ?? null;
+  const role: AppRole | null = roles.find((r) => r !== "super_admin") ?? roles[0] ?? null;
 
   return (
     <AuthContext.Provider

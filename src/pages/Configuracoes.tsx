@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -538,12 +538,6 @@ function DepartmentsTab() {
 
 // ── Main Page ──
 export default function Configuracoes() {
-  const { role, roles, loading, session } = useAuth();
-
-  if (loading) return <Skeleton className="h-96 w-full" />;
-  if (!session) return <Navigate to="/login" replace />;
-  if (role !== "admin_rh" && !roles.includes("super_admin")) return <Navigate to="/" replace />;
-
   return (
     <div className="space-y-6">
       <div>
