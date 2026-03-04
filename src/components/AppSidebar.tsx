@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Clock,
   Users,
+  UserSearch,
   DollarSign,
   Bot,
   Settings,
@@ -28,6 +29,7 @@ const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard },
   { title: "Presença e Jornada", url: "/presenca", icon: Clock },
   { title: "Colaboradores", url: "/colaboradores", icon: Users },
+  { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
   { title: "Financeiro e Controladoria", url: "/financeiro", icon: DollarSign },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
 ];

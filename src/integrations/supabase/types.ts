@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      candidates: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          stage: Database["public"]["Enums"]["candidate_stage"]
+          vacancy_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          stage?: Database["public"]["Enums"]["candidate_stage"]
+          vacancy_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          stage?: Database["public"]["Enums"]["candidate_stage"]
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string | null
@@ -543,6 +581,41 @@ export type Database = {
         }
         Relationships: []
       }
+      vacancies: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          id: string
+          status: Database["public"]["Enums"]["vacancy_status"]
+          title: string
+          work_model: Database["public"]["Enums"]["work_model"]
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["vacancy_status"]
+          title: string
+          work_model?: Database["public"]["Enums"]["work_model"]
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["vacancy_status"]
+          title?: string
+          work_model?: Database["public"]["Enums"]["work_model"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancies_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -563,10 +636,18 @@ export type Database = {
         | "gestor_financeiro"
         | "assistente_dp"
         | "super_admin"
+      candidate_stage:
+        | "novos"
+        | "triagem"
+        | "entrevista_rh"
+        | "entrevista_gestor"
+        | "aprovado"
       contract_type: "clt" | "pj" | "estagio" | "temporario" | "aprendiz"
       employee_status: "ativo" | "inativo" | "ferias" | "afastado" | "desligado"
       gender_type: "masculino" | "feminino" | "outro" | "nao_informado"
       integration_status: "pending" | "success" | "error"
+      vacancy_status: "aberta" | "pausada" | "fechada"
+      work_model: "presencial" | "hibrido" | "remoto"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -700,10 +781,19 @@ export const Constants = {
         "assistente_dp",
         "super_admin",
       ],
+      candidate_stage: [
+        "novos",
+        "triagem",
+        "entrevista_rh",
+        "entrevista_gestor",
+        "aprovado",
+      ],
       contract_type: ["clt", "pj", "estagio", "temporario", "aprendiz"],
       employee_status: ["ativo", "inativo", "ferias", "afastado", "desligado"],
       gender_type: ["masculino", "feminino", "outro", "nao_informado"],
       integration_status: ["pending", "success", "error"],
+      vacancy_status: ["aberta", "pausada", "fechada"],
+      work_model: ["presencial", "hibrido", "remoto"],
     },
   },
 } as const
