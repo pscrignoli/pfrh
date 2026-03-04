@@ -18,7 +18,7 @@ export async function exportCandidatesExcel({ vacancyId, vacancyTitle }: ExportO
   // 1. Fetch candidates
   let candidatesQuery = supabase
     .from("candidates")
-    .select("*, vacancies(title)")
+    .select("*, vacancies(title, opened_at)")
     .order("created_at", { ascending: true });
 
   if (vacancyId) {
@@ -77,6 +77,11 @@ export async function exportCandidatesExcel({ vacancyId, vacancyTitle }: ExportO
     if (isAllVacancies) {
       row["Vaga"] = (c as any).vacancies?.title || "";
     }
+
+    const openedAt = (c as any).vacancies?.opened_at;
+    row["Data de Abertura da Vaga"] = openedAt
+      ? new Date(openedAt + "T00:00:00").toLocaleDateString("pt-BR")
+      : "";
 
     row["Nome"] = c.name || "";
     row["E-mail"] = c.email || "";
