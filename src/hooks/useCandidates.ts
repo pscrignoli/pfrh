@@ -54,8 +54,10 @@ export function useCandidates(vacancyId: string) {
 
   const updateStage = async (candidateId: string, stage: CandidateStage) => {
     const { error } = await supabase.from("candidates").update({ stage } as any).eq("id", candidateId);
-    if (error) throw error;
-    // Realtime will handle refresh
+    if (error) {
+      console.error("Error updating candidate stage:", error);
+      throw new Error(error.message || "Falha ao mover candidato");
+    }
   };
 
   return { candidates, loading, createCandidate, updateStage, refetch: fetchCandidates };
