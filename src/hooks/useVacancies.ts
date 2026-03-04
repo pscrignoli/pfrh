@@ -100,5 +100,16 @@ export function useVacancies() {
     return data?.id as string;
   };
 
-  return { vacancies, loading, createVacancy, refetch: fetchVacancies };
+  const deleteVacancy = async (vacancyId: string) => {
+    const { error } = await supabase.rpc("delete_vacancy_cascade" as any, {
+      _vacancy_id: vacancyId,
+    });
+    if (error) {
+      console.error("Error deleting vacancy:", error);
+      throw new Error(error.message || "Erro ao excluir vaga.");
+    }
+    fetchVacancies().catch(() => {});
+  };
+
+  return { vacancies, loading, createVacancy, deleteVacancy, refetch: fetchVacancies };
 }
