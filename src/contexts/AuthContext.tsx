@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -26,46 +26,46 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-async function fetchUserRoles(userId: string): Promise<AppRole[]> {
-  try {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-
-    if (error || !data) return [];
-    return data.map((d) => d.role);
-  } catch {
-    return [];
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const roleRequestRef = useRef(0);
+
+  // Separate effect to load roles when user changes
+  const userId = session?.user?.id;
 
   useEffect(() => {
-    let mounted = true;
+    if (!userId) {
+      setRoles([]);
+      return;
+    }
 
-    const hydrateAuth = async (currentSession: Session | null) => {
-      if (!mounted) return;
+    const requestId = ++roleRequestRef.current;
 
-      setSession(currentSession);
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .then(({ data, error }) => {
+        if (!mountedRef.current) return;
+        if (roleRequestRef.current !== requestId) return; // stale
+        if (error || !data) {
+          setRoles([]);
+        } else {
+          setRoles(data.map((d) => d.role));
+        }
+      });
+  }, [userId]);
 
-      if (currentSession?.user) {
-        const userRoles = await fetchUserRoles(currentSession.user.id);
-        if (mounted) setRoles(userRoles);
-      } else {
-        setRoles([]);
-      }
+  useEffect(() => {
+    mountedRef.current = true;
 
-      if (mounted) setLoading(false);
-    };
-
+    // Synchronous callback — no await inside the listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mounted) return;
+      (event, newSession) => {
+        if (!mountedRef.current) return;
 
         if (event === "TOKEN_REFRESHED" && !newSession) {
           toast({
@@ -75,23 +75,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        await hydrateAuth(newSession);
+        setSession(newSession);
+        if (!newSession?.user) {
+          setRoles([]);
+        }
+        setLoading(false);
       }
     );
 
     supabase.auth
       .getSession()
-      .then(({ data: { session: currentSession } }) => hydrateAuth(currentSession))
+      .then(({ data: { session: currentSession } }) => {
+        if (!mountedRef.current) return;
+        setSession(currentSession);
+        setLoading(false);
+      })
       .catch(() => {
-        if (mounted) setLoading(false);
+        if (mountedRef.current) setLoading(false);
       });
 
     const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }, 5000);
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };

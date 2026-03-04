@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,6 +209,7 @@ export default function RecrutamentoKanban() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Novo Candidato</DialogTitle>
+            <DialogDescription>Preencha os dados do candidato.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
