@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { parseFolhaTxt, type ParsedPayroll, type FuncionarioParsed } from "@/utils/parseFolhaTxt";
 import { importFolhaTxt, type ImportResult } from "@/utils/importFolhaTxt";
+import { auditarFolha, totalAlerts, type AuditResult, type AuditAlert, type PreviousRecord } from "@/utils/auditarFolha";
 
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,7 +21,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2, UserPlus, RefreshCw, UserX, UserCheck, XCircle, Pencil,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2,
+  UserPlus, RefreshCw, UserX, UserCheck, XCircle, Pencil,
+  ShieldAlert, ShieldCheck, Info, Search, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -34,7 +41,7 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const STEP_LABELS = ["Upload", "Colaboradores", "Folha", "Importação"];
+const STEP_LABELS = ["Upload", "Colaboradores", "Folha", "Auditoria", "Importação"];
 
 type EmployeeStatus = "cadastrado" | "novo" | "atualizar" | "demitido";
 
@@ -50,16 +57,14 @@ interface EmployeePreviewRow {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtNum = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-/** Extract mes/ano from parsed periodo.fim (ISO "2026-02-28") */
 function extractPeriodo(parsed: ParsedPayroll): { mes: number; ano: number } | null {
-  const fim = parsed.periodo.fim; // "2026-02-28"
+  const fim = parsed.periodo.fim;
   if (!fim) return null;
   const m = fim.match(/^(\d{4})-(\d{2})/);
   if (!m) return null;
   return { ano: Number(m[1]), mes: Number(m[2]) };
 }
 
-/** Normalize CNPJ to digits only */
 function normalizeCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "");
 }
@@ -78,13 +83,12 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   const [existingCount, setExistingCount] = useState(0);
   const [checkingExisting, setCheckingExisting] = useState(false);
 
-  // Empresa validation
   const empresaMismatch = useMemo(() => {
     if (!parsedTxt || !companyId) return false;
     const fileCnpj = normalizeCnpj(parsedTxt.empresa.cnpj);
-    if (!fileCnpj) return false; // Can't validate without CNPJ
+    if (!fileCnpj) return false;
     const selectedCompany = companies.find(c => c.id === companyId);
-    if (!selectedCompany?.cnpj) return false; // Can't validate
+    if (!selectedCompany?.cnpj) return false;
     return normalizeCnpj(selectedCompany.cnpj) !== fileCnpj;
   }, [parsedTxt, companyId, companies]);
 
@@ -94,12 +98,20 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   const [createNew, setCreateNew] = useState(true);
   const [updateExisting, setUpdateExisting] = useState(true);
 
-  // Step 4: Result
+  // Step 4: Auditoria
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [auditSearch, setAuditSearch] = useState("");
+  const [showCriticos, setShowCriticos] = useState(true);
+  const [showAtencao, setShowAtencao] = useState(true);
+  const [showInformativos, setShowInformativos] = useState(true);
+
+  // Step 5: Result
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
 
-  // Effective mes/ano (detected or manually overridden)
   const mes = detectedMes;
   const ano = detectedAno;
 
@@ -116,13 +128,20 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       setEmployeeRows([]);
       setCreateNew(true);
       setUpdateExisting(true);
+      setAuditResult(null);
+      setAuditLoading(false);
+      setDismissedAlerts(new Set());
+      setAuditSearch("");
+      setShowCriticos(true);
+      setShowAtencao(true);
+      setShowInformativos(true);
       setImporting(false);
       setImportProgress(0);
       setTxtImportResult(null);
     }
   }, [open]);
 
-  // Check existing records when period is detected
+  // Check existing records
   useEffect(() => {
     if (!companyId || !mes || !ano) {
       setExistingCount(0);
@@ -158,23 +177,17 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
           return;
         }
         setParsedTxt(parsed);
-
-        // Auto-detect period
         const periodo = extractPeriodo(parsed);
         if (periodo) {
           setDetectedMes(periodo.mes);
           setDetectedAno(periodo.ano);
         } else {
-          // Fallback to current month
           const now = new Date();
           setDetectedMes(now.getMonth() + 1);
           setDetectedAno(now.getFullYear());
-          setManualOverride(true); // Force manual since detection failed
+          setManualOverride(true);
         }
-
-        toast({
-          title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)`,
-        });
+        toast({ title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)` });
       } catch (err) {
         console.error("TXT parse error:", err);
         toast({ title: "Erro ao ler arquivo TXT", description: String(err), variant: "destructive" });
@@ -196,7 +209,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     e.target.value = "";
   };
 
-  // ── Step 1 → 2: Load employees and build preview ──
+  // ── Step 1 → 2 ──
   const goToColaboradores = useCallback(async () => {
     if (!parsedTxt || !companyId || !mes || !ano) return;
     setLoadingEmployees(true);
@@ -220,20 +233,13 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       const isDemitido = /demitid/i.test(func.situacao);
 
       let status: EmployeeStatus;
-      if (isDemitido) {
-        status = "demitido";
-      } else if (!existing) {
-        status = "novo";
-      } else if (func.cargo && func.cargo !== existing.cargo) {
-        status = "atualizar";
-      } else {
-        status = "cadastrado";
-      }
+      if (isDemitido) status = "demitido";
+      else if (!existing) status = "novo";
+      else if (func.cargo && func.cargo !== existing.cargo) status = "atualizar";
+      else status = "cadastrado";
 
       return {
-        func,
-        numFunc,
-        status,
+        func, numFunc, status,
         existingId: existing?.id ?? null,
         existingCargo: existing?.cargo ?? null,
         existingSalario: null,
@@ -282,7 +288,96 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     return t;
   }, [folhaRows]);
 
-  // ── Step 4: Import ──
+  // ── Step 3 → 4: Run audit ──
+  const goToAuditoria = useCallback(async () => {
+    if (!parsedTxt || !companyId || !mes || !ano) return;
+    setAuditLoading(true);
+    setDismissedAlerts(new Set());
+
+    // Fetch previous month records for comparative analysis
+    let prevMes = mes - 1;
+    let prevAno = ano;
+    if (prevMes === 0) { prevMes = 12; prevAno--; }
+
+    let folhaAnterior: PreviousRecord[] = [];
+    const { data: prevData } = await supabase
+      .from("payroll_monthly_records")
+      .select("employee_id, salario_base, salario, fgts_8, he_total, total_folha")
+      .eq("company_id", companyId)
+      .eq("ano", prevAno)
+      .eq("mes", prevMes);
+
+    if (prevData && prevData.length > 0) {
+      // Get employee numero_funcional mapping
+      const empIds = prevData.map(r => r.employee_id);
+      const { data: emps } = await supabase
+        .from("employees")
+        .select("id, numero_funcional, nome_completo")
+        .in("id", empIds);
+
+      const empMap = new Map<string, { numero_funcional: string | null; nome: string }>();
+      (emps ?? []).forEach(e => empMap.set(e.id, { numero_funcional: e.numero_funcional, nome: e.nome_completo }));
+
+      folhaAnterior = prevData.map(r => {
+        const emp = empMap.get(r.employee_id);
+        return {
+          employee_id: r.employee_id,
+          numero_funcional: emp?.numero_funcional ?? null,
+          nome: emp?.nome ?? "",
+          salario_base: r.salario_base,
+          salario: r.salario,
+          fgts_8: r.fgts_8,
+          he_total: r.he_total,
+          total_folha: r.total_folha,
+        };
+      });
+    }
+
+    const result = auditarFolha(parsedTxt.funcionarios, mes, ano, folhaAnterior);
+    setAuditResult(result);
+    setAuditLoading(false);
+    setStep(4);
+  }, [parsedTxt, companyId, mes, ano]);
+
+  // Audit: dismiss/undismiss
+  const alertKey = (a: AuditAlert) => `${a.numero}-${a.regra}`;
+
+  const toggleDismiss = (a: AuditAlert) => {
+    setDismissedAlerts(prev => {
+      const next = new Set(prev);
+      const key = alertKey(a);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Audit: filtered alerts
+  const filteredAlerts = useMemo(() => {
+    if (!auditResult) return [];
+    const all: AuditAlert[] = [];
+    if (showCriticos) all.push(...auditResult.criticos);
+    if (showAtencao) all.push(...auditResult.atencao);
+    if (showInformativos) all.push(...auditResult.informativos);
+
+    if (!auditSearch.trim()) return all;
+    const q = auditSearch.toLowerCase();
+    return all.filter(a =>
+      a.funcionario.toLowerCase().includes(q) ||
+      a.descricao.toLowerCase().includes(q) ||
+      String(a.numero).includes(q)
+    );
+  }, [auditResult, showCriticos, showAtencao, showInformativos, auditSearch]);
+
+  // Audit: can proceed?
+  const unreviewedCriticos = useMemo(() => {
+    if (!auditResult) return 0;
+    return auditResult.criticos.filter(a => !dismissedAlerts.has(alertKey(a))).length;
+  }, [auditResult, dismissedAlerts]);
+
+  const canProceedAudit = unreviewedCriticos === 0;
+
+  // ── Step 5: Import ──
   const runImport = useCallback(async () => {
     if (!companyId || !parsedTxt || !mes || !ano) return;
     setImporting(true);
@@ -292,7 +387,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     setImportProgress(100);
     setTxtImportResult(res);
     setImporting(false);
-    setStep(4);
+    setStep(5);
     if (res.payroll_records > 0) onImported(ano, mes);
   }, [companyId, parsedTxt, ano, mes, onImported]);
 
@@ -308,6 +403,27 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
 
   const canProceed = parsedTxt && mes > 0 && ano > 0 && !empresaMismatch;
 
+  // ── Alert severity helpers ──
+  const severityConfig = {
+    critico: { icon: ShieldAlert, bgClass: "bg-destructive/10 border-destructive/30", textClass: "text-destructive", label: "Crítico" },
+    atencao: { icon: AlertTriangle, bgClass: "bg-yellow-500/10 border-yellow-500/30", textClass: "text-yellow-600", label: "Atenção" },
+    informativo: { icon: Info, bgClass: "bg-blue-500/10 border-blue-500/30", textClass: "text-blue-600", label: "Info" },
+  } as const;
+
+  const renderAlertValues = (valores: Record<string, unknown>) => {
+    const entries = Object.entries(valores);
+    if (entries.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+        {entries.map(([k, v]) => (
+          <span key={k} className="text-[10px] text-muted-foreground">
+            {k.replace(/_/g, " ")}: <strong>{typeof v === "number" ? fmtNum(v) : String(v ?? "—")}</strong>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" side="right">
@@ -319,18 +435,18 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
         </SheetHeader>
 
         {/* Steps indicator */}
-        <div className="flex items-center gap-1 mb-6 text-xs">
+        <div className="flex items-center gap-1 mb-6 text-xs flex-wrap">
           {STEP_LABELS.map((label, i) => (
             <div key={i} className="flex items-center gap-1">
-              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
                 step > i + 1 ? "bg-primary text-primary-foreground" :
                 step === i + 1 ? "bg-primary text-primary-foreground" :
                 "bg-muted text-muted-foreground"
               }`}>
                 {step > i + 1 ? "✓" : i + 1}
               </div>
-              <span className={step === i + 1 ? "font-medium" : "text-muted-foreground"}>{label}</span>
-              {i < STEP_LABELS.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+              <span className={`${step === i + 1 ? "font-medium" : "text-muted-foreground"} whitespace-nowrap`}>{label}</span>
+              {i < STEP_LABELS.length - 1 && <span className="text-muted-foreground mx-0.5">→</span>}
             </div>
           ))}
         </div>
@@ -351,15 +467,9 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                 Arraste ou clique para selecionar
               </span>
               <span className="text-xs text-muted-foreground">.txt (Relação de Cálculo Geral)</span>
-              <input
-                type="file"
-                className="hidden"
-                accept=".txt"
-                onChange={handleFileInput}
-              />
+              <input type="file" className="hidden" accept=".txt" onChange={handleFileInput} />
             </label>
 
-            {/* Auto-detected info card */}
             {parsedTxt && (
               <div className="rounded-lg border p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -391,9 +501,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                     ) : (
                       <div className="flex gap-1.5 mt-0.5">
                         <Select value={String(mes)} onValueChange={(v) => setDetectedMes(Number(v))}>
-                          <SelectTrigger className="h-7 text-xs w-[100px]">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-7 text-xs w-[100px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {monthNames.map((m, i) => (
                               <SelectItem key={i} value={String(i + 1)} className="text-xs">{m}</SelectItem>
@@ -401,9 +509,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                           </SelectContent>
                         </Select>
                         <Select value={String(ano)} onValueChange={(v) => setDetectedAno(Number(v))}>
-                          <SelectTrigger className="h-7 text-xs w-[80px]">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-7 text-xs w-[80px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {[2024, 2025, 2026, 2027].map(y => (
                               <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
@@ -427,21 +533,19 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                   </div>
                 </div>
 
-                {/* Enterprise mismatch alert */}
                 {empresaMismatch && (
-                  <div className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm">
-                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                    <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-medium text-red-700">Empresa divergente</p>
+                      <p className="font-medium text-destructive">Empresa divergente</p>
                       <p className="text-muted-foreground text-xs">
                         A empresa do arquivo ({parsedTxt.empresa.nome}) não corresponde
-                        à empresa selecionada ({companyName}). Verifique antes de continuar.
+                        à empresa selecionada ({companyName}).
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* Existing records warning */}
                 {existingCount > 0 && !checkingExisting && (
                   <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm">
                     <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
@@ -551,7 +655,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
               )}
             </div>
 
-            <ScrollArea className="h-[340px]">
+            <ScrollArea className="h-[300px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -570,7 +674,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                       <TableCell className="text-xs font-medium max-w-[140px] truncate">{r.nome}</TableCell>
                       <TableCell className="text-xs text-right">{fmtNum(r.salarioBase)}</TableCell>
                       <TableCell className="text-xs text-right">{fmtNum(r.proventos)}</TableCell>
-                      <TableCell className="text-xs text-right text-red-600">{fmtNum(r.descontos)}</TableCell>
+                      <TableCell className="text-xs text-right text-destructive">{fmtNum(r.descontos)}</TableCell>
                       <TableCell className="text-xs text-right font-medium">{fmtNum(r.liquido)}</TableCell>
                       <TableCell className="text-xs text-right">{fmtNum(r.fgts)}</TableCell>
                       <TableCell className="text-xs text-right">{r.he > 0 ? fmtNum(r.he) : "—"}</TableCell>
@@ -582,7 +686,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                     <TableCell className="text-xs">TOTAL</TableCell>
                     <TableCell className="text-xs text-right">—</TableCell>
                     <TableCell className="text-xs text-right">{fmtNum(folhaTotals.proventos)}</TableCell>
-                    <TableCell className="text-xs text-right text-red-600">{fmtNum(folhaTotals.descontos)}</TableCell>
+                    <TableCell className="text-xs text-right text-destructive">{fmtNum(folhaTotals.descontos)}</TableCell>
                     <TableCell className="text-xs text-right">{fmtNum(folhaTotals.liquido)}</TableCell>
                     <TableCell className="text-xs text-right">{fmtNum(folhaTotals.fgts)}</TableCell>
                     <TableCell className="text-xs text-right">{fmtNum(folhaTotals.he)}</TableCell>
@@ -597,19 +701,19 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <span className="text-muted-foreground">Proventos TXT</span>
-                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.proventos - folhaTotals.proventos) > 1 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.proventos - folhaTotals.proventos) > 1 ? "text-destructive" : "text-green-600"}`}>
                       {fmt(parsedTxt.totais_gerais.proventos)}
                     </p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Descontos TXT</span>
-                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.descontos - folhaTotals.descontos) > 1 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.descontos - folhaTotals.descontos) > 1 ? "text-destructive" : "text-green-600"}`}>
                       {fmt(parsedTxt.totais_gerais.descontos)}
                     </p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Líquido TXT</span>
-                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.liquido - folhaTotals.liquido) > 1 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.liquido - folhaTotals.liquido) > 1 ? "text-destructive" : "text-green-600"}`}>
                       {fmt(parsedTxt.totais_gerais.liquido)}
                     </p>
                   </div>
@@ -619,18 +723,180 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={runImport} disabled={importing}>
-                {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Importar {parsedTxt?.funcionarios.length} registros
+              <Button onClick={goToAuditoria} disabled={auditLoading}>
+                {auditLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
+                Continuar → Auditoria
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Auditoria ── */}
+        {step === 4 && auditResult && (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-2">
+              {auditResult.criticos.length > 0 ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-center">
+                  <div className="text-xl font-bold text-destructive">{auditResult.criticos.length}</div>
+                  <div className="text-[10px] text-destructive font-medium">Críticos</div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-2.5 text-center">
+                  <ShieldCheck className="h-5 w-5 text-green-600 mx-auto" />
+                  <div className="text-[10px] text-green-600 font-medium mt-0.5">Sem críticos</div>
+                </div>
+              )}
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-center">
+                <div className="text-xl font-bold text-yellow-600">{auditResult.atencao.length}</div>
+                <div className="text-[10px] text-yellow-600 font-medium">Atenção</div>
+              </div>
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-2.5 text-center">
+                <div className="text-xl font-bold text-blue-600">{auditResult.informativos.length}</div>
+                <div className="text-[10px] text-blue-600 font-medium">Informativos</div>
+              </div>
+            </div>
+
+            {/* Zero alerts */}
+            {totalAlerts(auditResult) === 0 && (
+              <div className="text-center py-6 space-y-2">
+                <ShieldCheck className="h-12 w-12 text-green-500 mx-auto" />
+                <p className="text-sm font-medium text-green-700">Nenhuma anomalia detectada!</p>
+                <p className="text-xs text-muted-foreground">Todos os dados estão dentro dos parâmetros esperados.</p>
+              </div>
+            )}
+
+            {/* Filters */}
+            {totalAlerts(auditResult) > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou número..."
+                      value={auditSearch}
+                      onChange={(e) => setAuditSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs"
+                    />
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant={showCriticos ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-2 text-[10px]"
+                      onClick={() => setShowCriticos(!showCriticos)}
+                    >
+                      {showCriticos ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+                      Críticos
+                    </Button>
+                    <Button
+                      variant={showAtencao ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-2 text-[10px]"
+                      onClick={() => setShowAtencao(!showAtencao)}
+                    >
+                      {showAtencao ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+                      Atenção
+                    </Button>
+                    <Button
+                      variant={showInformativos ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-2 text-[10px]"
+                      onClick={() => setShowInformativos(!showInformativos)}
+                    >
+                      {showInformativos ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+                      Info
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Alert list */}
+                <ScrollArea className="h-[280px]">
+                  <div className="space-y-2">
+                    {filteredAlerts.map((alert, i) => {
+                      const config = severityConfig[alert.severity];
+                      const Icon = config.icon;
+                      const isDismissed = dismissedAlerts.has(alertKey(alert));
+
+                      return (
+                        <div
+                          key={`${alertKey(alert)}-${i}`}
+                          className={`rounded-lg border p-3 transition-all ${
+                            isDismissed ? "opacity-50 bg-muted/30 border-muted" : config.bgClass
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isDismissed ? "text-muted-foreground" : config.textClass}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium truncate">
+                                  {alert.funcionario}
+                                </span>
+                                <Badge variant="outline" className="text-[9px] shrink-0">
+                                  Func {alert.numero}
+                                </Badge>
+                              </div>
+                              <p className={`text-xs mt-0.5 ${isDismissed ? "text-muted-foreground" : ""}`}>
+                                {alert.descricao}
+                              </p>
+                              {renderAlertValues(alert.valores)}
+                            </div>
+                            <label className="flex items-center gap-1 shrink-0 cursor-pointer">
+                              <Checkbox
+                                checked={isDismissed}
+                                onCheckedChange={() => toggleDismiss(alert)}
+                                className="h-3.5 w-3.5"
+                              />
+                              <span className="text-[10px] text-muted-foreground">
+                                {isDismissed ? "Revisado" : "Ignorar"}
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {filteredAlerts.length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-8">
+                        Nenhum alerta encontrado com os filtros atuais.
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+
+            {/* Footer buttons */}
+            <div className="flex justify-between items-center">
+              <Button variant="outline" onClick={() => setStep(3)}>Voltar</Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        onClick={runImport}
+                        disabled={!canProceedAudit || importing}
+                      >
+                        {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                        Importar {parsedTxt?.funcionarios.length} registros
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!canProceedAudit && (
+                    <TooltipContent>
+                      <p className="text-xs">Revise todos os {unreviewedCriticos} alertas críticos antes de continuar</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             {importing && <Progress value={importProgress} className="h-2" />}
           </div>
         )}
 
-        {/* ── Step 4: Resultado ── */}
-        {step === 4 && txtImportResult && (
+        {/* ── Step 5: Resultado ── */}
+        {step === 5 && txtImportResult && (
           <div className="space-y-6 text-center py-8">
             {txtImportResult.errors.length === 0 ? (
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
@@ -660,9 +926,27 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
               </div>
             </div>
 
+            {/* Audit summary in result */}
+            {auditResult && totalAlerts(auditResult) > 0 && (
+              <div className="rounded-lg border p-3 max-w-sm mx-auto text-xs text-left space-y-1">
+                <p className="font-medium text-muted-foreground">Auditoria pré-importação:</p>
+                <div className="flex gap-3">
+                  {auditResult.criticos.length > 0 && (
+                    <span className="text-destructive">{auditResult.criticos.length} crítico(s) revisado(s)</span>
+                  )}
+                  {auditResult.atencao.length > 0 && (
+                    <span className="text-yellow-600">{auditResult.atencao.length} atenção</span>
+                  )}
+                  {auditResult.informativos.length > 0 && (
+                    <span className="text-blue-600">{auditResult.informativos.length} info</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {txtImportResult.errors.length > 0 && (
               <details className="text-left text-xs max-w-sm mx-auto">
-                <summary className="cursor-pointer text-red-600 font-medium">
+                <summary className="cursor-pointer text-destructive font-medium">
                   {txtImportResult.errors.length} erro(s)
                 </summary>
                 <ul className="mt-1 space-y-0.5 text-muted-foreground">
