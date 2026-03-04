@@ -17,6 +17,8 @@ import Financeiro from "@/pages/Financeiro";
 import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
+import Recrutamento from "@/pages/Recrutamento";
+import RecrutamentoKanban from "@/pages/RecrutamentoKanban";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,8 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/presenca" element={<Presenca />} />
                 <Route path="/colaboradores" element={<Pessoas />} />
+                <Route path="/recrutamento" element={<Recrutamento />} />
+                <Route path="/recrutamento/vagas/:id" element={<RecrutamentoKanban />} />
                 <Route path="/financeiro" element={<Financeiro />} />
                 <Route path="/assistente" element={<Assistente />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
