@@ -4,6 +4,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { parseFolhaTxt, type ParsedPayroll, type FuncionarioParsed } from "@/utils/parseFolhaTxt";
 import { importFolhaTxt, type ImportResult } from "@/utils/importFolhaTxt";
 import { auditarFolha, totalAlerts, type AuditResult, type AuditAlert, type PreviousRecord } from "@/utils/auditarFolha";
+import { AuditAlertCard, type CorrectionApply, type CorrectionLog } from "./AuditAlertCard";
 
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -102,6 +103,8 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [correctedAlerts, setCorrectedAlerts] = useState<Map<string, CorrectionApply>>(new Map());
+  const [correctionLogs, setCorrectionLogs] = useState<CorrectionLog[]>([]);
   const [auditSearch, setAuditSearch] = useState("");
   const [showCriticos, setShowCriticos] = useState(true);
   const [showAtencao, setShowAtencao] = useState(true);
@@ -131,6 +134,8 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       setAuditResult(null);
       setAuditLoading(false);
       setDismissedAlerts(new Set());
+      setCorrectedAlerts(new Map());
+      setCorrectionLogs([]);
       setAuditSearch("");
       setShowCriticos(true);
       setShowAtencao(true);
@@ -293,8 +298,8 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     if (!parsedTxt || !companyId || !mes || !ano) return;
     setAuditLoading(true);
     setDismissedAlerts(new Set());
-
-    // Fetch previous month records for comparative analysis
+    setCorrectedAlerts(new Map());
+    setCorrectionLogs([]);
     let prevMes = mes - 1;
     let prevAno = ano;
     if (prevMes === 0) { prevMes = 12; prevAno--; }
@@ -352,6 +357,97 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     });
   };
 
+  // Audit: apply correction
+  const handleCorrection = useCallback((alert: AuditAlert, apply: CorrectionApply) => {
+    const key = alertKey(alert);
+    setCorrectedAlerts(prev => new Map(prev).set(key, apply));
+
+    // Build correction logs
+    const logs: CorrectionLog[] = Object.entries(apply.corrections).map(([campo, valor]) => ({
+      funcionario: alert.funcionario,
+      numero: alert.numero,
+      regra: alert.regra,
+      campo,
+      valor_original: alert.valores[campo] ?? null,
+      valor_corrigido: valor,
+      justificativa: apply.justificativa,
+    }));
+
+    // If no field corrections, still log the justificativa
+    if (logs.length === 0) {
+      logs.push({
+        funcionario: alert.funcionario,
+        numero: alert.numero,
+        regra: alert.regra,
+        campo: "justificativa",
+        valor_original: null,
+        valor_corrigido: null,
+        justificativa: apply.justificativa,
+      });
+    }
+
+    setCorrectionLogs(prev => [...prev.filter(l => !(l.numero === alert.numero && l.regra === alert.regra)), ...logs]);
+
+    // Remove from dismissed if it was there
+    setDismissedAlerts(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  // Apply corrections to parsedTxt in memory before importing
+  const applyCorrections = useCallback((): ParsedPayroll | null => {
+    if (!parsedTxt) return null;
+    if (correctedAlerts.size === 0) return parsedTxt;
+
+    // Deep clone funcionarios
+    const corrected: ParsedPayroll = {
+      ...parsedTxt,
+      funcionarios: parsedTxt.funcionarios.map(f => ({
+        ...f,
+        totais: { ...f.totais },
+        bases: {
+          ...f.bases,
+          fgts_gfip: { ...f.bases.fgts_gfip },
+          fgts_grrf: { ...f.bases.fgts_grrf },
+        },
+        rubricas: [...f.rubricas],
+      })),
+    };
+
+    for (const [, apply] of correctedAlerts) {
+      const func = corrected.funcionarios.find(f => f.numero === apply.numero);
+      if (!func) continue;
+
+      if (apply.corrections.situacao) {
+        func.situacao = String(apply.corrections.situacao);
+      }
+      if (typeof apply.corrections.proventos === "number") {
+        func.totais.proventos = apply.corrections.proventos;
+        func.totais.liquido = func.totais.proventos - func.totais.descontos;
+      }
+      if (typeof apply.corrections.fgts === "number") {
+        // Put correction in gfip value (main slot)
+        func.bases.fgts_gfip.valor = apply.corrections.fgts;
+        func.bases.fgts_grrf.valor = 0;
+      }
+      if (typeof apply.corrections.he === "number") {
+        // Adjust HE rubricas proportionally
+        const heCodes = [35, 36, 37, 38];
+        const currentHe = func.rubricas.filter(r => heCodes.includes(r.codigo)).reduce((s, r) => s + r.valor, 0);
+        if (currentHe > 0) {
+          const ratio = (apply.corrections.he as number) / currentHe;
+          func.rubricas.forEach(r => {
+            if (heCodes.includes(r.codigo)) r.valor *= ratio;
+          });
+        }
+      }
+    }
+
+    return corrected;
+  }, [parsedTxt, correctedAlerts]);
+
   // Audit: filtered alerts
   const filteredAlerts = useMemo(() => {
     if (!auditResult) return [];
@@ -372,10 +468,16 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   // Audit: can proceed?
   const unreviewedCriticos = useMemo(() => {
     if (!auditResult) return 0;
-    return auditResult.criticos.filter(a => !dismissedAlerts.has(alertKey(a))).length;
-  }, [auditResult, dismissedAlerts]);
+    return auditResult.criticos.filter(a => {
+      const key = alertKey(a);
+      return !dismissedAlerts.has(key) && !correctedAlerts.has(key);
+    }).length;
+  }, [auditResult, dismissedAlerts, correctedAlerts]);
 
   const canProceedAudit = unreviewedCriticos === 0;
+
+  const correctionCount = correctedAlerts.size;
+  const reviewedCount = dismissedAlerts.size + correctedAlerts.size;
 
   // ── Step 5: Import ──
   const runImport = useCallback(async () => {
@@ -383,13 +485,15 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     setImporting(true);
     setImportProgress(10);
 
-    const res = await importFolhaTxt(parsedTxt, companyId, ano, mes);
+    // Apply corrections before importing
+    const dataToImport = applyCorrections() ?? parsedTxt;
+    const res = await importFolhaTxt(dataToImport, companyId, ano, mes);
     setImportProgress(100);
     setTxtImportResult(res);
     setImporting(false);
     setStep(5);
     if (res.payroll_records > 0) onImported(ano, mes);
-  }, [companyId, parsedTxt, ano, mes, onImported]);
+  }, [companyId, parsedTxt, ano, mes, onImported, applyCorrections]);
 
   // ── Status badge ──
   const statusBadge = (s: EmployeeStatus) => {
@@ -403,26 +507,8 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
 
   const canProceed = parsedTxt && mes > 0 && ano > 0 && !empresaMismatch;
 
-  // ── Alert severity helpers ──
-  const severityConfig = {
-    critico: { icon: ShieldAlert, bgClass: "bg-destructive/10 border-destructive/30", textClass: "text-destructive", label: "Crítico" },
-    atencao: { icon: AlertTriangle, bgClass: "bg-yellow-500/10 border-yellow-500/30", textClass: "text-yellow-600", label: "Atenção" },
-    informativo: { icon: Info, bgClass: "bg-blue-500/10 border-blue-500/30", textClass: "text-blue-600", label: "Info" },
-  } as const;
+  // severityConfig and renderAlertValues moved to AuditAlertCard component
 
-  const renderAlertValues = (valores: Record<string, unknown>) => {
-    const entries = Object.entries(valores);
-    if (entries.length === 0) return null;
-    return (
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-        {entries.map(([k, v]) => (
-          <span key={k} className="text-[10px] text-muted-foreground">
-            {k.replace(/_/g, " ")}: <strong>{typeof v === "number" ? fmtNum(v) : String(v ?? "—")}</strong>
-          </span>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -814,45 +900,16 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                 <ScrollArea className="h-[280px]">
                   <div className="space-y-2">
                     {filteredAlerts.map((alert, i) => {
-                      const config = severityConfig[alert.severity];
-                      const Icon = config.icon;
-                      const isDismissed = dismissedAlerts.has(alertKey(alert));
-
+                      const key = alertKey(alert);
                       return (
-                        <div
-                          key={`${alertKey(alert)}-${i}`}
-                          className={`rounded-lg border p-3 transition-all ${
-                            isDismissed ? "opacity-50 bg-muted/30 border-muted" : config.bgClass
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isDismissed ? "text-muted-foreground" : config.textClass}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium truncate">
-                                  {alert.funcionario}
-                                </span>
-                                <Badge variant="outline" className="text-[9px] shrink-0">
-                                  Func {alert.numero}
-                                </Badge>
-                              </div>
-                              <p className={`text-xs mt-0.5 ${isDismissed ? "text-muted-foreground" : ""}`}>
-                                {alert.descricao}
-                              </p>
-                              {renderAlertValues(alert.valores)}
-                            </div>
-                            <label className="flex items-center gap-1 shrink-0 cursor-pointer">
-                              <Checkbox
-                                checked={isDismissed}
-                                onCheckedChange={() => toggleDismiss(alert)}
-                                className="h-3.5 w-3.5"
-                              />
-                              <span className="text-[10px] text-muted-foreground">
-                                {isDismissed ? "Revisado" : "Ignorar"}
-                              </span>
-                            </label>
-                          </div>
-                        </div>
+                        <AuditAlertCard
+                          key={`${key}-${i}`}
+                          alert={alert}
+                          isDismissed={dismissedAlerts.has(key)}
+                          isCorrected={correctedAlerts.has(key)}
+                          onDismiss={() => toggleDismiss(alert)}
+                          onCorrect={(apply) => handleCorrection(alert, apply)}
+                        />
                       );
                     })}
 
@@ -866,7 +923,15 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
               </>
             )}
 
-            {/* Footer buttons */}
+            {/* Footer */}
+            {reviewedCount > 0 && (
+              <p className="text-[10px] text-muted-foreground text-center">
+                {correctionCount > 0 && <span className="text-green-600 font-medium">{correctionCount} correção(ões) aplicada(s)</span>}
+                {correctionCount > 0 && dismissedAlerts.size > 0 && " · "}
+                {dismissedAlerts.size > 0 && <span>{dismissedAlerts.size} alerta(s) revisado(s)</span>}
+              </p>
+            )}
+
             <div className="flex justify-between items-center">
               <Button variant="outline" onClick={() => setStep(3)}>Voltar</Button>
               <TooltipProvider>
@@ -930,7 +995,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
             {auditResult && totalAlerts(auditResult) > 0 && (
               <div className="rounded-lg border p-3 max-w-sm mx-auto text-xs text-left space-y-1">
                 <p className="font-medium text-muted-foreground">Auditoria pré-importação:</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   {auditResult.criticos.length > 0 && (
                     <span className="text-destructive">{auditResult.criticos.length} crítico(s) revisado(s)</span>
                   )}
@@ -941,6 +1006,9 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                     <span className="text-blue-600">{auditResult.informativos.length} info</span>
                   )}
                 </div>
+                {correctionCount > 0 && (
+                  <p className="text-green-600 font-medium mt-1">{correctionCount} correção(ões) aplicada(s) nos dados</p>
+                )}
               </div>
             )}
 
