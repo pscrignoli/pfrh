@@ -53,7 +53,10 @@ export function useCandidates(vacancyId: string) {
   };
 
   const updateStage = async (candidateId: string, stage: CandidateStage) => {
-    const { error } = await supabase.from("candidates").update({ stage } as any).eq("id", candidateId);
+    const { error } = await supabase.rpc("update_candidate_stage", {
+      _candidate_id: candidateId,
+      _stage: stage,
+    });
     if (error) {
       console.error("Error updating candidate stage:", error);
       throw new Error(error.message || "Falha ao mover candidato");

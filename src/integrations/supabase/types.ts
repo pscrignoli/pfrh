@@ -629,6 +629,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_candidate_stage: {
+        Args: {
+          _candidate_id: string
+          _stage: Database["public"]["Enums"]["candidate_stage"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
