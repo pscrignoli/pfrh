@@ -23,11 +23,12 @@ import { Settings, Shield, Plug, BookOpen, Upload, Trash2, Save, Loader2, Buildi
 import { useDepartments } from "@/hooks/useDepartments";
 
 // ── Types ──
-interface UserWithRole {
-  userId: string;
+interface AuthUser {
+  id: string;
   email: string;
-  role: string | null;
-  roleId: string | null;
+  name: string;
+  created_at: string;
+  roles: { id: string; role: string }[];
 }
 
 interface DocEmbedding {
@@ -39,30 +40,40 @@ interface DocEmbedding {
 
 // ── Access Tab ──
 function AccessTab() {
-  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [users, setUsers] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const { data: roles } = await supabase.from("user_roles").select("*");
-    const userList: UserWithRole[] = (roles ?? []).map((r) => ({
-      userId: r.user_id,
-      email: r.user_id,
-      role: r.role,
-      roleId: r.id,
-    }));
-    setUsers(userList);
-    setLoading(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-users`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!res.ok) throw new Error("Erro ao buscar usuários");
+      const data: AuthUser[] = await res.json();
+      setUsers(data);
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const changeRole = async (userId: string, roleId: string | null, newRole: string) => {
+  const changeRole = async (userId: string, existingRoleId: string | null, newRole: string) => {
     setSaving(userId);
     try {
-      if (roleId) {
-        await supabase.from("user_roles").update({ role: newRole as any }).eq("id", roleId);
+      if (existingRoleId) {
+        await supabase.from("user_roles").update({ role: newRole as any }).eq("id", existingRoleId);
       } else {
         await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
       }
@@ -90,39 +101,52 @@ function AccessTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID do Usuário</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>E-mail</TableHead>
               <TableHead>Papel Atual</TableHead>
               <TableHead>Alterar Papel</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.userId + u.roleId}>
-                <TableCell className="font-mono text-xs">{u.userId.slice(0, 8)}...</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{u.role ?? "Sem papel"}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={u.role ?? ""}
-                    onValueChange={(v) => changeRole(u.userId, u.roleId, v)}
-                    disabled={saving === u.userId}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Selecionar papel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Constants.public.Enums.app_role.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-              </TableRow>
-            ))}
+            {users.map((u) => {
+              const primaryRole = u.roles[0] ?? null;
+              return (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">{u.name || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.email}</TableCell>
+                  <TableCell>
+                    {u.roles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {u.roles.map((r) => (
+                          <Badge key={r.id} variant="outline">{r.role}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <Badge variant="secondary">Sem papel</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={primaryRole?.role ?? ""}
+                      onValueChange={(v) => changeRole(u.id, primaryRole?.id ?? null, v)}
+                      disabled={saving === u.id}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Selecionar papel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Constants.public.Enums.app_role.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
