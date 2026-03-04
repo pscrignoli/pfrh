@@ -51,8 +51,26 @@ export function useVacancies() {
   }, [fetchVacancies]);
 
   const createVacancy = async (vacancy: { title: string; department_id: string | null; work_model: string; status?: string }) => {
-    const { error } = await supabase.from("vacancies").insert(vacancy as any);
-    if (error) throw error;
+    const payload: Record<string, unknown> = {
+      title: vacancy.title,
+      work_model: (vacancy.work_model || "presencial") as "presencial" | "hibrido" | "remoto",
+    };
+
+    if (vacancy.department_id) {
+      payload.department_id = vacancy.department_id;
+    }
+
+    if (vacancy.status) {
+      payload.status = vacancy.status;
+    }
+
+    const { error } = await supabase.from("vacancies").insert([payload] as any).select("id").single();
+
+    if (error) {
+      console.error("Error creating vacancy:", error);
+      throw new Error(error.message || "Falha ao criar vaga");
+    }
+
     await fetchVacancies();
   };
 
