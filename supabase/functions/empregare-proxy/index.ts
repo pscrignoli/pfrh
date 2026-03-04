@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check
+    // Auth check — verify Supabase user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -38,89 +38,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { action, method, endpoint, payload, credentials } = body;
-
-    // Action: authenticate – get token from Empregare
-    if (action === "authenticate") {
-      const { username, password } = credentials || {};
-      if (!username || !password) {
-        return new Response(
-          JSON.stringify({ error: "Credenciais são obrigatórias" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const authRes = await fetch(`${EMPREGARE_BASE_URL}/api/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const authData = await authRes.text();
-      let parsed;
-      try {
-        parsed = JSON.parse(authData);
-      } catch {
-        parsed = { raw: authData };
-      }
-
+    // Read Empregare token from secure env
+    const empregareToken = Deno.env.get("EMPREGARE_API_TOKEN");
+    if (!empregareToken) {
       return new Response(
-        JSON.stringify({ status: authRes.status, data: parsed }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "EMPREGARE_API_TOKEN não configurado no servidor." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Action: proxy – forward request to Empregare API
-    if (action === "proxy") {
-      const { empregareToken } = body;
-      if (!empregareToken) {
-        return new Response(
-          JSON.stringify({ error: "Token Empregare não fornecido" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const body = await req.json();
+    const { method, endpoint, payload } = body;
 
-      const httpMethod = (method || "GET").toUpperCase();
-      const targetUrl = `${EMPREGARE_BASE_URL}${endpoint}`;
-
-      const fetchOptions: RequestInit = {
-        method: httpMethod,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${empregareToken}`,
-        },
-      };
-
-      if (httpMethod !== "GET" && payload) {
-        fetchOptions.body = typeof payload === "string" ? payload : JSON.stringify(payload);
-      }
-
-      const apiRes = await fetch(targetUrl, fetchOptions);
-      const apiText = await apiRes.text();
-
-      let apiData;
-      try {
-        apiData = JSON.parse(apiText);
-      } catch {
-        apiData = { raw: apiText };
-      }
-
+    if (!endpoint) {
       return new Response(
-        JSON.stringify({ status: apiRes.status, data: apiData }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "Endpoint é obrigatório." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    const httpMethod = (method || "GET").toUpperCase();
+    const targetUrl = `${EMPREGARE_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+
+    const fetchOptions: RequestInit = {
+      method: httpMethod,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${empregareToken}`,
+      },
+    };
+
+    if (httpMethod !== "GET" && payload) {
+      fetchOptions.body = typeof payload === "string" ? payload : JSON.stringify(payload);
+    }
+
+    const apiRes = await fetch(targetUrl, fetchOptions);
+    const apiText = await apiRes.text();
+
+    let apiData;
+    try {
+      apiData = JSON.parse(apiText);
+    } catch {
+      apiData = { raw: apiText };
     }
 
     return new Response(
-      JSON.stringify({ error: "Ação inválida. Use 'authenticate' ou 'proxy'." }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ status: apiRes.status, data: apiData }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     return new Response(
