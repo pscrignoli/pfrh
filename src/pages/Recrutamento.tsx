@@ -46,7 +46,8 @@ export default function Recrutamento() {
       setForm({ title: "", department_id: "", work_model: "presencial" });
       setDialogOpen(false);
     } catch (e: any) {
-      toast.error(e.message || "Erro ao criar vaga.");
+      console.error("Create vacancy failed:", e);
+      toast.error(e?.message || "Erro ao criar vaga.");
     } finally {
       setSaving(false);
     }
