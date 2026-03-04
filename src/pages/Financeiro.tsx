@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useFinanceiroData, type PayrollRecord } from "@/hooks/useFinanceiroData";
 import { PayrollDetailSheet } from "@/components/financeiro/PayrollDetailSheet";
+import { PayrollImportSheet } from "@/components/financeiro/PayrollImportSheet";
 import { IntegrationLogsPanel } from "@/components/financeiro/IntegrationLogsPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const monthNames = [
@@ -37,8 +38,9 @@ export default function Financeiro() {
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
   const [selectedRecord, setSelectedRecord] = useState<PayrollRecord | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
-  const { records, logs, loading, transmitting, allSent, transmit } = useFinanceiroData(ano, mes);
+  const { records, logs, loading, transmitting, allSent, transmit, refetch } = useFinanceiroData(ano, mes);
 
   const handleTransmit = async () => {
     try {
@@ -93,6 +95,10 @@ export default function Financeiro() {
               </SelectContent>
             </Select>
           </div>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Folha
+          </Button>
           <Button onClick={handleTransmit} disabled={allSent || records.length === 0 || transmitting}>
             {transmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             {allSent ? "Já Transmitido" : "Transmitir para Controladoria"}
@@ -165,6 +171,15 @@ export default function Financeiro() {
         record={selectedRecord}
         open={!!selectedRecord}
         onClose={() => setSelectedRecord(null)}
+      />
+
+      <PayrollImportSheet
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        ano={ano}
+        mes={mes}
+        existingCount={records.length}
+        onImported={refetch}
       />
     </div>
   );
