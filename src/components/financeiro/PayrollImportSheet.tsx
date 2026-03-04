@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { PAYROLL_FIELD_OPTIONS, autoMapColumn } from "@/utils/payrollColumnMap";
+import { parseFolhaTxt, mapParsedToPayrollFields, type ParsedPayroll } from "@/utils/parseFolhaTxt";
 
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -63,6 +64,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
   const [fileRows, setFileRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [isTxtMode, setIsTxtMode] = useState(false);
+  const [parsedTxt, setParsedTxt] = useState<ParsedPayroll | null>(null);
 
   // Step 3
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -83,6 +86,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
       setFileHeaders([]);
       setFileRows([]);
       setFileName("");
+      setIsTxtMode(false);
+      setParsedTxt(null);
       setMapping({});
       setValidationRows([]);
       setImporting(false);
@@ -124,6 +129,34 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     setFileName(file.name);
     const ext = file.name.split(".").pop()?.toLowerCase();
 
+    if (ext === "txt") {
+      // TXT mode: Relação de Cálculo Geral
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const parsed = parseFolhaTxt(text);
+          if (parsed.funcionarios.length === 0) {
+            toast({ title: "Nenhum funcionário encontrado no arquivo", variant: "destructive" });
+            return;
+          }
+          setIsTxtMode(true);
+          setParsedTxt(parsed);
+          toast({
+            title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)`,
+            description: `Arquivo TXT parseado com sucesso`,
+          });
+          // Skip mapping step, go directly to validation
+          setStep(3); // We'll show a TXT preview instead of mapping
+        } catch (err) {
+          console.error("TXT parse error:", err);
+          toast({ title: "Erro ao ler arquivo TXT", variant: "destructive" });
+        }
+      };
+      reader.readAsText(file, "latin1"); // Brazilian encoding
+      return;
+    }
+
     if (ext === "csv") {
       Papa.parse(file, {
         header: true,
@@ -132,10 +165,11 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           const headers = result.meta.fields ?? [];
           setFileHeaders(headers);
           setFileRows(result.data as Record<string, string>[]);
-          // Auto-map
           const m: Record<string, string> = {};
           headers.forEach(h => { m[h] = autoMapColumn(h); });
           setMapping(m);
+          setIsTxtMode(false);
+          setParsedTxt(null);
           setStep(3);
         },
         error: () => toast({ title: "Erro ao ler CSV", variant: "destructive" }),
@@ -161,6 +195,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           const m: Record<string, string> = {};
           headers.forEach(h => { m[h] = autoMapColumn(h); });
           setMapping(m);
+          setIsTxtMode(false);
+          setParsedTxt(null);
           setStep(3);
         } catch {
           toast({ title: "Erro ao ler planilha", variant: "destructive" });
@@ -206,11 +242,63 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
 
   const hasCpfMapping = !!cpfColumnHeader;
 
+  // ── TXT Validation: match by name ──
+  const runTxtValidation = useCallback(async () => {
+    if (!parsedTxt || !companyId) return;
+    setValidating(true);
+
+    const { data: employees } = await supabase
+      .from("employees")
+      .select("id, nome_completo, numero_cpf")
+      .eq("company_id", companyId);
+
+    // Build lookup by normalized name
+    const normName = (s: string) => s.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const empByName = new Map<string, { id: string; nome: string; cpf: string }>();
+    (employees ?? []).forEach(e => {
+      empByName.set(normName(e.nome_completo), { id: e.id, nome: e.nome_completo, cpf: e.numero_cpf });
+    });
+
+    const rows: ValidationRow[] = parsedTxt.funcionarios.map((func, idx) => {
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      const emp = empByName.get(normName(func.nome));
+      if (!emp) {
+        errors.push("Colaborador não encontrado pelo nome");
+      }
+
+      if (func.situacao === "Demitido") {
+        warnings.push("Funcionário demitido");
+      }
+
+      const mappedData = mapParsedToPayrollFields(func);
+
+      return {
+        rowIndex: idx + 1,
+        rawData: { nome: func.nome, cargo: func.cargo, salario: String(func.salario_base) },
+        mappedData,
+        employeeId: emp?.id ?? null,
+        employeeName: emp?.nome ?? func.nome,
+        cpf: emp?.cpf?.replace(/\D/g, "") ?? null,
+        errors,
+        warnings,
+      };
+    });
+
+    setValidationRows(rows);
+    setValidating(false);
+    setStep(4);
+  }, [parsedTxt, companyId]);
+
   const runValidation = useCallback(async () => {
+    if (isTxtMode) {
+      return runTxtValidation();
+    }
+
     if (!cpfColumnHeader || !companyId) return;
     setValidating(true);
 
-    // Get all employees for this company
     const { data: employees } = await supabase
       .from("employees")
       .select("id, nome_completo, numero_cpf")
@@ -245,7 +333,6 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
         errors.push("Colaborador não encontrado");
       }
 
-      // Build mapped data
       const mappedData: Record<string, unknown> = {};
       for (const [header, field] of Object.entries(mapping)) {
         if (field === "__skip__" || field === "numero_cpf") continue;
@@ -276,7 +363,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     setValidationRows(rows);
     setValidating(false);
     setStep(4);
-  }, [cpfColumnHeader, companyId, fileRows, mapping]);
+  }, [isTxtMode, runTxtValidation, cpfColumnHeader, companyId, fileRows, mapping]);
 
   // ── Import ──
   const validRows = useMemo(() => validationRows.filter(r => r.errors.length === 0 && r.employeeId), [validationRows]);
@@ -334,7 +421,10 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
 
         {/* Steps indicator */}
         <div className="flex items-center gap-1 mb-6 text-xs">
-          {["Competência", "Upload", "Mapeamento", "Validação", "Resultado"].map((label, i) => (
+          {(isTxtMode
+            ? ["Competência", "Upload", "Preview TXT", "Validação", "Resultado"]
+            : ["Competência", "Upload", "Mapeamento", "Validação", "Resultado"]
+          ).map((label, i) => (
             <div key={i} className="flex items-center gap-1">
               <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${
                 step > i + 1 ? "bg-primary text-primary-foreground" :
@@ -395,11 +485,11 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               <span className="text-sm font-medium text-muted-foreground">
                 Arraste ou clique para selecionar
               </span>
-              <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv</span>
+              <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv, .txt</span>
               <input
                 type="file"
                 className="hidden"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv,.xlsx,.xls,.txt"
                 onChange={handleFileInput}
               />
             </label>
@@ -410,8 +500,79 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           </div>
         )}
 
-        {/* ── Step 3: Mapeamento ── */}
-        {step === 3 && (
+        {/* ── Step 3: Mapeamento / TXT Preview ── */}
+        {step === 3 && isTxtMode && parsedTxt && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                <FileSpreadsheet className="h-4 w-4 inline mr-1" />
+                {fileName} — {parsedTxt.funcionarios.length} funcionário(s)
+              </p>
+              <Badge variant="outline" className="text-xs">TXT Relação de Cálculo</Badge>
+            </div>
+
+            {parsedTxt.empresa.nome && (
+              <div className="rounded-lg border p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Empresa no arquivo</span>
+                  <span className="font-medium">{parsedTxt.empresa.nome}</span>
+                </div>
+                {parsedTxt.periodo.inicio && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Período</span>
+                    <span className="font-medium">{parsedTxt.periodo.tipo}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-primary">Mapeamento automático</p>
+                <p className="text-muted-foreground text-xs">
+                  Arquivo TXT parseado automaticamente. As rubricas foram mapeadas para os campos da folha.
+                  A vinculação será feita pelo <strong>nome do colaborador</strong>.
+                </p>
+              </div>
+            </div>
+
+            <ScrollArea className="h-[280px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead className="text-right">Salário</TableHead>
+                    <TableHead className="text-right">Rubricas</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parsedTxt.funcionarios.slice(0, 50).map((f, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{f.numero}</TableCell>
+                      <TableCell className="text-xs font-medium">{f.nome}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{f.cargo}</TableCell>
+                      <TableCell className="text-xs text-right">{f.salario_base.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
+                      <TableCell className="text-xs text-right">{f.rubricas.length}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+              <Button onClick={runValidation} disabled={validating}>
+                {validating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Validar Dados
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && !isTxtMode && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
@@ -469,7 +630,6 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               </Table>
             </ScrollArea>
 
-            {/* Preview */}
             {fileRows.length > 0 && (
               <details className="text-xs">
                 <summary className="cursor-pointer text-muted-foreground">Preview (3 primeiras linhas)</summary>
