@@ -12,6 +12,15 @@ export interface Vacancy {
   candidate_count?: number;
 }
 
+function withTimeout<T>(fn: () => PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(fn()),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Tempo limite excedido. Tente novamente.")), ms)
+    ),
+  ]);
+}
+
 export function useVacancies() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,14 +73,18 @@ export function useVacancies() {
       payload.status = vacancy.status;
     }
 
-    const { error } = await supabase.from("vacancies").insert([payload] as any).select("id").single();
+    const { error } = await withTimeout(
+      () => supabase.from("vacancies").insert([payload] as any).select("id"),
+      12000
+    );
 
     if (error) {
       console.error("Error creating vacancy:", error);
-      throw new Error(error.message || "Falha ao criar vaga");
+      throw new Error(error.message || "Não foi possível concluir a criação. Tente novamente.");
     }
 
-    await fetchVacancies();
+    // Refresh in background — don't block caller
+    fetchVacancies().catch(() => {});
   };
 
   return { vacancies, loading, createVacancy, refetch: fetchVacancies };
