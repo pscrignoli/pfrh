@@ -1,4 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useFinanceiroData, type PayrollRecord } from "@/hooks/useFinanceiroData";
 import { PayrollDetailSheet } from "@/components/financeiro/PayrollDetailSheet";
 import { PayrollImportSheet } from "@/components/financeiro/PayrollImportSheet";
@@ -17,7 +19,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Send, Upload, GitCompareArrows, Lock, Unlock } from "lucide-react";
+import { Send, Upload, GitCompareArrows, Lock, Unlock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const monthNames = [
@@ -40,6 +42,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Financeiro() {
+  const { companyId } = useCompany();
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
@@ -48,6 +51,7 @@ export default function Financeiro() {
   const [comparativoOpen, setComparativoOpen] = useState(false);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [transmitOpen, setTransmitOpen] = useState(false);
+  const [calculando, setCalculando] = useState(false);
 
   const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
@@ -58,12 +62,123 @@ export default function Financeiro() {
     if (statuses.every(s => s === "enviado")) return "enviado";
     if (statuses.every(s => s === "fechado")) return "fechado";
     if (statuses.every(s => s === "conferido")) return "conferido";
+    if (statuses.every(s => s === "calculado")) return "calculado";
     return statuses[0] ?? "aberto";
   }, [records]);
 
   const isFechado = mesStatus === "fechado" || mesStatus === "enviado";
   const isConferido = mesStatus === "conferido";
+  const isCalculado = mesStatus === "calculado";
   const allSent = records.length > 0 && records.every(r => r.status === "enviado");
+
+  // ── Calcular Provisões ──
+  const calcularProvisoes = useCallback(async () => {
+    if (records.length === 0 || !companyId) return;
+    setCalculando(true);
+    try {
+      const now = new Date();
+      const mesAtual = now.getMonth() + 1;
+      // Avos = meses trabalhados no ano (simplificado: mes da competência)
+      const avosFeriasDefault = mes; // meses no ano até a competência
+
+      const batchSize = 50;
+      const updates: { id: string; data: Record<string, unknown> }[] = [];
+
+      for (const r of records) {
+        const salBase = Number(r.salario_base) || 0;
+        if (salBase === 0) continue;
+
+        const patch: Record<string, unknown> = {};
+        let changed = false;
+
+        // Férias: salário_base * avos / 12
+        const avos = Number(r.avos_ferias) || avosFeriasDefault;
+        if (!r.avos_ferias) patch.avos_ferias = avos;
+
+        const feriasCalc = (salBase * avos) / 12;
+        if (!Number(r.ferias)) { patch.ferias = feriasCalc; changed = true; }
+        const feriasVal = Number(r.ferias) || feriasCalc;
+
+        // 1/3 férias
+        const tercoCalc = feriasVal / 3;
+        if (!Number(r.terco_ferias)) { patch.terco_ferias = tercoCalc; changed = true; }
+        const tercoVal = Number(r.terco_ferias) || tercoCalc;
+
+        // FGTS sobre férias (8%)
+        const fgtsFeriasCalc = (feriasVal + tercoVal) * 0.08;
+        if (!Number(r.fgts_ferias)) { patch.fgts_ferias = fgtsFeriasCalc; changed = true; }
+
+        // INSS sobre férias (20% patronal)
+        const inssFeriasCalc = (feriasVal + tercoVal) * 0.20;
+        if (!Number(r.inss_ferias)) { patch.inss_ferias = inssFeriasCalc; changed = true; }
+
+        // 13º: salário_base * avos / 12
+        const decimoCalc = (salBase * avos) / 12;
+        if (!Number(r.decimo_terceiro)) { patch.decimo_terceiro = decimoCalc; changed = true; }
+        const decimoVal = Number(r.decimo_terceiro) || decimoCalc;
+
+        // FGTS sobre 13º (8%)
+        const fgts13Calc = decimoVal * 0.08;
+        if (!Number(r.fgts_13)) { patch.fgts_13 = fgts13Calc; changed = true; }
+
+        // INSS sobre 13º (20% patronal)
+        const inss13Calc = decimoVal * 0.20;
+        if (!Number(r.inss_13)) { patch.inss_13 = inss13Calc; changed = true; }
+
+        if (changed) {
+          // Recalculate total_geral
+          const totalFolha = Number(r.total_folha) || 0;
+          const encargos = Number(r.encargos) || 0;
+          const provisoes = (Number(patch.ferias ?? r.ferias) || 0)
+            + (Number(patch.terco_ferias ?? r.terco_ferias) || 0)
+            + (Number(patch.fgts_ferias ?? r.fgts_ferias) || 0)
+            + (Number(patch.inss_ferias ?? r.inss_ferias) || 0)
+            + (Number(patch.decimo_terceiro ?? r.decimo_terceiro) || 0)
+            + (Number(patch.fgts_13 ?? r.fgts_13) || 0)
+            + (Number(patch.inss_13 ?? r.inss_13) || 0);
+          const beneficios = Number(r.beneficios) || 0;
+          patch.total_geral = totalFolha + encargos + provisoes + beneficios;
+          patch.status = "calculado";
+          updates.push({ id: r.id, data: patch });
+        }
+      }
+
+      // Batch update
+      for (let i = 0; i < updates.length; i += batchSize) {
+        const batch = updates.slice(i, i + batchSize);
+        await Promise.all(batch.map(u =>
+          supabase.from("payroll_monthly_records").update(u.data as any).eq("id", u.id)
+        ));
+      }
+
+      // Mark records that were already complete as calculado too
+      const unchangedIds = records.filter(r => !updates.find(u => u.id === r.id)).map(r => r.id);
+      if (unchangedIds.length > 0) {
+        await supabase.from("payroll_monthly_records").update({ status: "calculado" }).in("id", unchangedIds);
+      }
+
+      // Log
+      await supabase.from("integration_logs").insert({
+        source: "folha_mensal",
+        direction: "internal",
+        endpoint: "provisoes/calcular",
+        status: "success" as const,
+        request_payload: { ano, mes, calculated: updates.length, unchanged: unchangedIds.length } as any,
+        response_payload: { status: "calculado" } as any,
+        company_id: companyId,
+      });
+
+      toast({
+        title: "Provisões calculadas!",
+        description: `${updates.length} registro(s) calculado(s), ${unchangedIds.length} já preenchido(s).`,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro ao calcular provisões", description: e.message, variant: "destructive" });
+    } finally {
+      setCalculando(false);
+    }
+  }, [records, companyId, ano, mes, refetch]);
 
   if (loading) {
     return (
@@ -119,6 +234,15 @@ export default function Financeiro() {
           <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isFechado}>
             <Upload className="h-4 w-4 mr-2" />
             Importar
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={calcularProvisoes}
+            disabled={records.length === 0 || isFechado || calculando}
+          >
+            {calculando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Calculator className="h-4 w-4 mr-2" />}
+            Provisões
           </Button>
 
           <Button variant="outline" onClick={() => setComparativoOpen(true)} disabled={records.length === 0}>
