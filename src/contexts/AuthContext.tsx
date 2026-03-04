@@ -44,17 +44,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      if (!mounted) return;
-      setSession(currentSession);
-      if (currentSession?.user) {
-        const userRoles = await fetchUserRoles(currentSession.user.id);
-        if (mounted) setRoles(userRoles);
+    const init = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const userRoles = await fetchUserRoles(currentSession.user.id);
+          if (mounted) setRoles(userRoles);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (mounted) setLoading(false);
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
+    };
+
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
@@ -71,7 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === "SIGNED_OUT") {
           setSession(null);
           setRoles([]);
-          setLoading(false);
           return;
         }
 
@@ -82,17 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setRoles([]);
         }
-        setLoading(false);
       }
     );
 
-    const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
-
     return () => {
       mounted = false;
-      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
