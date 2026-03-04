@@ -479,10 +479,30 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
     fgts_grrf: { base: 0, valor: 0 },
   };
 
+  // Find the "Base Impostos" section and only parse within it
+  let inBases = false;
+  let basesLineCount = 0;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // IRRF line: "IRRF    Normal   3.281,97   13o    0,00   Ferias   0,00   Lucro   0,00"
+    // Start at "Base Impostos" header
+    if (/^\s*Base\s+Impostos/i.test(line)) {
+      inBases = true;
+      basesLineCount = 0;
+      continue;
+    }
+
+    if (!inBases) continue;
+
+    basesLineCount++;
+    // The bases section is only ~4-5 lines (header, IRRF, INSS, INSS Empresa, blank)
+    // Stop after INSS Empresa or after too many lines or at "Base Dif" or blank line after content
+    if (basesLineCount > 8) break;
+    if (/^\s*Base\s+Dif/i.test(line)) break;
+    if (basesLineCount > 3 && line.trim() === "") break;
+
+    // IRRF line with FGTS GFIP on the right side
     if (/^\s*IRRF\s/.test(line) && !/Resumo/i.test(line)) {
       const vals = line.match(/[\d.,]+/g);
       if (vals) {
@@ -491,15 +511,27 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
         bases.irrf.ferias = parseValorBR(vals[2]);
         bases.irrf.lucro = parseValorBR(vals[3]);
       }
+      // FGTS GFIP is on the same line as IRRF (right side)
+      const gfipMatch = line.match(/FGTS\s+GFIP\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (gfipMatch) {
+        bases.fgts_gfip.base = parseValorBR(gfipMatch[1]);
+        bases.fgts_gfip.valor = parseValorBR(gfipMatch[2]);
+      }
     }
 
-    // INSS line (not empresa)
-    if (/^\s*INSS\s+Normal/i.test(line) && !/Empresa/i.test(line)) {
+    // INSS line (not empresa) with FGTS GRRF on the right side
+    if (/^\s*INSS\s/i.test(line) && !/Empresa/i.test(line)) {
       const vals = line.match(/[\d.,]+/g);
       if (vals) {
         bases.inss.normal = parseValorBR(vals[0]);
         bases.inss.decimo_terceiro = parseValorBR(vals[1]);
         bases.inss.ferias = parseValorBR(vals[2]);
+      }
+      // FGTS GRRF on same line
+      const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (grrfMatch) {
+        bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
+        bases.fgts_grrf.valor = parseValorBR(grrfMatch[2]);
       }
     }
 
@@ -511,20 +543,6 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
         bases.inss_empresa.decimo_terceiro = parseValorBR(vals[1]);
         bases.inss_empresa.ferias = parseValorBR(vals[2]);
       }
-    }
-
-    // FGTS GFIP — may appear on same line as IRRF (right side) or on its own line
-    const gfipMatch = line.match(/FGTS\s+GFIP\s+([\d.,]+)\s+([\d.,]+)/i);
-    if (gfipMatch) {
-      bases.fgts_gfip.base = parseValorBR(gfipMatch[1]);
-      bases.fgts_gfip.valor = parseValorBR(gfipMatch[2]);
-    }
-
-    // FGTS GRRF — may appear on same line as INSS or on its own line
-    const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
-    if (grrfMatch) {
-      bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
-      bases.fgts_grrf.valor = parseValorBR(grrfMatch[2]);
     }
   }
 
