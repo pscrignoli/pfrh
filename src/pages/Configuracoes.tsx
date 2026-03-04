@@ -538,9 +538,10 @@ function DepartmentsTab() {
 
 // ── Main Page ──
 export default function Configuracoes() {
-  const { role, roles, loading } = useAuth();
+  const { role, roles, loading, session } = useAuth();
 
   if (loading) return <Skeleton className="h-96 w-full" />;
+  if (!session) return <Navigate to="/login" replace />;
   if (role !== "admin_rh" && !roles.includes("super_admin")) return <Navigate to="/" replace />;
 
   return (
