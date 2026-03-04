@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon } from "lucide-react";
@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useVacancies, type Vacancy } from "@/hooks/useVacancies";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useCompany } from "@/contexts/CompanyContext";
 import VacancyFieldsEditor from "@/components/recrutamento/VacancyFieldsEditor";
 import type { VacancyField } from "@/hooks/useVacancyFields";
 import { useVacancyFields } from "@/hooks/useVacancyFields";
@@ -54,6 +55,7 @@ export default function Recrutamento() {
   const navigate = useNavigate();
   const { vacancies, loading, createVacancy, refetch } = useVacancies();
   const { departments } = useDepartments(true);
+  const { companyId } = useCompany();
   const { saveFields } = useVacancyFields(undefined);
 
   // Create dialog
@@ -67,6 +69,13 @@ export default function Recrutamento() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<VacancyForm>({ ...defaultForm });
   const [editVacancyId, setEditVacancyId] = useState<string | null>(null);
+  // Close dialogs when company changes
+  useEffect(() => {
+    resetDialog();
+    setEditOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
   const [editSaving, setEditSaving] = useState(false);
 
   const resetDialog = () => {

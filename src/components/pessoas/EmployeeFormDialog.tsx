@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Employee, EmployeeInsert } from "@/hooks/useEmployees";
 import { Constants } from "@/integrations/supabase/types";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useCompany } from "@/contexts/CompanyContext";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -55,6 +57,14 @@ interface Props {
 export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }: Props) {
   const isEdit = !!employee;
   const { departments } = useDepartments(true);
+  const { companyId, companyName } = useCompany();
+
+  // Close dialog when company changes
+  useEffect(() => {
+    if (open) onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: employee
@@ -79,6 +89,7 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
     try {
       const payload = {
         ...values,
+        empresa: companyName ?? values.empresa,
         email_holerite: values.email_holerite || null,
         genero: (values.genero || null) as EmployeeInsert["genero"],
         tipo_contrato: values.tipo_contrato as EmployeeInsert["tipo_contrato"],
@@ -208,7 +219,7 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
                   <FormField control={form.control} name="empresa" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Empresa</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                      <FormControl><Input {...field} value={companyName ?? field.value ?? ""} readOnly className="bg-muted" /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="departamento" render={({ field }) => (
