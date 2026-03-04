@@ -97,7 +97,7 @@ export interface ParsedPayroll {
   empresa: { codigo: string; nome: string; cnpj: string };
   periodo: { inicio: string; fim: string; tipo: string };
   funcionarios: FuncionarioParsed[];
-  totais_gerais: { proventos: number; descontos: number; liquido: number };
+  totais_gerais: { proventos: number; vantagens: number; descontos: number; liquido: number };
   resumo_inss: ResumoINSS;
   resumo_fgts: ResumoFGTS;
   resumo_irrf: ResumoIRRF;
@@ -214,7 +214,7 @@ export function parseFolhaTxt(textoCompleto: string): ParsedPayroll {
   }
 
   // Parse footer totals
-  const totais_gerais = { proventos: 0, descontos: 0, liquido: 0 };
+  const totais_gerais = { proventos: 0, vantagens: 0, descontos: 0, liquido: 0 };
   const resumo_inss: ResumoINSS = { segurados: 0, parte_empresa: 0, terceiros: 0, rat_fap: 0, liquido: 0 };
   const resumo_fgts: ResumoFGTS = { gfip_base: 0, gfip_valor: 0, grrf_base: 0, grrf_valor: 0, total: 0 };
   const resumo_irrf: ResumoIRRF = { normal: 0, rescisao: 0, ferias: 0, decimo_terceiro: 0, total: 0 };
@@ -225,9 +225,11 @@ export function parseFolhaTxt(textoCompleto: string): ParsedPayroll {
   if (totaisLineMatch) {
     const tl = totaisLineMatch[0];
     const provM = tl.match(/Proventos:\s*([\d.,]+)/);
+    const vantM = tl.match(/Vantagens:\s*([\d.,]+)/);
     const descM = tl.match(/Descontos:\s*([\d.,]+)/);
     const liqM = tl.match(/L[ií]quido:\s*([\d.,]+)/);
     if (provM) totais_gerais.proventos = parseValorBR(provM[1]);
+    if (vantM) totais_gerais.vantagens = parseValorBR(vantM[1]);
     if (descM) totais_gerais.descontos = parseValorBR(descM[1]);
     if (liqM) totais_gerais.liquido = parseValorBR(liqM[1]);
   }

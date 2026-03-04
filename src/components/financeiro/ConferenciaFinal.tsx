@@ -107,12 +107,14 @@ export function ConferenciaFinal({ data }: Props) {
           </div>
 
           {/* Prova Real */}
-          <div className={`mt-2 rounded-lg border p-2.5 text-xs flex items-center gap-3 ${
+          <div className={`mt-2 rounded-lg border p-2.5 text-xs flex items-center gap-3 flex-wrap ${
             data.provaReal.confere ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"
           }`}>
             <span className="font-medium text-muted-foreground">Prova real:</span>
             <span className="font-mono">
-              {fmtNum(data.provaReal.proventos)} − {fmtNum(data.provaReal.descontos)} = {fmtNum(data.provaReal.calculado)}
+              {fmtNum(data.provaReal.proventos)}
+              {data.provaReal.vantagens > 0 && <> + {fmtNum(data.provaReal.vantagens)}</>}
+              {" − "}{fmtNum(data.provaReal.descontos)} = {fmtNum(data.provaReal.calculado)}
             </span>
             <span className="text-muted-foreground">vs Líquido:</span>
             <span className="font-mono font-medium">{fmtNum(data.provaReal.informado)}</span>
