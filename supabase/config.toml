@@ -2,3 +2,6 @@ project_id = "lbwdluddlmyizemfiswp"
 
 [functions.chat-hr]
 verify_jwt = false
+
+[functions.empregare-proxy]
+verify_jwt = false
