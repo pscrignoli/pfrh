@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -26,36 +26,47 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-async function fetchUserRoles(userId: string): Promise<AppRole[]> {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-
-  if (error || !data) return [];
-  return data.map((d) => d.role);
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    // Set up listener FIRST (before getSession)
+    const loadRoles = async (userId: string): Promise<AppRole[]> => {
+      try {
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
+        if (error || !data) return [];
+        return data.map((d) => d.role);
+      } catch {
+        return [];
+      }
+    };
+
+    const handleSession = async (s: Session | null) => {
+      if (!mounted) return;
+      setSession(s);
+      if (s?.user) {
+        const userRoles = await loadRoles(s.user.id);
+        if (mounted) setRoles(userRoles);
+      } else {
+        setRoles([]);
+      }
+      if (mounted) setLoading(false);
+    };
+
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
 
-        if (event === "TOKEN_REFRESHED" && !newSession) {
-          toast({
-            title: "Sessão expirada",
-            description: "Sua sessão expirou. Faça login novamente.",
-            variant: "destructive",
-          });
-        }
+        // Skip INITIAL_SESSION — handled via getSession
+        if (event === "INITIAL_SESSION") return;
 
         if (event === "SIGNED_OUT") {
           setSession(null);
@@ -64,43 +75,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setSession(newSession);
-        if (newSession?.user) {
-          const userRoles = await fetchUserRoles(newSession.user.id);
-          if (mounted) setRoles(userRoles);
-        } else {
+        if (event === "TOKEN_REFRESHED" && !newSession) {
+          setSession(null);
           setRoles([]);
+          setLoading(false);
+          toast({
+            title: "Sessão expirada",
+            description: "Sua sessão expirou. Faça login novamente.",
+            variant: "destructive",
+          });
+          return;
         }
-        if (mounted) setLoading(false);
+
+        await handleSession(newSession);
       }
     );
 
-    // Then check initial session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      if (!mounted) return;
-      setSession(currentSession);
-      if (currentSession?.user) {
-        const userRoles = await fetchUserRoles(currentSession.user.id);
-        if (mounted) setRoles(userRoles);
+    // Get initial session (only once)
+    if (!initialized.current) {
+      initialized.current = true;
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        handleSession(s);
+      }).catch(() => {
+        if (mounted) setLoading(false);
+      });
+    }
+
+    // Safety timeout: never stay loading forever
+    const timeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn("[Auth] Safety timeout triggered — forcing loading=false");
+        setLoading(false);
       }
-      if (mounted) setLoading(false);
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
+    }, 5000);
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
     setSession(null);
     setRoles([]);
+    await supabase.auth.signOut();
   };
 
-  // Keep backward compat: role = first non-super_admin role, or super_admin if only role
   const role: AppRole | null = roles.find(r => r !== "super_admin") ?? roles[0] ?? null;
 
   return (
