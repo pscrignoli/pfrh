@@ -1,52 +1,97 @@
 
-Objetivo: corrigir o travamento ao clicar em “Nova Vaga” (fica em “Criando...” sem concluir).
 
-Diagnóstico já feito (com base em logs e código):
-- As políticas de acesso de `vacancies` e `candidates` já estão abertas (não é o gargalo atual).
-- O botão entra em estado de loading, mas não aparece POST de criação da vaga no tráfego capturado.
-- O app tem listener de autenticação com callback assíncrono que faz consulta no banco dentro de `onAuthStateChange` (`AuthContext.tsx`), padrão conhecido por causar lock de chamadas do cliente em alguns eventos de auth (sintoma típico: request “pendente”/não dispara).
-- O fluxo de criação ainda depende de `insert(...).select(...).single()` + `await fetchVacancies()`, o que aumenta chance de ficar preso quando há lock/intermitência.
+## Plano: Campos dinâmicos por vaga + detalhe do candidato
 
-Plano de implementação:
-1) Remover risco de lock no ciclo de autenticação
-- Arquivo: `src/contexts/AuthContext.tsx`
-- Refatorar `onAuthStateChange` para callback síncrono (sem `await` dentro do listener).
-- Separar carregamento de roles para um fluxo assíncrono fora do callback (ex.: função disparada por mudança de `session?.user?.id`).
-- Adicionar proteção contra corrida (flag `mounted` + controle de request ativo para não sobrescrever estado antigo).
+### Resumo
+Criar um sistema onde cada vaga tem campos personalizados (texto, dropdown, sim/não, número) definidos pelo RH na criação/edição da vaga. Ao clicar num card de candidato no Kanban, abre um modal centralizado onde o RH preenche esses campos para aquele candidato.
 
-2) Tornar criação de vaga resiliente e não bloqueante
-- Arquivo: `src/hooks/useVacancies.ts`
-- Alterar criação para `insert(payload)` sem `select().single()` no mesmo call.
-- Aplicar timeout defensivo na mutation (ex.: 10–12s) para nunca deixar Promise pendente indefinidamente.
-- Após sucesso, disparar `fetchVacancies()` em background (sem bloquear encerramento do modal), mantendo feedback imediato ao usuário.
-- Padronizar erro retornado com mensagem amigável (“Não foi possível concluir a criação. Tente novamente.”) + detalhe no console para debug.
+---
 
-3) Ajustar UX para não parecer “travado”
-- Arquivo: `src/pages/Recrutamento.tsx`
-- Manter botão desabilitado durante save, mas com fallback de liberação caso timeout estoure.
-- Garantir reset de `saving` em todos os cenários (sucesso, erro, timeout) e toast consistente.
+### 1. Banco de dados — 2 novas tabelas
 
-4) Corrigir warning de acessibilidade relacionado a Dialog (aproveitando o ajuste)
-- Arquivo: `src/pages/RecrutamentoKanban.tsx`
-- Adicionar `DialogDescription` no modal “Novo Candidato” (esse warning apareceu no console e é simples de eliminar).
+**`vacancy_fields`** — define os campos de cada vaga:
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid PK | |
+| vacancy_id | uuid FK→vacancies | |
+| label | varchar | Ex: "Certificações" |
+| field_type | varchar | `text`, `dropdown`, `boolean`, `number` |
+| options | jsonb | Para dropdown: `["Opção A","Opção B"]` |
+| sort_order | int | Ordem de exibição |
+| created_at | timestamptz | |
 
-Detalhes técnicos (resumo):
-- Não vou alterar estrutura de tabelas nem criar migração para esta correção.
-- O foco é estabilidade de fluxo assíncrono no cliente:
-  - evitar await dentro de listener de auth,
-  - evitar mutation dependente de retorno “single row”,
-  - colocar timeout explícito para impedir loading infinito.
+**`candidate_field_values`** — respostas por candidato:
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid PK | |
+| candidate_id | uuid FK→candidates | |
+| field_id | uuid FK→vacancy_fields | |
+| value | text | Valor preenchido (serializado) |
+| updated_at | timestamptz | |
+| unique(candidate_id, field_id) | | Evita duplicatas |
 
-Checklist de validação após implementar:
-1. Login normal.
-2. Ir em `/recrutamento` → criar vaga só com título.
-3. Confirmar:
-   - botão volta de “Criando...” para estado normal,
-   - modal fecha,
-   - toast de sucesso aparece,
-   - card da vaga aparece no grid.
-4. Repetir com departamento selecionado.
-5. Abrir/fechar modal rapidamente e tentar criar novamente (não pode ficar preso).
-6. Conferir console sem novo warning de `DialogContent` sem descrição.
+RLS desabilitado em ambas (conforme decisão anterior). RPC para salvar valores (evitar CORS com PATCH).
 
-Se aprovado, implemento exatamente esse plano.
+---
+
+### 2. Modal de criação de vaga — wizard 2 steps
+
+Arquivo: `src/pages/Recrutamento.tsx`
+
+- **Step 1** (atual): Título, Departamento, Modelo de Trabalho.
+- **Step 2** (novo): "Campos da Vaga" — lista editável onde o RH:
+  - Clica "Adicionar campo"
+  - Escolhe tipo (Texto / Dropdown / Sim ou Não / Número)
+  - Digita o label
+  - Se dropdown: adiciona opções uma a uma
+  - Pode reordenar e remover campos
+- Botão "Criar Vaga" só no step 2; "Voltar" retorna ao step 1.
+
+Fluxo: cria vaga via RPC → depois insere os campos em `vacancy_fields`.
+
+---
+
+### 3. Edição de campos após criação
+
+No Kanban (`RecrutamentoKanban.tsx`), botão "Editar campos" ao lado do título. Abre modal com a mesma UI do step 2. Se houver candidatos, exibe aviso: "Candidatos existentes podem perder dados ao remover campos."
+
+---
+
+### 4. Modal de detalhe do candidato
+
+Ao clicar no card no Kanban → modal centralizado com:
+- Nome, e-mail, telefone (fixos, editáveis)
+- **Etapa** (dropdown com as 5 etapas do Kanban — campo fixo, salva no `candidates.stage`)
+- Campos dinâmicos da vaga, renderizados por tipo:
+  - `text` → Input
+  - `dropdown` → Select com as opções
+  - `boolean` → Checkbox
+  - `number` → Input numérico
+- Botão "Salvar" → upsert via RPC em `candidate_field_values`
+
+---
+
+### 5. RPC functions (evitar CORS)
+
+- **`upsert_candidate_field_values`**: recebe `_candidate_id` + `_values jsonb` (array de {field_id, value}), faz upsert em `candidate_field_values`.
+- **`save_vacancy_fields`**: recebe `_vacancy_id` + `_fields jsonb`, deleta campos antigos e insere novos (transação atômica).
+
+---
+
+### 6. Arquivos impactados
+
+| Arquivo | Alteração |
+|---|---|
+| Migration SQL | Tabelas + RPCs + disable RLS |
+| `src/hooks/useVacancyFields.ts` | Novo hook para CRUD de campos da vaga |
+| `src/hooks/useCandidateFieldValues.ts` | Novo hook para ler/salvar valores |
+| `src/pages/Recrutamento.tsx` | Wizard 2 steps no modal |
+| `src/pages/RecrutamentoKanban.tsx` | Click no card → modal detalhe; botão editar campos |
+| `src/hooks/useVacancies.ts` | Ajuste no `createVacancy` para retornar o ID da vaga criada |
+
+---
+
+### 7. Comportamento no card do Kanban
+
+O card continua exibindo apenas nome e data (sem preview dos campos). Os campos só aparecem ao abrir o modal de detalhe.
+
