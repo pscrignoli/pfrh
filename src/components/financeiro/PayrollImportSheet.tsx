@@ -4,7 +4,8 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { PAYROLL_FIELD_OPTIONS, autoMapColumn } from "@/utils/payrollColumnMap";
-import { parseFolhaTxt, mapParsedToPayrollFields, type ParsedPayroll } from "@/utils/parseFolhaTxt";
+import { parseFolhaTxt, type ParsedPayroll } from "@/utils/parseFolhaTxt";
+import { importFolhaTxt, type ImportResult } from "@/utils/importFolhaTxt";
 
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -93,6 +94,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
       setImporting(false);
       setImportProgress(0);
       setImportResult(null);
+      setTxtImportResult(null);
     }
   }, [open]);
 
@@ -249,38 +251,41 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
 
     const { data: employees } = await supabase
       .from("employees")
-      .select("id, nome_completo, numero_cpf")
-      .eq("company_id", companyId);
+      .select("id, nome_completo, numero_funcional")
+      .eq("company_id", companyId)
+      .not("numero_funcional", "is", null);
 
-    // Build lookup by normalized name
-    const normName = (s: string) => s.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const empByName = new Map<string, { id: string; nome: string; cpf: string }>();
+    // Build lookup by numero_funcional
+    const empByNumFunc = new Map<string, { id: string; nome: string }>();
     (employees ?? []).forEach(e => {
-      empByName.set(normName(e.nome_completo), { id: e.id, nome: e.nome_completo, cpf: e.numero_cpf });
+      if (e.numero_funcional) {
+        empByNumFunc.set(e.numero_funcional, { id: e.id, nome: e.nome_completo });
+      }
     });
 
     const rows: ValidationRow[] = parsedTxt.funcionarios.map((func, idx) => {
       const errors: string[] = [];
       const warnings: string[] = [];
 
-      const emp = empByName.get(normName(func.nome));
+      const numFunc = String(func.numero);
+      const emp = empByNumFunc.get(numFunc);
+
       if (!emp) {
-        errors.push("Colaborador não encontrado pelo nome");
+        // Will be auto-created during import
+        warnings.push("Novo colaborador — será cadastrado");
       }
 
-      if (func.situacao === "Demitido") {
+      if (func.situacao === "Demitido" || func.situacao === "demitido") {
         warnings.push("Funcionário demitido");
       }
-
-      const mappedData = mapParsedToPayrollFields(func);
 
       return {
         rowIndex: idx + 1,
         rawData: { nome: func.nome, cargo: func.cargo, salario: String(func.salario_base) },
-        mappedData,
-        employeeId: emp?.id ?? null,
+        mappedData: {},
+        employeeId: emp?.id ?? "new",
         employeeName: emp?.nome ?? func.nome,
-        cpf: emp?.cpf?.replace(/\D/g, "") ?? null,
+        cpf: null,
         errors,
         warnings,
       };
@@ -366,13 +371,38 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
   }, [isTxtMode, runTxtValidation, cpfColumnHeader, companyId, fileRows, mapping]);
 
   // ── Import ──
-  const validRows = useMemo(() => validationRows.filter(r => r.errors.length === 0 && r.employeeId), [validationRows]);
-  const errorRows = useMemo(() => validationRows.filter(r => r.errors.length > 0 || !r.employeeId), [validationRows]);
+  // For TXT mode, all rows are valid (employees auto-created)
+  const validRows = useMemo(() => isTxtMode
+    ? validationRows
+    : validationRows.filter(r => r.errors.length === 0 && r.employeeId), [validationRows, isTxtMode]);
+  const errorRows = useMemo(() => isTxtMode
+    ? []
+    : validationRows.filter(r => r.errors.length > 0 || !r.employeeId), [validationRows, isTxtMode]);
+
+  // TXT import result state
+  const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
 
   const runImport = useCallback(async () => {
-    if (validRows.length === 0 || !companyId) return;
+    if (!companyId) return;
     setImporting(true);
     setImportProgress(0);
+
+    if (isTxtMode && parsedTxt) {
+      // Use the dedicated TXT import service
+      const res = await importFolhaTxt(parsedTxt, companyId, ano, mes);
+      setTxtImportResult(res);
+      setImportResult({
+        success: res.payroll_records,
+        errors: res.errors.length,
+      });
+      setImporting(false);
+      setStep(5);
+      if (res.payroll_records > 0) onImported();
+      return;
+    }
+
+    // CSV/Excel mode (existing logic)
+    if (validRows.length === 0) return;
     let success = 0;
     let errors = 0;
 
@@ -406,7 +436,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     setImporting(false);
     setStep(5);
     if (success > 0) onImported();
-  }, [validRows, companyId, ano, mes, onImported]);
+  }, [validRows, companyId, ano, mes, onImported, isTxtMode, parsedTxt]);
 
   // ── Render steps ──
   return (
@@ -529,10 +559,10 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
             <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
               <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-primary">Mapeamento automático</p>
+                <p className="font-medium text-primary">Importação inteligente</p>
                 <p className="text-muted-foreground text-xs">
-                  Arquivo TXT parseado automaticamente. As rubricas foram mapeadas para os campos da folha.
-                  A vinculação será feita pelo <strong>nome do colaborador</strong>.
+                  Colaboradores que não existem serão cadastrados automaticamente.
+                  A vinculação é feita pelo <strong>número funcional</strong> (Func).
                 </p>
               </div>
             </div>
@@ -744,16 +774,37 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+            <div className={`grid gap-3 max-w-sm mx-auto ${txtImportResult ? "grid-cols-3" : "grid-cols-2"}`}>
+              {txtImportResult && (
+                <div className="rounded-lg border p-3 text-center">
+                  <div className="text-2xl font-bold text-primary">{txtImportResult.employees_created}</div>
+                  <div className="text-xs text-muted-foreground">Colaboradores criados</div>
+                </div>
+              )}
               <div className="rounded-lg border p-3 text-center">
                 <div className="text-2xl font-bold text-primary">{importResult.success}</div>
-                <div className="text-xs text-muted-foreground">Importados</div>
+                <div className="text-xs text-muted-foreground">Registros importados</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
                 <div className="text-2xl font-bold text-destructive">{importResult.errors}</div>
                 <div className="text-xs text-muted-foreground">Erros</div>
               </div>
             </div>
+
+            {txtImportResult && txtImportResult.employees_updated > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {txtImportResult.employees_updated} colaborador(es) atualizado(s)
+              </p>
+            )}
+
+            {txtImportResult && txtImportResult.errors.length > 0 && (
+              <details className="text-left text-xs max-w-sm mx-auto">
+                <summary className="cursor-pointer text-destructive">Ver erros</summary>
+                <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                  {txtImportResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                </ul>
+              </details>
+            )}
 
             <Button onClick={onClose} className="w-full max-w-xs">Fechar</Button>
           </div>

@@ -244,7 +244,8 @@ export type Database = {
           matricula_interna: string | null
           nome_completo: string
           nome_contato_emergencia: string | null
-          numero_cpf: string
+          numero_cpf: string | null
+          numero_funcional: string | null
           numero_pis_nit: string | null
           numero_rg: string | null
           status: Database["public"]["Enums"]["employee_status"]
@@ -272,7 +273,8 @@ export type Database = {
           matricula_interna?: string | null
           nome_completo: string
           nome_contato_emergencia?: string | null
-          numero_cpf: string
+          numero_cpf?: string | null
+          numero_funcional?: string | null
           numero_pis_nit?: string | null
           numero_rg?: string | null
           status?: Database["public"]["Enums"]["employee_status"]
@@ -300,7 +302,8 @@ export type Database = {
           matricula_interna?: string | null
           nome_completo?: string
           nome_contato_emergencia?: string | null
-          numero_cpf?: string
+          numero_cpf?: string | null
+          numero_funcional?: string | null
           numero_pis_nit?: string | null
           numero_rg?: string | null
           status?: Database["public"]["Enums"]["employee_status"]
