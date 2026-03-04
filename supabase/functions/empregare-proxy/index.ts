@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const EMPREGARE_BASE_URL = "https://api.empregare.com";
+const EMPREGARE_BASE_URL = "https://corporate.empregare.com";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
