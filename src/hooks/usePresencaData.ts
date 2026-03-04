@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface EmployeeStatus {
   employeeId: string;
@@ -35,6 +36,7 @@ interface FilterOptions {
 }
 
 export function usePresencaData(filters: FilterOptions) {
+  const { companyId } = useCompany();
   const [liveStatuses, setLiveStatuses] = useState<EmployeeStatus[]>([]);
   const [records, setRecords] = useState<TimeRecordRow[]>([]);
   const [employees, setEmployees] = useState<{ id: string; nome: string }[]>([]);
@@ -56,19 +58,24 @@ export function usePresencaData(filters: FilterOptions) {
   }, [filters.dateRange, today]);
 
   const fetchLiveStatus = useCallback(async () => {
-    // Get all active employees
-    const { data: emps } = await supabase
+    let empQuery = supabase
       .from("employees")
       .select("id, nome_completo, cargo, departamento")
       .eq("status", "ativo");
 
+    if (companyId) empQuery = empQuery.eq("company_id", companyId);
+
+    const { data: emps } = await empQuery;
+
     if (!emps) return;
 
-    // Get today's time records
+    // Get today's time records for these employees
+    const empIds = emps.map((e) => e.id);
     const { data: todayRecords } = await supabase
       .from("time_records")
       .select("*")
-      .eq("record_date", today);
+      .eq("record_date", today)
+      .in("employee_id", empIds);
 
     const statuses: EmployeeStatus[] = emps.map((emp) => {
       const rec = (todayRecords ?? []).find((r) => r.employee_id === emp.id);
@@ -76,7 +83,7 @@ export function usePresencaData(filters: FilterOptions) {
       let status: EmployeeStatus["status"] = "absent";
       if (rec) {
         if (rec.clock_out) {
-          status = "absent"; // finished for the day
+          status = "absent";
         } else if (rec.break_start && !rec.break_end) {
           status = "break";
         } else if (rec.clock_in) {
@@ -101,20 +108,24 @@ export function usePresencaData(filters: FilterOptions) {
 
     setLiveStatuses(statuses);
     setEmployees(emps.map((e) => ({ id: e.id, nome: e.nome_completo })));
-  }, [today]);
+  }, [today, companyId]);
 
   const fetchRecords = useCallback(async () => {
     const startDate = getDateFilter();
 
     let query = supabase
       .from("time_records")
-      .select("*, employees!inner(nome_completo)")
+      .select("*, employees!inner(nome_completo, company_id)")
       .gte("record_date", startDate)
       .order("record_date", { ascending: false })
       .order("clock_in", { ascending: false });
 
     if (filters.employeeId) {
       query = query.eq("employee_id", filters.employeeId);
+    }
+
+    if (companyId) {
+      query = query.eq("employees.company_id", companyId);
     }
 
     const { data } = await query;
@@ -134,7 +145,7 @@ export function usePresencaData(filters: FilterOptions) {
     }));
 
     setRecords(rows);
-  }, [getDateFilter, filters.employeeId]);
+  }, [getDateFilter, filters.employeeId, companyId]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);

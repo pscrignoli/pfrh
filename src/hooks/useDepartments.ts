@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface Department {
   id: string;
@@ -10,6 +11,7 @@ export interface Department {
 }
 
 export function useDepartments(onlyActive = false) {
+  const { companyId } = useCompany();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,22 +22,21 @@ export function useDepartments(onlyActive = false) {
       .select("*")
       .order("name");
 
-    if (onlyActive) {
-      query = query.eq("status", "active");
-    }
+    if (companyId) query = query.eq("company_id", companyId);
+    if (onlyActive) query = query.eq("status", "active");
 
     const { data, error } = await query;
     if (error) console.error("Error fetching departments:", error);
     setDepartments((data as Department[]) ?? []);
     setLoading(false);
-  }, [onlyActive]);
+  }, [onlyActive, companyId]);
 
   useEffect(() => {
     fetchDepartments();
   }, [fetchDepartments]);
 
   const createDepartment = async (name: string, code?: string) => {
-    const { error } = await supabase.from("departments").insert({ name, code: code || null } as any);
+    const { error } = await supabase.from("departments").insert({ name, code: code || null, company_id: companyId } as any);
     if (error) throw error;
     await fetchDepartments();
   };

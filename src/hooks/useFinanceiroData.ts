@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type PayrollRecord = Tables<"payroll_monthly_records"> & {
@@ -8,35 +9,44 @@ export type PayrollRecord = Tables<"payroll_monthly_records"> & {
 export type IntegrationLog = Tables<"integration_logs">;
 
 export function useFinanceiroData(ano: number, mes: number) {
+  const { companyId } = useCompany();
   const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [logs, setLogs] = useState<IntegrationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [transmitting, setTransmitting] = useState(false);
 
   const fetchRecords = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("payroll_monthly_records")
       .select("*, employees!inner(nome_completo)")
       .eq("ano", ano)
       .eq("mes", mes)
       .order("cargo");
 
+    if (companyId) query = query.eq("company_id", companyId);
+
+    const { data } = await query;
+
     const mapped: PayrollRecord[] = (data ?? []).map((r: any) => ({
       ...r,
       employee_name: r.employees?.nome_completo ?? "—",
     }));
     setRecords(mapped);
-  }, [ano, mes]);
+  }, [ano, mes, companyId]);
 
   const fetchLogs = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("integration_logs")
       .select("*")
       .eq("source", "folha_mensal")
       .order("created_at", { ascending: false })
       .limit(20);
+
+    if (companyId) query = query.eq("company_id", companyId);
+
+    const { data } = await query;
     setLogs(data ?? []);
-  }, []);
+  }, [companyId]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -55,7 +65,6 @@ export function useFinanceiroData(ano: number, mes: number) {
     setTransmitting(true);
 
     try {
-      // Build payload
       const payload = records.map((r) => ({
         employee_id: r.employee_id,
         employee_name: r.employee_name,
@@ -67,7 +76,6 @@ export function useFinanceiroData(ano: number, mes: number) {
         beneficios: r.beneficios,
       }));
 
-      // Insert integration log
       await supabase.from("integration_logs").insert({
         source: "folha_mensal",
         direction: "outbound",
@@ -75,9 +83,9 @@ export function useFinanceiroData(ano: number, mes: number) {
         status: "success" as const,
         request_payload: payload as any,
         response_payload: { status: 200, message: "Dados recebidos com sucesso (mock)" } as any,
+        company_id: companyId,
       });
 
-      // Update records status to "enviado"
       const ids = records.map((r) => r.id);
       await supabase
         .from("payroll_monthly_records")

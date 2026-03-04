@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface DashboardData {
   headcount: number;
@@ -11,6 +12,7 @@ interface DashboardData {
 }
 
 export function useDashboardData(): DashboardData {
+  const { companyId } = useCompany();
   const [headcount, setHeadcount] = useState(0);
   const [custoTotalFolha, setCustoTotalFolha] = useState(0);
   const [horasExtras, setHorasExtras] = useState(0);
@@ -26,25 +28,28 @@ export function useDashboardData(): DashboardData {
     setLoading(true);
 
     // Headcount
-    const { count } = await supabase
+    let hcQuery = supabase
       .from("employees")
       .select("*", { count: "exact", head: true })
       .eq("status", "ativo");
+    if (companyId) hcQuery = hcQuery.eq("company_id", companyId);
+    const { count } = await hcQuery;
     setHeadcount(count ?? 0);
 
     // Current month payroll
-    const { data: currentPayroll } = await supabase
+    let prQuery = supabase
       .from("payroll_monthly_records")
       .select("total_geral, he_total, salario_gratificacao, encargos, beneficios")
       .eq("ano", currentYear)
       .eq("mes", currentMonth);
+    if (companyId) prQuery = prQuery.eq("company_id", companyId);
+    const { data: currentPayroll } = await prQuery;
 
     const totalFolha = (currentPayroll ?? []).reduce((s, r) => s + (Number(r.total_geral) || 0), 0);
     const totalHE = (currentPayroll ?? []).reduce((s, r) => s + (Number(r.he_total) || 0), 0);
     setCustoTotalFolha(totalFolha);
     setHorasExtras(totalHE);
 
-    // Distribution
     const salarios = (currentPayroll ?? []).reduce((s, r) => s + (Number(r.salario_gratificacao) || 0), 0);
     const enc = (currentPayroll ?? []).reduce((s, r) => s + (Number(r.encargos) || 0), 0);
     const ben = (currentPayroll ?? []).reduce((s, r) => s + (Number(r.beneficios) || 0), 0);
@@ -61,12 +66,14 @@ export function useDashboardData(): DashboardData {
       months.push({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
     }
 
-    const { data: evoData } = await supabase
+    let evoQuery = supabase
       .from("payroll_monthly_records")
       .select("ano, mes, total_geral")
       .gte("ano", months[0].ano)
       .order("ano")
       .order("mes");
+    if (companyId) evoQuery = evoQuery.eq("company_id", companyId);
+    const { data: evoData } = await evoQuery;
 
     const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
     const evo = months.map((m) => {
@@ -82,7 +89,6 @@ export function useDashboardData(): DashboardData {
   useEffect(() => {
     fetchAll();
 
-    // Realtime subscription
     const channel = supabase
       .channel("dashboard-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "employees" }, () => fetchAll())
@@ -93,7 +99,7 @@ export function useDashboardData(): DashboardData {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [companyId]);
 
   return { headcount, custoTotalFolha, horasExtras, evolucaoFolha, distribuicaoCustos, loading };
 }
