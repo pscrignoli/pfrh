@@ -51,6 +51,87 @@ const defaultForm: VacancyForm = {
   opened_at: new Date(),
 };
 
+function DatePickerField({ value, onChange, label }: { value: Date | undefined; onChange: (d: Date | undefined) => void; label: string }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd/MM/yyyy") : "Selecione a data"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={onChange}
+            initialFocus
+            className={cn("p-3 pointer-events-auto")}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function VacancyFormFields({ formData, setFormData, showStatus, departments }: { formData: VacancyForm; setFormData: (f: VacancyForm) => void; showStatus?: boolean; departments: { id: string; name: string }[] }) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Título da Vaga *</Label>
+        <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Analista de RH" />
+      </div>
+      <div className="space-y-2">
+        <Label>Departamento</Label>
+        <Select value={formData.department_id} onValueChange={(v) => setFormData({ ...formData, department_id: v })}>
+          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+          <SelectContent>
+            {departments.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Modelo de Trabalho</Label>
+          <Select value={formData.work_model} onValueChange={(v) => setFormData({ ...formData, work_model: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="presencial">Presencial</SelectItem>
+              <SelectItem value="hibrido">Híbrido</SelectItem>
+              <SelectItem value="remoto">Remoto</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {showStatus && (
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aberta">Aberta</SelectItem>
+                <SelectItem value="pausada">Pausada</SelectItem>
+                <SelectItem value="fechada">Fechada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+      <DatePickerField
+        label="Data de Abertura"
+        value={formData.opened_at}
+        onChange={(d) => setFormData({ ...formData, opened_at: d })}
+      />
+    </div>
+  );
+}
+
 export default function Recrutamento() {
   const navigate = useNavigate();
   const { vacancies, loading, createVacancy, refetch } = useVacancies();
@@ -150,83 +231,6 @@ export default function Recrutamento() {
       setEditSaving(false);
     }
   };
-
-  const DatePickerField = ({ value, onChange, label }: { value: Date | undefined; onChange: (d: Date | undefined) => void; label: string }) => (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "dd/MM/yyyy") : "Selecione a data"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={onChange}
-            initialFocus
-            className={cn("p-3 pointer-events-auto")}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-
-  const VacancyFormFields = ({ formData, setFormData, showStatus }: { formData: VacancyForm; setFormData: (f: VacancyForm) => void; showStatus?: boolean }) => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Título da Vaga *</Label>
-        <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Analista de RH" />
-      </div>
-      <div className="space-y-2">
-        <Label>Departamento</Label>
-        <Select value={formData.department_id} onValueChange={(v) => setFormData({ ...formData, department_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-          <SelectContent>
-            {departments.map((d) => (
-              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label>Modelo de Trabalho</Label>
-          <Select value={formData.work_model} onValueChange={(v) => setFormData({ ...formData, work_model: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="presencial">Presencial</SelectItem>
-              <SelectItem value="hibrido">Híbrido</SelectItem>
-              <SelectItem value="remoto">Remoto</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {showStatus && (
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="aberta">Aberta</SelectItem>
-                <SelectItem value="pausada">Pausada</SelectItem>
-                <SelectItem value="fechada">Fechada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-      <DatePickerField
-        label="Data de Abertura"
-        value={formData.opened_at}
-        onChange={(d) => setFormData({ ...formData, opened_at: d })}
-      />
-    </div>
-  );
 
   return (
     <div className="p-6 space-y-6">
@@ -329,7 +333,7 @@ export default function Recrutamento() {
           </DialogHeader>
 
           {step === 1 ? (
-            <VacancyFormFields formData={form} setFormData={setForm} />
+            <VacancyFormFields formData={form} setFormData={setForm} departments={departments} />
           ) : (
             <VacancyFieldsEditor fields={vacancyFields} onChange={setVacancyFields} />
           )}
@@ -357,7 +361,7 @@ export default function Recrutamento() {
             <DialogTitle>Editar Vaga</DialogTitle>
             <DialogDescription>Altere as informações da vaga.</DialogDescription>
           </DialogHeader>
-          <VacancyFormFields formData={editForm} setFormData={setEditForm} showStatus />
+          <VacancyFormFields formData={editForm} setFormData={setEditForm} showStatus departments={departments} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
             <Button onClick={handleEditSave} disabled={editSaving}>
