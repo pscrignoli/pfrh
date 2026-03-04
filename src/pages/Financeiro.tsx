@@ -5,6 +5,7 @@ import { PayrollImportSheet } from "@/components/financeiro/PayrollImportSheet";
 import { IntegrationLogsPanel } from "@/components/financeiro/IntegrationLogsPanel";
 import { ComparativoSheet } from "@/components/financeiro/ComparativoSheet";
 import { FechamentoDialog } from "@/components/financeiro/FechamentoDialog";
+import { TransmitPreviewDialog } from "@/components/financeiro/TransmitPreviewDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Send, Loader2, Upload, GitCompareArrows, Lock, Unlock } from "lucide-react";
+import { Send, Upload, GitCompareArrows, Lock, Unlock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const monthNames = [
@@ -46,8 +47,9 @@ export default function Financeiro() {
   const [importOpen, setImportOpen] = useState(false);
   const [comparativoOpen, setComparativoOpen] = useState(false);
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
+  const [transmitOpen, setTransmitOpen] = useState(false);
 
-  const { records, logs, loading, transmitting, allSent, transmit, refetch } = useFinanceiroData(ano, mes);
+  const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
   // Derived status for the month
   const mesStatus = useMemo(() => {
@@ -61,15 +63,7 @@ export default function Financeiro() {
 
   const isFechado = mesStatus === "fechado" || mesStatus === "enviado";
   const isConferido = mesStatus === "conferido";
-
-  const handleTransmit = async () => {
-    try {
-      await transmit();
-      toast({ title: "Folha transmitida com sucesso!", description: "Dados enviados para a Controladoria (mock)." });
-    } catch (e: any) {
-      toast({ title: "Erro na transmissão", description: e.message, variant: "destructive" });
-    }
-  };
+  const allSent = records.length > 0 && records.every(r => r.status === "enviado");
 
   if (loading) {
     return (
@@ -150,10 +144,10 @@ export default function Financeiro() {
           )}
 
           <Button
-            onClick={handleTransmit}
-            disabled={allSent || records.length === 0 || transmitting || (!isFechado && !isConferido)}
+            onClick={() => setTransmitOpen(true)}
+            disabled={allSent || records.length === 0 || (!isFechado && !isConferido)}
           >
-            {transmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            <Send className="h-4 w-4 mr-2" />
             {allSent ? "Já Transmitido" : "Transmitir"}
           </Button>
         </div>
@@ -252,6 +246,15 @@ export default function Financeiro() {
         recordIds={records.map(r => r.id)}
         currentStatus={mesStatus}
         onDone={refetch}
+      />
+
+      <TransmitPreviewDialog
+        open={transmitOpen}
+        onClose={() => setTransmitOpen(false)}
+        ano={ano}
+        mes={mes}
+        records={records}
+        onTransmitted={refetch}
       />
     </div>
   );
