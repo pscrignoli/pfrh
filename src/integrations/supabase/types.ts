@@ -795,6 +795,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_vacancy_cascade: {
+        Args: { _vacancy_id: string }
+        Returns: undefined
+      }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {

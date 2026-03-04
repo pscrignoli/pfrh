@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon } from "lucide-react";
+import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2 } from "lucide-react";
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -134,7 +135,7 @@ function VacancyFormFields({ formData, setFormData, showStatus, departments }: {
 
 export default function Recrutamento() {
   const navigate = useNavigate();
-  const { vacancies, loading, createVacancy, refetch } = useVacancies();
+  const { vacancies, loading, createVacancy, deleteVacancy, refetch } = useVacancies();
   const { departments } = useDepartments(true);
   const { companyId } = useCompany();
   const { saveFields } = useVacancyFields(undefined);
@@ -158,6 +159,10 @@ export default function Recrutamento() {
   }, [companyId]);
 
   const [editSaving, setEditSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetTitle, setDeleteTargetTitle] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const resetDialog = () => {
     setStep(1);
@@ -229,6 +234,28 @@ export default function Recrutamento() {
       toast.error(e.message || "Erro ao atualizar vaga.");
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const confirmDelete = (id: string, title: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setDeleteTargetId(id);
+    setDeleteTargetTitle(title);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTargetId) return;
+    setDeleting(true);
+    try {
+      await deleteVacancy(deleteTargetId);
+      toast.success("Vaga excluída com sucesso!");
+      setDeleteConfirmOpen(false);
+      setEditOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao excluir vaga.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -362,14 +389,45 @@ export default function Recrutamento() {
             <DialogDescription>Altere as informações da vaga.</DialogDescription>
           </DialogHeader>
           <VacancyFormFields formData={editForm} setFormData={setEditForm} showStatus departments={departments} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleEditSave} disabled={editSaving}>
-              {editSaving ? "Salvando..." : "Salvar"}
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => confirmDelete(editVacancyId!, editForm.title)}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Excluir Vaga
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+              <Button onClick={handleEditSave} disabled={editSaving}>
+                {editSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir vaga "{deleteTargetTitle}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. Todos os candidatos, campos personalizados e histórico desta vaga serão permanentemente removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir Permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
