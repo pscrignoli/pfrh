@@ -625,6 +625,7 @@ export type Database = {
           created_at: string
           department_id: string | null
           id: string
+          opened_at: string | null
           status: Database["public"]["Enums"]["vacancy_status"]
           title: string
           work_model: Database["public"]["Enums"]["work_model"]
@@ -633,6 +634,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           id?: string
+          opened_at?: string | null
           status?: Database["public"]["Enums"]["vacancy_status"]
           title: string
           work_model?: Database["public"]["Enums"]["work_model"]
@@ -641,6 +643,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           id?: string
+          opened_at?: string | null
           status?: Database["public"]["Enums"]["vacancy_status"]
           title?: string
           work_model?: Database["public"]["Enums"]["work_model"]

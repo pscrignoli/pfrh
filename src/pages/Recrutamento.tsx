@@ -144,7 +144,9 @@ export default function Recrutamento() {
                       {v.candidate_count ?? 0} candidato{(v.candidate_count ?? 0) !== 1 ? "s" : ""}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(v.created_at).toLocaleDateString("pt-BR")}
+                      {v.opened_at
+                        ? new Date(v.opened_at + "T00:00:00").toLocaleDateString("pt-BR")
+                        : new Date(v.created_at).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
                 </CardContent>

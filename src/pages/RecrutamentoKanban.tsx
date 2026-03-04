@@ -1,7 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { format, parseISO } from "date-fns";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Settings2, Download } from "lucide-react";
+import { ArrowLeft, Plus, Settings2, Download, CalendarIcon } from "lucide-react";
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -32,7 +36,7 @@ export default function RecrutamentoKanban() {
   const { candidates, loading, createCandidate, updateStage, refetch } = useCandidates(id!);
   const { fields, saveFields, refetch: refetchFields } = useVacancyFields(id);
   const [vacancyTitle, setVacancyTitle] = useState("");
-  const [vacancyCreatedAt, setVacancyCreatedAt] = useState("");
+  const [vacancyOpenedAt, setVacancyOpenedAt] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [saving, setSaving] = useState(false);
@@ -51,10 +55,10 @@ export default function RecrutamentoKanban() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("vacancies").select("title, created_at").eq("id", id).single().then(({ data }) => {
+    supabase.from("vacancies").select("title, opened_at").eq("id", id).single().then(({ data }) => {
       if (data) {
         setVacancyTitle(data.title);
-        setVacancyCreatedAt(data.created_at);
+        setVacancyOpenedAt((data as any).opened_at);
       }
     });
   }, [id]);
@@ -136,11 +140,36 @@ export default function RecrutamentoKanban() {
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">{vacancyTitle || "Carregando..."}</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm flex items-center gap-2">
             {candidates.length} candidato{candidates.length !== 1 ? "s" : ""}
-            {vacancyCreatedAt && (
-              <span className="ml-2 text-xs">· Aberta em {new Date(vacancyCreatedAt).toLocaleDateString("pt-BR")}</span>
-            )}
+            <span className="text-xs">·</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="text-xs hover:underline flex items-center gap-1 text-muted-foreground">
+                  <CalendarIcon className="h-3 w-3" />
+                  {vacancyOpenedAt
+                    ? `Aberta em ${format(parseISO(vacancyOpenedAt), "dd/MM/yyyy")}`
+                    : "Definir data de abertura"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={vacancyOpenedAt ? parseISO(vacancyOpenedAt) : undefined}
+                  onSelect={async (date) => {
+                    if (!date || !id) return;
+                    const dateStr = format(date, "yyyy-MM-dd");
+                    const { error } = await supabase
+                      .from("vacancies")
+                      .update({ opened_at: dateStr } as any)
+                      .eq("id", id);
+                    if (!error) setVacancyOpenedAt(dateStr);
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </p>
         </div>
         <Button

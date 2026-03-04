@@ -8,6 +8,7 @@ export interface Vacancy {
   work_model: "presencial" | "hibrido" | "remoto";
   status: "aberta" | "pausada" | "fechada";
   created_at: string;
+  opened_at: string | null;
   departments?: { name: string } | null;
   candidate_count?: number;
 }
