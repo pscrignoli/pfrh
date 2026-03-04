@@ -131,30 +131,29 @@ function parseCargaHoraria(str: string | undefined | null): number {
   return m ? Number(m[1]) : 0;
 }
 
-/** Strip page-break headers (lines starting with "Empresa:" or "Pagina" or form-feeds) */
+/** Strip page-break headers that repeat throughout the file */
 function stripPageHeaders(text: string): string {
   const lines = text.split("\n");
   const filtered: string[] = [];
-  let skipUntilBlank = false;
+
+  // Patterns that identify page header/footer lines (individually)
+  const headerPatterns = [
+    /\f/,                                        // form-feed
+    /^\s*Empresa:\s/,                            // "Empresa: 0297 - ..."
+    /Inscri/i,                                   // "Inscrição Federal" (with encoding)
+    /Endere/i,                                   // "Endereço:"
+    /Bairro:/i,                                  // "Bairro:"
+    /Rela.*C[aáà]lculo/i,                        // "Relação de Cálculo"
+    /P[aáà]g:\s*\d/i,                            // "Pág:0001"
+    /Usu[aáà]rio:\s/i,                           // "Usuário: SILMARA"
+    /^\s*\d{4}\s*-\s*[A-Z].*(?:LTDA|S\.?A\.?|EIRELI|ME)\b/i, // full company name line "0297 - PRODUCTS..."
+    /^\s*Anal[ií]tico\s+Contratos/i,             // "Analítico Contratos" section header
+  ];
 
   for (const line of lines) {
-    // Skip form-feed characters
     const cleanLine = line.replace(/\f/g, "");
-
-    // Detect repeated page headers
-    if (/^\s*Empresa:\s/.test(cleanLine) || /^\s*Pagina\s/i.test(cleanLine) || /^-{20,}/.test(cleanLine)) {
-      skipUntilBlank = true;
-      continue;
-    }
-
-    if (skipUntilBlank) {
-      // Skip lines that are part of the repeated header block
-      if (cleanLine.trim() === "" || /^\s*(Relacao|Periodo|Calculo)/i.test(cleanLine)) {
-        continue;
-      }
-      skipUntilBlank = false;
-    }
-
+    const isHeader = headerPatterns.some(p => p.test(line));
+    if (isHeader) continue;
     filtered.push(cleanLine);
   }
 
@@ -486,8 +485,8 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Start at "Base Impostos" header
-    if (/^\s*Base\s+Impostos/i.test(line)) {
+    // Start at "Base Impostos" header OR the column header line "Normal  13o  Férias"
+    if (/^\s*Base\s+Impostos/i.test(line) || (!inBases && /Normal\s+13/i.test(line) && /Base\s+Valor/i.test(line))) {
       inBases = true;
       basesLineCount = 0;
       continue;
@@ -651,10 +650,10 @@ export function mapParsedToPayrollFields(func: FuncionarioParsed): Record<string
     inss_20: func.bases.inss_empresa.normal,
     inss_13: func.bases.inss.decimo_terceiro,
     inss_ferias: func.bases.inss.ferias,
-    fgts_8: func.bases.fgts_gfip.valor,
+    fgts_8: func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
     fgts_13: 0,
     fgts_ferias: 0,
-    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor,
+    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
 
     // Benefícios
     vale_transporte: rubricaByCode.get(1816) ?? 0,

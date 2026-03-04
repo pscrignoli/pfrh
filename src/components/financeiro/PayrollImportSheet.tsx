@@ -263,7 +263,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
         proventos: f.totais.proventos,
         descontos: f.totais.descontos,
         liquido: f.totais.liquido,
-        fgts: f.bases.fgts_gfip.valor,
+        fgts: f.bases.fgts_gfip.valor + f.bases.fgts_grrf.valor,
         he,
         salarioDiverge: f.totais.proventos > f.salario_base * 1.5,
       };
