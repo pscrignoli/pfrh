@@ -64,8 +64,8 @@ function buildPayrollFields(func: FuncionarioParsed): Record<string, unknown> {
     inss_20: func.bases.inss_empresa.normal,
     inss_13: func.bases.inss.decimo_terceiro,
     inss_ferias: func.bases.inss.ferias,
-    fgts_8: func.bases.fgts_gfip.valor,
-    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor,
+    fgts_8: func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
+    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
 
     // Descontos
     desconto_vale_transporte: rubricaVal(func, 1816),
