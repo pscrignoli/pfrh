@@ -73,10 +73,10 @@ export function useVacancies() {
       payload.status = vacancy.status;
     }
 
-    const { error } = await withTimeout(
-      () => supabase.from("vacancies").insert([payload] as any).select("id"),
+    const { data, error } = await withTimeout(
+      () => supabase.from("vacancies").insert([payload] as any).select("id").single(),
       12000
-    );
+    ) as any;
 
     if (error) {
       console.error("Error creating vacancy:", error);
@@ -85,6 +85,8 @@ export function useVacancies() {
 
     // Refresh in background — don't block caller
     fetchVacancies().catch(() => {});
+
+    return data?.id as string;
   };
 
   return { vacancies, loading, createVacancy, refetch: fetchVacancies };
