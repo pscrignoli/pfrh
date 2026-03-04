@@ -91,9 +91,37 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          razao_social: string | null
+          status: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          razao_social?: string | null
+          status?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          razao_social?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           code: string | null
+          company_id: string | null
           created_at: string
           id: string
           name: string
@@ -101,6 +129,7 @@ export type Database = {
         }
         Insert: {
           code?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           name: string
@@ -108,12 +137,21 @@ export type Database = {
         }
         Update: {
           code?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           name?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "departments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_embeddings: {
         Row: {
@@ -190,6 +228,7 @@ export type Database = {
       employees: {
         Row: {
           cargo: string | null
+          company_id: string | null
           created_at: string
           ctps: string | null
           data_admissao: string
@@ -217,6 +256,7 @@ export type Database = {
         }
         Insert: {
           cargo?: string | null
+          company_id?: string | null
           created_at?: string
           ctps?: string | null
           data_admissao: string
@@ -244,6 +284,7 @@ export type Database = {
         }
         Update: {
           cargo?: string | null
+          company_id?: string | null
           created_at?: string
           ctps?: string | null
           data_admissao?: string
@@ -269,10 +310,19 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_logs: {
         Row: {
+          company_id: string | null
           created_at: string
           direction: string
           endpoint: string | null
@@ -284,6 +334,7 @@ export type Database = {
           status: Database["public"]["Enums"]["integration_status"]
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           direction: string
           endpoint?: string | null
@@ -295,6 +346,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["integration_status"]
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           direction?: string
           endpoint?: string | null
@@ -305,7 +357,15 @@ export type Database = {
           source?: string
           status?: Database["public"]["Enums"]["integration_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "integration_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_monthly_records: {
         Row: {
@@ -321,6 +381,7 @@ export type Database = {
           cargo: string | null
           centro_custo: string | null
           codigo_centro_custo: string | null
+          company_id: string | null
           contrato_empregado: string | null
           convenio_medico: number | null
           created_at: string
@@ -380,6 +441,7 @@ export type Database = {
           cargo?: string | null
           centro_custo?: string | null
           codigo_centro_custo?: string | null
+          company_id?: string | null
           contrato_empregado?: string | null
           convenio_medico?: number | null
           created_at?: string
@@ -439,6 +501,7 @@ export type Database = {
           cargo?: string | null
           centro_custo?: string | null
           codigo_centro_custo?: string | null
+          company_id?: string | null
           contrato_empregado?: string | null
           convenio_medico?: number | null
           created_at?: string
@@ -487,6 +550,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "payroll_monthly_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payroll_monthly_records_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -498,6 +568,7 @@ export type Database = {
       positions: {
         Row: {
           base_salary: number | null
+          company_id: string | null
           created_at: string
           department: string | null
           id: string
@@ -505,6 +576,7 @@ export type Database = {
         }
         Insert: {
           base_salary?: number | null
+          company_id?: string | null
           created_at?: string
           department?: string | null
           id?: string
@@ -512,12 +584,21 @@ export type Database = {
         }
         Update: {
           base_salary?: number | null
+          company_id?: string | null
           created_at?: string
           department?: string | null
           id?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "positions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_settings: {
         Row: {
@@ -622,6 +703,7 @@ export type Database = {
       }
       vacancies: {
         Row: {
+          company_id: string | null
           created_at: string
           department_id: string | null
           id: string
@@ -631,6 +713,7 @@ export type Database = {
           work_model: Database["public"]["Enums"]["work_model"]
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
@@ -640,6 +723,7 @@ export type Database = {
           work_model?: Database["public"]["Enums"]["work_model"]
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
@@ -649,6 +733,13 @@ export type Database = {
           work_model?: Database["public"]["Enums"]["work_model"]
         }
         Relationships: [
+          {
+            foreignKeyName: "vacancies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vacancies_department_id_fkey"
             columns: ["department_id"]
