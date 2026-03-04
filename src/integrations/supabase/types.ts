@@ -730,6 +730,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_vacancy_info: {
+        Args: {
+          _department_id: string
+          _opened_at: string
+          _status: Database["public"]["Enums"]["vacancy_status"]
+          _title: string
+          _vacancy_id: string
+          _work_model: Database["public"]["Enums"]["work_model"]
+        }
+        Returns: undefined
+      }
       upsert_candidate_field_values: {
         Args: { _candidate_id: string; _values: Json }
         Returns: undefined

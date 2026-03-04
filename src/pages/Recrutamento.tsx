@@ -123,17 +123,14 @@ export default function Recrutamento() {
     if (!editForm.title.trim()) { toast.error("Informe o título da vaga."); return; }
     setEditSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        title: editForm.title.trim(),
-        department_id: editForm.department_id || null,
-        work_model: editForm.work_model,
-        status: editForm.status,
-        opened_at: editForm.opened_at ? format(editForm.opened_at, "yyyy-MM-dd") : null,
-      };
-      const { error } = await supabase
-        .from("vacancies")
-        .update(payload as any)
-        .eq("id", editVacancyId);
+      const { error } = await supabase.rpc("update_vacancy_info" as any, {
+        _vacancy_id: editVacancyId,
+        _title: editForm.title.trim(),
+        _department_id: editForm.department_id || null,
+        _work_model: editForm.work_model,
+        _status: editForm.status,
+        _opened_at: editForm.opened_at ? format(editForm.opened_at, "yyyy-MM-dd") : null,
+      });
       if (error) throw new Error(error.message);
       toast.success("Vaga atualizada!");
       setEditOpen(false);
