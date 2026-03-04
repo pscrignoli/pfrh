@@ -30,8 +30,14 @@ interface Props {
 }
 
 export default function CandidateDetailModal({ open, onOpenChange, candidate, vacancyId, onSaved }: Props) {
-  const { fields, loading: fieldsLoading } = useVacancyFields(vacancyId);
+  const { fields, loading: fieldsLoading, refetch: refetchFields } = useVacancyFields(vacancyId);
   const { values, loading: valuesLoading, saveValues } = useCandidateFieldValues(candidate?.id);
+
+  useEffect(() => {
+    if (open) {
+      refetchFields();
+    }
+  }, [open, refetchFields]);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
