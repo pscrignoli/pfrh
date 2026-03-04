@@ -5,6 +5,8 @@ import { parseFolhaTxt, type ParsedPayroll, type FuncionarioParsed } from "@/uti
 import { importFolhaTxt, type ImportResult } from "@/utils/importFolhaTxt";
 import { auditarFolha, totalAlerts, type AuditResult, type AuditAlert, type PreviousRecord } from "@/utils/auditarFolha";
 import { AuditAlertCard, type CorrectionApply, type CorrectionLog } from "./AuditAlertCard";
+import { ConferenciaFinal } from "./ConferenciaFinal";
+import { gerarConferenciaFinal, type ConferenciaFinalData } from "@/utils/gerarConferenciaFinal";
 
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -42,7 +44,7 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const STEP_LABELS = ["Upload", "Colaboradores", "Folha", "Auditoria", "Importação"];
+const STEP_LABELS = ["Upload", "Colaboradores", "Folha", "Auditoria", "Conferência", "Importação"];
 
 type EmployeeStatus = "cadastrado" | "novo" | "atualizar" | "demitido";
 
@@ -110,7 +112,11 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   const [showAtencao, setShowAtencao] = useState(true);
   const [showInformativos, setShowInformativos] = useState(true);
 
-  // Step 5: Result
+  // Step 5: Conferência
+  const [conferenciaData, setConferenciaData] = useState<ConferenciaFinalData | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  // Step 6: Result
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
@@ -140,6 +146,8 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       setShowCriticos(true);
       setShowAtencao(true);
       setShowInformativos(true);
+      setConferenciaData(null);
+      setShowConfirmDialog(false);
       setImporting(false);
       setImportProgress(0);
       setTxtImportResult(null);
@@ -479,19 +487,32 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
   const correctionCount = correctedAlerts.size;
   const reviewedCount = dismissedAlerts.size + correctedAlerts.size;
 
-  // ── Step 5: Import ──
+  // ── Step 4 → 5: Go to Conferência ──
+  const goToConferencia = useCallback(() => {
+    if (!parsedTxt) return;
+    const corrected = applyCorrections() ?? parsedTxt;
+    const confData = gerarConferenciaFinal(
+      parsedTxt, corrected, correctionLogs,
+      correctedAlerts.size, dismissedAlerts.size + correctedAlerts.size,
+      mes, ano,
+    );
+    setConferenciaData(confData);
+    setStep(5);
+  }, [parsedTxt, applyCorrections, correctionLogs, correctedAlerts, dismissedAlerts, mes, ano]);
+
+  // ── Step 6: Import ──
   const runImport = useCallback(async () => {
     if (!companyId || !parsedTxt || !mes || !ano) return;
+    setShowConfirmDialog(false);
     setImporting(true);
     setImportProgress(10);
 
-    // Apply corrections before importing
     const dataToImport = applyCorrections() ?? parsedTxt;
     const res = await importFolhaTxt(dataToImport, companyId, ano, mes);
     setImportProgress(100);
     setTxtImportResult(res);
     setImporting(false);
-    setStep(5);
+    setStep(6);
     if (res.payroll_records > 0) onImported(ano, mes);
   }, [companyId, parsedTxt, ano, mes, onImported, applyCorrections]);
 
@@ -939,11 +960,11 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                   <TooltipTrigger asChild>
                     <span>
                       <Button
-                        onClick={runImport}
-                        disabled={!canProceedAudit || importing}
+                        onClick={goToConferencia}
+                        disabled={!canProceedAudit}
                       >
-                        {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                        Importar {parsedTxt?.funcionarios.length} registros
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Continuar → Conferência
                       </Button>
                     </span>
                   </TooltipTrigger>
@@ -955,13 +976,69 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                 </Tooltip>
               </TooltipProvider>
             </div>
-
-            {importing && <Progress value={importProgress} className="h-2" />}
           </div>
         )}
 
-        {/* ── Step 5: Resultado ── */}
-        {step === 5 && txtImportResult && (
+        {/* ── Step 5: Conferência Final ── */}
+        {step === 5 && conferenciaData && (
+          <div className="space-y-4">
+            <ConferenciaFinal data={conferenciaData} />
+
+            <div className="flex justify-between items-center pt-2 border-t">
+              <Button variant="outline" onClick={() => setStep(4)}>Voltar para Auditoria</Button>
+              <Button
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6"
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={importing}
+              >
+                {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Importar {parsedTxt?.funcionarios.length} registros
+              </Button>
+            </div>
+
+            {importing && <Progress value={importProgress} className="h-2" />}
+
+            {/* Confirmation Dialog */}
+            {showConfirmDialog && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+                <div className="bg-background rounded-lg border shadow-lg p-6 max-w-md w-full mx-4 space-y-4">
+                  <h3 className="text-lg font-semibold">Confirmar Importação</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Confirma a importação de <strong>{parsedTxt?.funcionarios.length} registros</strong> da folha de{" "}
+                    <strong>{monthNames[mes - 1]}/{ano}</strong>?
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Esta ação criará <strong>{counts.novo} colaborador(es) novo(s)</strong> e{" "}
+                    <strong>{parsedTxt?.funcionarios.length} registros de folha</strong>.
+                    {correctionCount > 0 && (
+                      <> Com <strong className="text-green-600">{correctionCount} correção(ões)</strong> aplicada(s).</>
+                    )}
+                  </p>
+                  {existingCount > 0 && (
+                    <p className="text-xs text-yellow-600 font-medium">
+                      ⚠ {existingCount} registros existentes serão substituídos.
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>Cancelar</Button>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={runImport}
+                      disabled={importing}
+                    >
+                      {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Confirmar Importação
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Step 6: Resultado ── */}
+        {step === 6 && txtImportResult && (
           <div className="space-y-6 text-center py-8">
             {txtImportResult.errors.length === 0 ? (
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
