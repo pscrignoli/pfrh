@@ -138,9 +138,14 @@ export default function Recrutamento() {
                       <MapPin className="h-3.5 w-3.5" /> {workModelLabels[v.work_model]}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-sm font-medium pt-1 border-t">
-                    <Users className="h-3.5 w-3.5 text-primary" />
-                    <span>{v.candidate_count ?? 0} candidato{(v.candidate_count ?? 0) !== 1 ? "s" : ""}</span>
+                  <div className="flex items-center justify-between text-sm pt-1 border-t">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Users className="h-3.5 w-3.5 text-primary" />
+                      {v.candidate_count ?? 0} candidato{(v.candidate_count ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(v.created_at).toLocaleDateString("pt-BR")}
+                    </span>
                   </div>
                 </CardContent>
               </Card>

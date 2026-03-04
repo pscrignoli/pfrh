@@ -32,6 +32,7 @@ export default function RecrutamentoKanban() {
   const { candidates, loading, createCandidate, updateStage, refetch } = useCandidates(id!);
   const { fields, saveFields, refetch: refetchFields } = useVacancyFields(id);
   const [vacancyTitle, setVacancyTitle] = useState("");
+  const [vacancyCreatedAt, setVacancyCreatedAt] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [saving, setSaving] = useState(false);
@@ -50,8 +51,11 @@ export default function RecrutamentoKanban() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("vacancies").select("title").eq("id", id).single().then(({ data }) => {
-      if (data) setVacancyTitle(data.title);
+    supabase.from("vacancies").select("title, created_at").eq("id", id).single().then(({ data }) => {
+      if (data) {
+        setVacancyTitle(data.title);
+        setVacancyCreatedAt(data.created_at);
+      }
     });
   }, [id]);
 
@@ -132,7 +136,12 @@ export default function RecrutamentoKanban() {
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">{vacancyTitle || "Carregando..."}</h1>
-          <p className="text-muted-foreground text-sm">{candidates.length} candidato{candidates.length !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground text-sm">
+            {candidates.length} candidato{candidates.length !== 1 ? "s" : ""}
+            {vacancyCreatedAt && (
+              <span className="ml-2 text-xs">· Aberta em {new Date(vacancyCreatedAt).toLocaleDateString("pt-BR")}</span>
+            )}
+          </p>
         </div>
         <Button
           variant="outline"
