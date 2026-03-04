@@ -48,10 +48,21 @@ export default function EmpregareTab() {
         body: { method, endpoint: path, payload: parsedPayload },
       });
 
-      if (fnError) throw new Error(fnError.message);
+      if (fnError) {
+        // Try to extract body from FunctionsHttpError
+        let errorBody: any = { error: fnError.message };
+        try {
+          if (typeof (fnError as any).context?.json === "function") {
+            errorBody = await (fnError as any).context.json();
+          }
+        } catch { /* ignore */ }
+        setStatusCode(errorBody?.status || 500);
+        setResult(JSON.stringify(errorBody, null, 2));
+        return;
+      }
 
-      setStatusCode(fnData.status);
-      setResult(JSON.stringify(fnData.data, null, 2));
+      setStatusCode(fnData?.status ?? 200);
+      setResult(JSON.stringify(fnData?.data ?? fnData, null, 2));
     } catch (e: any) {
       setResult(JSON.stringify({ error: e.message }, null, 2));
       setStatusCode(500);
