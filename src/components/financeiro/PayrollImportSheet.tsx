@@ -421,6 +421,10 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                     <span className="text-muted-foreground text-xs">Total Proventos</span>
                     <p className="font-medium">{fmt(parsedTxt.totais_gerais.proventos)}</p>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Total Líquido</span>
+                    <p className="font-medium">{fmt(parsedTxt.totais_gerais.liquido)}</p>
+                  </div>
                 </div>
 
                 {/* Enterprise mismatch alert */}

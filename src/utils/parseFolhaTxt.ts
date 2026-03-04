@@ -177,12 +177,12 @@ export function parseFolhaTxt(textoCompleto: string): ParsedPayroll {
     empresa.nome = empresaMatch[2].trim();
   }
 
-  const cnpjMatch = text.match(/CNPJ:\s*([\d.\/\-]+)/m);
+  const cnpjMatch = text.match(/(?:CNPJ|Inscri[cç][aã]o\s+Federal):\s*([\d.\/\-]+)/mi);
   if (cnpjMatch) {
     empresa.cnpj = cnpjMatch[1].trim();
   }
 
-  const periodoMatch = text.match(/Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aA]\s*(\d{2}\/\d{2}\/\d{4})/m);
+  const periodoMatch = text.match(/Per[ií]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*[aA]\s*(\d{2}\/\d{2}\/\d{4})/m);
   if (periodoMatch) {
     periodo.inicio = parseDateBR(periodoMatch[1]) ?? "";
     periodo.fim = parseDateBR(periodoMatch[2]) ?? "";
@@ -220,12 +220,17 @@ export function parseFolhaTxt(textoCompleto: string): ParsedPayroll {
   const resumo_fgts: ResumoFGTS = { gfip_base: 0, gfip_valor: 0, grrf_base: 0, grrf_valor: 0, total: 0 };
   const resumo_irrf: ResumoIRRF = { normal: 0, rescisao: 0, ferias: 0, decimo_terceiro: 0, total: 0 };
 
-  // Extract "Totais" line
-  const totaisMatch = text.match(/^\s*Totais\s+.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s*$/m);
-  if (totaisMatch) {
-    totais_gerais.proventos = parseValorBR(totaisMatch[1]);
-    totais_gerais.descontos = parseValorBR(totaisMatch[2]);
-    totais_gerais.liquido = parseValorBR(totaisMatch[3]);
+  // Extract footer "Totais" line — format:
+  // "  Totais   Proventos: 727.471,02  Vantagens: 1.530,64  Descontos: 234.615,49  Liquido: 494.386,17"
+  const totaisLineMatch = text.match(/^\s*Totais\s+.+$/m);
+  if (totaisLineMatch) {
+    const tl = totaisLineMatch[0];
+    const provM = tl.match(/Proventos:\s*([\d.,]+)/);
+    const descM = tl.match(/Descontos:\s*([\d.,]+)/);
+    const liqM = tl.match(/L[ií]quido:\s*([\d.,]+)/);
+    if (provM) totais_gerais.proventos = parseValorBR(provM[1]);
+    if (descM) totais_gerais.descontos = parseValorBR(descM[1]);
+    if (liqM) totais_gerais.liquido = parseValorBR(liqM[1]);
   }
 
   // Try to parse summary sections from the footer
@@ -285,7 +290,7 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
     const chmMatch = cargoLine.match(/C\.H\.M\s+([\d:]+)/);
     carga_horaria = parseCargaHoraria(chmMatch?.[1]);
 
-    const salMatch = cargoLine.match(/Salario\s+([\d.,]+)/);
+    const salMatch = cargoLine.match(/Sal[aá]rio:\s*([\d.,]+)/);
     salario_base = parseValorBR(salMatch?.[1]);
 
     const cboMatch = cargoLine.match(/CBO\s+(\d+)/);
@@ -384,19 +389,18 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
 function parseRubricas(lines: string[]): Rubrica[] {
   const rubricas: Rubrica[] = [];
 
-  // Rubricas appear between the Filial line and Proventos: line
+  // Rubricas appear between the Filial/Cargo line and Proventos: line
   let inRubricas = false;
-  const rubricaLinePattern = /^\s{0,4}(\d{1,5})\s+(1|3|4)\s+/;
 
   for (const line of lines) {
-    // Start after Filial: line (or after the header section)
-    if (/^\s*Filial:/.test(line)) {
+    // Start after Filial: line, Cargo: line, or column header
+    if (/^\s*Filial:/.test(line) || /Codigo\s+T\s+Descricao/i.test(line)) {
       inRubricas = true;
       continue;
     }
 
     // Stop at totalization
-    if (/^\s*Proventos:/.test(line) || /^\s*IRRF\s/.test(line)) {
+    if (/^\s*Proventos:/.test(line) || /^\s*Base\s+Impostos/i.test(line)) {
       inRubricas = false;
       continue;
     }
@@ -406,18 +410,29 @@ function parseRubricas(lines: string[]): Rubrica[] {
 
     // Skip separator lines
     if (/^[\s\-=_]+$/.test(line)) continue;
-    // Skip column headers
+    // Skip column headers (second occurrence)
     if (/Codigo\s+T\s+Descricao/i.test(line)) continue;
 
-    // Parse two-column layout: left side (pos ~2-54), right side (pos ~54-110+)
-    const leftPart = line.length > 2 ? line.substring(0, Math.min(54, line.length)) : "";
-    const rightPart = line.length > 54 ? line.substring(54) : "";
+    // Try to parse full line as a single rubrica first
+    const fullRubrica = parseRubricaColumn(line);
+    if (fullRubrica) {
+      rubricas.push(fullRubrica);
+      continue;
+    }
 
-    const leftRubrica = parseRubricaColumn(leftPart);
-    const rightRubrica = parseRubricaColumn(rightPart);
-
-    if (leftRubrica) rubricas.push(leftRubrica);
-    if (rightRubrica) rubricas.push(rightRubrica);
+    // Parse two-column layout: try multiple split positions
+    for (const splitPos of [55, 54, 56, 52, 58]) {
+      if (line.length <= splitPos) continue;
+      const leftPart = line.substring(0, splitPos);
+      const rightPart = line.substring(splitPos);
+      const leftRubrica = parseRubricaColumn(leftPart);
+      const rightRubrica = parseRubricaColumn(rightPart);
+      if (leftRubrica || rightRubrica) {
+        if (leftRubrica) rubricas.push(leftRubrica);
+        if (rightRubrica) rubricas.push(rightRubrica);
+        break;
+      }
+    }
   }
 
   return rubricas;
@@ -498,22 +513,18 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
       }
     }
 
-    // FGTS GFIP
-    if (/^\s*FGTS\s+GFIP/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
-      if (vals && vals.length >= 2) {
-        bases.fgts_gfip.base = parseValorBR(vals[0]);
-        bases.fgts_gfip.valor = parseValorBR(vals[1]);
-      }
+    // FGTS GFIP — may appear on same line as IRRF (right side) or on its own line
+    const gfipMatch = line.match(/FGTS\s+GFIP\s+([\d.,]+)\s+([\d.,]+)/i);
+    if (gfipMatch) {
+      bases.fgts_gfip.base = parseValorBR(gfipMatch[1]);
+      bases.fgts_gfip.valor = parseValorBR(gfipMatch[2]);
     }
 
-    // FGTS GRRF
-    if (/^\s*FGTS\s+GRRF/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
-      if (vals && vals.length >= 2) {
-        bases.fgts_grrf.base = parseValorBR(vals[0]);
-        bases.fgts_grrf.valor = parseValorBR(vals[1]);
-      }
+    // FGTS GRRF — may appear on same line as INSS or on its own line
+    const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
+    if (grrfMatch) {
+      bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
+      bases.fgts_grrf.valor = parseValorBR(grrfMatch[2]);
     }
   }
 
