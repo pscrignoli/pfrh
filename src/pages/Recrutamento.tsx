@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useVacancies } from "@/hooks/useVacancies";
 import { useDepartments } from "@/hooks/useDepartments";
+import VacancyFieldsEditor from "@/components/recrutamento/VacancyFieldsEditor";
+import type { VacancyField } from "@/hooks/useVacancyFields";
+import { useVacancyFields } from "@/hooks/useVacancyFields";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -29,22 +32,41 @@ export default function Recrutamento() {
   const navigate = useNavigate();
   const { vacancies, loading, createVacancy } = useVacancies();
   const { departments } = useDepartments(true);
+  const { saveFields } = useVacancyFields(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({ title: "", department_id: "", work_model: "presencial" });
+  const [vacancyFields, setVacancyFields] = useState<VacancyField[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const handleCreate = async () => {
+  const resetDialog = () => {
+    setStep(1);
+    setForm({ title: "", department_id: "", work_model: "presencial" });
+    setVacancyFields([]);
+    setDialogOpen(false);
+  };
+
+  const handleNext = () => {
     if (!form.title.trim()) { toast.error("Informe o título da vaga."); return; }
+    setStep(2);
+  };
+
+  const handleCreate = async () => {
     setSaving(true);
     try {
-      await createVacancy({
+      const vacancyId = await createVacancy({
         title: form.title.trim(),
         department_id: form.department_id || null,
         work_model: form.work_model,
       });
+
+      // Save custom fields if any
+      if (vacancyFields.length > 0 && vacancyId) {
+        await saveFields(vacancyId, vacancyFields);
+      }
+
       toast.success("Vaga criada com sucesso!");
-      setForm({ title: "", department_id: "", work_model: "presencial" });
-      setDialogOpen(false);
+      resetDialog();
     } catch (e: any) {
       console.error("Create vacancy failed:", e);
       toast.error(e?.message || "Erro ao criar vaga.");
@@ -111,43 +133,60 @@ export default function Recrutamento() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) resetDialog(); else setDialogOpen(true); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nova Vaga</DialogTitle>
-            <DialogDescription>Preencha os dados para criar uma nova vaga.</DialogDescription>
+            <DialogTitle>Nova Vaga {step === 2 ? "— Campos" : ""}</DialogTitle>
+            <DialogDescription>
+              {step === 1 ? "Preencha os dados básicos da vaga." : "Adicione campos personalizados (opcional)."}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Título da Vaga *</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ex: Analista de RH" />
+
+          {step === 1 ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Título da Vaga *</Label>
+                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ex: Analista de RH" />
+              </div>
+              <div className="space-y-2">
+                <Label>Departamento</Label>
+                <Select value={form.department_id} onValueChange={(v) => setForm({ ...form, department_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Modelo de Trabalho</Label>
+                <Select value={form.work_model} onValueChange={(v) => setForm({ ...form, work_model: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="presencial">Presencial</SelectItem>
+                    <SelectItem value="hibrido">Híbrido</SelectItem>
+                    <SelectItem value="remoto">Remoto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Departamento</Label>
-              <Select value={form.department_id} onValueChange={(v) => setForm({ ...form, department_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Modelo de Trabalho</Label>
-              <Select value={form.work_model} onValueChange={(v) => setForm({ ...form, work_model: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="presencial">Presencial</SelectItem>
-                  <SelectItem value="hibrido">Híbrido</SelectItem>
-                  <SelectItem value="remoto">Remoto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          ) : (
+            <VacancyFieldsEditor fields={vacancyFields} onChange={setVacancyFields} />
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={saving}>{saving ? "Criando..." : "Criar Vaga"}</Button>
+            {step === 2 && (
+              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+            )}
+            {step === 1 ? (
+              <>
+                <Button variant="outline" onClick={resetDialog}>Cancelar</Button>
+                <Button onClick={handleNext}>Próximo</Button>
+              </>
+            ) : (
+              <Button onClick={handleCreate} disabled={saving}>{saving ? "Criando..." : "Criar Vaga"}</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      candidate_field_values: {
+        Row: {
+          candidate_id: string
+          field_id: string
+          id: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          candidate_id: string
+          field_id: string
+          id?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          field_id?: string
+          id?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_field_values_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_field_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_fields"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           created_at: string
@@ -616,6 +655,44 @@ export type Database = {
           },
         ]
       }
+      vacancy_fields: {
+        Row: {
+          created_at: string
+          field_type: string
+          id: string
+          label: string
+          options: Json | null
+          sort_order: number
+          vacancy_id: string
+        }
+        Insert: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          label: string
+          options?: Json | null
+          sort_order?: number
+          vacancy_id: string
+        }
+        Update: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          label?: string
+          options?: Json | null
+          sort_order?: number
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_fields_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -629,11 +706,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      save_vacancy_fields: {
+        Args: { _fields: Json; _vacancy_id: string }
+        Returns: undefined
+      }
+      update_candidate_info: {
+        Args: {
+          _candidate_id: string
+          _email: string
+          _name: string
+          _phone: string
+          _stage: Database["public"]["Enums"]["candidate_stage"]
+        }
+        Returns: undefined
+      }
       update_candidate_stage: {
         Args: {
           _candidate_id: string
           _stage: Database["public"]["Enums"]["candidate_stage"]
         }
+        Returns: undefined
+      }
+      upsert_candidate_field_values: {
+        Args: { _candidate_id: string; _values: Json }
         Returns: undefined
       }
     }
