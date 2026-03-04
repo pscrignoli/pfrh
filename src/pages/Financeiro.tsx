@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useFinanceiroData, type PayrollRecord } from "@/hooks/useFinanceiroData";
 import { PayrollDetailSheet } from "@/components/financeiro/PayrollDetailSheet";
 import { PayrollImportSheet } from "@/components/financeiro/PayrollImportSheet";
 import { IntegrationLogsPanel } from "@/components/financeiro/IntegrationLogsPanel";
+import { ComparativoSheet } from "@/components/financeiro/ComparativoSheet";
+import { FechamentoDialog } from "@/components/financeiro/FechamentoDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +16,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Send, Loader2, Upload } from "lucide-react";
+import { Send, Loader2, Upload, GitCompareArrows, Lock, Unlock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const monthNames = [
@@ -29,7 +31,10 @@ function currency(v: number | null | undefined) {
 
 const statusColors: Record<string, string> = {
   aberto: "bg-muted text-muted-foreground",
+  importado: "bg-muted text-muted-foreground",
   calculado: "bg-info text-info-foreground",
+  conferido: "bg-warning/20 text-warning",
+  fechado: "bg-success text-success-foreground",
   enviado: "bg-success text-success-foreground",
 };
 
@@ -39,8 +44,23 @@ export default function Financeiro() {
   const [ano, setAno] = useState(now.getFullYear());
   const [selectedRecord, setSelectedRecord] = useState<PayrollRecord | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [comparativoOpen, setComparativoOpen] = useState(false);
+  const [fechamentoOpen, setFechamentoOpen] = useState(false);
 
   const { records, logs, loading, transmitting, allSent, transmit, refetch } = useFinanceiroData(ano, mes);
+
+  // Derived status for the month
+  const mesStatus = useMemo(() => {
+    if (records.length === 0) return "aberto";
+    const statuses = records.map(r => r.status ?? "aberto");
+    if (statuses.every(s => s === "enviado")) return "enviado";
+    if (statuses.every(s => s === "fechado")) return "fechado";
+    if (statuses.every(s => s === "conferido")) return "conferido";
+    return statuses[0] ?? "aberto";
+  }, [records]);
+
+  const isFechado = mesStatus === "fechado" || mesStatus === "enviado";
+  const isConferido = mesStatus === "conferido";
 
   const handleTransmit = async () => {
     try {
@@ -70,9 +90,15 @@ export default function Financeiro() {
           <h1 className="text-2xl font-bold tracking-tight">Financeiro e Controladoria</h1>
           <p className="text-muted-foreground text-sm">
             Fechamento de folha — {records.length} registro{records.length !== 1 ? "s" : ""} · Total: {currency(totalGeral)}
+            {isFechado && (
+              <Badge className="ml-2 border-0 bg-success text-success-foreground text-xs">Mês Fechado</Badge>
+            )}
+            {isConferido && (
+              <Badge className="ml-2 border-0 bg-warning/20 text-warning text-xs">Conferido</Badge>
+            )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex gap-2">
             <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
               <SelectTrigger className="w-[140px]">
@@ -95,13 +121,40 @@ export default function Financeiro() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
+
+          <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isFechado}>
             <Upload className="h-4 w-4 mr-2" />
-            Importar Folha
+            Importar
           </Button>
-          <Button onClick={handleTransmit} disabled={allSent || records.length === 0 || transmitting}>
+
+          <Button variant="outline" onClick={() => setComparativoOpen(true)} disabled={records.length === 0}>
+            <GitCompareArrows className="h-4 w-4 mr-2" />
+            Comparativo
+          </Button>
+
+          {/* Fechar / Reabrir */}
+          {isFechado ? (
+            <Button variant="outline" onClick={() => setFechamentoOpen(true)}>
+              <Unlock className="h-4 w-4 mr-2" />
+              Reabrir
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => setFechamentoOpen(true)}
+              disabled={records.length === 0}
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              Fechar Mês
+            </Button>
+          )}
+
+          <Button
+            onClick={handleTransmit}
+            disabled={allSent || records.length === 0 || transmitting || (!isFechado && !isConferido)}
+          >
             {transmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            {allSent ? "Já Transmitido" : "Transmitir para Controladoria"}
+            {allSent ? "Já Transmitido" : "Transmitir"}
           </Button>
         </div>
       </div>
@@ -180,6 +233,25 @@ export default function Financeiro() {
         mes={mes}
         existingCount={records.length}
         onImported={refetch}
+      />
+
+      <ComparativoSheet
+        open={comparativoOpen}
+        onClose={() => setComparativoOpen(false)}
+        ano={ano}
+        mes={mes}
+        currentRecords={records}
+        onStatusChanged={refetch}
+      />
+
+      <FechamentoDialog
+        open={fechamentoOpen}
+        onClose={() => setFechamentoOpen(false)}
+        ano={ano}
+        mes={mes}
+        recordIds={records.map(r => r.id)}
+        currentStatus={mesStatus}
+        onDone={refetch}
       />
     </div>
   );
