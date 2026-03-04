@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Settings2 } from "lucide-react";
+import { ArrowLeft, Plus, Settings2, Download } from "lucide-react";
+import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -133,6 +134,20 @@ export default function RecrutamentoKanban() {
           <h1 className="text-xl font-bold truncate">{vacancyTitle || "Carregando..."}</h1>
           <p className="text-muted-foreground text-sm">{candidates.length} candidato{candidates.length !== 1 ? "s" : ""}</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            try {
+              await exportCandidatesExcel({ vacancyId: id!, vacancyTitle: vacancyTitle });
+              toast.success("Excel exportado!");
+            } catch (e: any) {
+              toast.error(e.message || "Erro ao exportar.");
+            }
+          }}
+        >
+          <Download className="h-4 w-4 mr-1" /> Exportar Excel
+        </Button>
         <Button variant="outline" size="sm" onClick={openEditFields}>
           <Settings2 className="h-4 w-4 mr-1" /> Editar Campos
         </Button>

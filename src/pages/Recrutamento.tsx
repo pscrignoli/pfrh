@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Briefcase, MapPin, Users } from "lucide-react";
+import { Plus, Briefcase, MapPin, Users, Download } from "lucide-react";
+import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,9 +83,24 @@ export default function Recrutamento() {
           <h1 className="text-2xl font-bold tracking-tight">Recrutamento</h1>
           <p className="text-muted-foreground text-sm">Gerencie vagas e candidatos</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Nova Vaga
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                await exportCandidatesExcel({});
+                toast.success("Excel exportado!");
+              } catch (e: any) {
+                toast.error(e.message || "Erro ao exportar.");
+              }
+            }}
+          >
+            <Download className="h-4 w-4 mr-1" /> Exportar Todos
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Nova Vaga
+          </Button>
+        </div>
       </div>
 
       {loading ? (
