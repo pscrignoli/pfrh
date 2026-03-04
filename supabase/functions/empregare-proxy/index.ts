@@ -59,11 +59,14 @@ Deno.serve(async (req) => {
     const httpMethod = (method || "GET").toUpperCase();
     const targetUrl = `${EMPREGARE_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
+    const empresaId = Deno.env.get("EMPREGARE_EMPRESA_ID");
+
     const fetchOptions: RequestInit = {
       method: httpMethod,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${empregareToken}`,
+        ...(empresaId ? { "EmpresaId": empresaId } : {}),
       },
     };
 
