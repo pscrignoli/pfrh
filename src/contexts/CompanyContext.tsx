@@ -14,8 +14,7 @@ interface CompanyContextValue {
   companyId: string | null;
   companyName: string | null;
   companies: Company[];
-  setCompanyId: (id: string | null) => void;
-  isAllCompanies: boolean;
+  setCompanyId: (id: string) => void;
   loading: boolean;
 }
 
@@ -37,21 +36,25 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("status", "active")
       .order("name");
-    setCompanies((data as Company[]) ?? []);
+    const list = (data as Company[]) ?? [];
+    setCompanies(list);
+
+    // If stored companyId is not valid, reset
+    if (companyId && !list.find((c) => c.id === companyId)) {
+      setCompanyIdState(null);
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchCompanies();
   }, [fetchCompanies]);
 
-  const setCompanyId = useCallback((id: string | null) => {
+  const setCompanyId = useCallback((id: string) => {
     setCompanyIdState(id);
-    if (id) {
-      localStorage.setItem(STORAGE_KEY, id);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    localStorage.setItem(STORAGE_KEY, id);
   }, []);
 
   const companyName = companyId
@@ -65,7 +68,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         companyName,
         companies,
         setCompanyId,
-        isAllCompanies: companyId === null,
         loading,
       }}
     >

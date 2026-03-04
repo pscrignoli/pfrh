@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
+import { CompanyGate } from "@/components/CompanyGate";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
@@ -32,25 +33,31 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route element={<PrivateRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/presenca" element={<Presenca />} />
-                <Route path="/colaboradores" element={<Pessoas />} />
-                <Route path="/recrutamento" element={<Recrutamento />} />
-                <Route path="/recrutamento/vagas/:id" element={<RecrutamentoKanban />} />
-                <Route path="/financeiro" element={<Financeiro />} />
-                <Route path="/assistente" element={<Assistente />} />
-                <Route path="/configuracoes" element={<Configuracoes />} />
-                <Route path="/super-admin" element={<SuperAdmin />} />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route element={<PrivateRoute />}>
+                <Route
+                  element={
+                    <CompanyGate>
+                      <AppLayout />
+                    </CompanyGate>
+                  }
+                >
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/presenca" element={<Presenca />} />
+                  <Route path="/colaboradores" element={<Pessoas />} />
+                  <Route path="/recrutamento" element={<Recrutamento />} />
+                  <Route path="/recrutamento/vagas/:id" element={<RecrutamentoKanban />} />
+                  <Route path="/financeiro" element={<Financeiro />} />
+                  <Route path="/assistente" element={<Assistente />} />
+                  <Route path="/configuracoes" element={<Configuracoes />} />
+                  <Route path="/super-admin" element={<SuperAdmin />} />
+                </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>

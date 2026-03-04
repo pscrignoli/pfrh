@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export type Employee = Tables<"employees">;
@@ -13,6 +14,7 @@ interface Filters {
 }
 
 export function useEmployees(filters: Filters) {
+  const { companyId } = useCompany();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departamentos, setDepartamentos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,9 @@ export function useEmployees(filters: Filters) {
         .select("*")
         .order("nome_completo");
 
+      if (companyId) {
+        query = query.eq("company_id", companyId);
+      }
       if (filters.status) {
         query = query.eq("status", filters.status as Employee["status"]);
       }
@@ -46,17 +51,22 @@ export function useEmployees(filters: Filters) {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.status, filters.departamento]);
+  }, [filters.search, filters.status, filters.departamento, companyId]);
 
-  // Fetch departments from the departments table (active only)
   const fetchDepartments = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("departments")
       .select("name")
       .eq("status", "active")
       .order("name");
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { data } = await query;
     setDepartamentos((data ?? []).map((d: any) => d.name));
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchEmployees();
@@ -67,7 +77,8 @@ export function useEmployees(filters: Filters) {
   }, [fetchDepartments]);
 
   const createEmployee = async (data: EmployeeInsert) => {
-    const { error } = await supabase.from("employees").insert(data);
+    const payload = { ...data, company_id: companyId };
+    const { error } = await supabase.from("employees").insert(payload);
     if (error) throw error;
     await fetchEmployees();
   };

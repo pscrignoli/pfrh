@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface Vacancy {
   id: string;
@@ -23,15 +24,20 @@ function withTimeout<T>(fn: () => PromiseLike<T>, ms: number): Promise<T> {
 }
 
 export function useVacancies() {
+  const { companyId } = useCompany();
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchVacancies = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("vacancies")
       .select("*, departments(name), candidates(id)")
       .order("created_at", { ascending: false });
+
+    if (companyId) query = query.eq("company_id", companyId);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching vacancies:", error);
@@ -45,7 +51,7 @@ export function useVacancies() {
       setVacancies(mapped);
     }
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchVacancies();
@@ -64,6 +70,7 @@ export function useVacancies() {
     const payload: Record<string, unknown> = {
       title: vacancy.title,
       work_model: (vacancy.work_model || "presencial") as "presencial" | "hibrido" | "remoto",
+      company_id: companyId,
     };
 
     if (vacancy.department_id) {
@@ -88,7 +95,6 @@ export function useVacancies() {
       throw new Error(error.message || "Não foi possível concluir a criação. Tente novamente.");
     }
 
-    // Refresh in background — don't block caller
     fetchVacancies().catch(() => {});
 
     return data?.id as string;

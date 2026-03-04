@@ -3,7 +3,6 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Building2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -13,33 +12,22 @@ import {
 } from "@/components/ui/select";
 
 function CompanySelector() {
-  const { companyId, companies, setCompanyId, isAllCompanies, companyName } = useCompany();
+  const { companyId, companies, setCompanyId, companyName } = useCompany();
 
   return (
     <Select
-      value={companyId ?? "__all__"}
-      onValueChange={(v) => setCompanyId(v === "__all__" ? null : v)}
+      value={companyId ?? ""}
+      onValueChange={(v) => setCompanyId(v)}
     >
       <SelectTrigger className="w-[200px] h-8 text-xs border-dashed">
         <div className="flex items-center gap-1.5 truncate">
           <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <SelectValue>
-            {isAllCompanies ? (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                Todas as empresas
-              </Badge>
-            ) : (
-              <Badge className="text-[10px] px-1.5 py-0 font-normal bg-primary/90">
-                {companyName}
-              </Badge>
-            )}
+            {companyName ?? "Selecione..."}
           </SelectValue>
         </div>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="__all__">
-          <span className="text-muted-foreground">Todas as empresas</span>
-        </SelectItem>
         {companies.map((c) => (
           <SelectItem key={c.id} value={c.id}>
             {c.name}
