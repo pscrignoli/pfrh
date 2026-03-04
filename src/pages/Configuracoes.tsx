@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { Constants } from "@/integrations/supabase/types";
 import { Settings, Shield, Plug, BookOpen, Upload, Trash2, Save, Loader2, Building2, Plus, Pencil } from "lucide-react";
 import { useDepartments } from "@/hooks/useDepartments";
+import EmpregareTab from "@/components/configuracoes/EmpregareTab";
 
 // ── Types ──
 interface AuthUser {
@@ -555,11 +556,12 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="acessos">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="acessos">Acessos</TabsTrigger>
           <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
           <TabsTrigger value="conhecimento">Base de Conhecimento</TabsTrigger>
+          <TabsTrigger value="empregare">API Empregare</TabsTrigger>
         </TabsList>
 
         <TabsContent value="acessos" className="mt-4">
@@ -573,6 +575,9 @@ export default function Configuracoes() {
         </TabsContent>
         <TabsContent value="conhecimento" className="mt-4">
           <KnowledgeBaseTab />
+        </TabsContent>
+        <TabsContent value="empregare" className="mt-4">
+          <EmpregareTab />
         </TabsContent>
       </Tabs>
     </div>
