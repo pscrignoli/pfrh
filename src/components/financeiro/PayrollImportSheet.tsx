@@ -1,10 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import * as XLSX from "xlsx";
-import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { PAYROLL_FIELD_OPTIONS, autoMapColumn } from "@/utils/payrollColumnMap";
-import { parseFolhaTxt, type ParsedPayroll } from "@/utils/parseFolhaTxt";
+import { parseFolhaTxt, type ParsedPayroll, type FuncionarioParsed } from "@/utils/parseFolhaTxt";
 import { importFolhaTxt, type ImportResult } from "@/utils/importFolhaTxt";
 
 import {
@@ -13,15 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Save, Loader2, XCircle,
+  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2, UserPlus, RefreshCw, UserX, UserCheck,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -39,173 +34,80 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const NUMERIC_FIELDS = new Set(PAYROLL_FIELD_OPTIONS.filter(f =>
-  !["__skip__", "numero_cpf", "contrato_empregado", "relacao_funcionarios",
-    "codigo_centro_custo", "centro_custo", "area", "cargo", "admissao",
-    "desligamento", "tipo_contrato", "empresa"].includes(f.value)
-).map(f => f.value));
+const STEP_LABELS = ["Competência", "Upload", "Colaboradores", "Folha", "Importação"];
 
-interface ValidationRow {
-  rowIndex: number;
-  rawData: Record<string, string>;
-  mappedData: Record<string, unknown>;
-  employeeId: string | null;
-  employeeName: string | null;
-  cpf: string | null;
-  errors: string[];
-  warnings: string[];
+type EmployeeStatus = "cadastrado" | "novo" | "atualizar" | "demitido";
+
+interface EmployeePreviewRow {
+  func: FuncionarioParsed;
+  numFunc: string;
+  status: EmployeeStatus;
+  existingId: string | null;
+  existingCargo: string | null;
+  existingSalario: number | null;
 }
+
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtNum = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
 export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onImported }: Props) {
   const { companyId, companyName } = useCompany();
   const [step, setStep] = useState(1);
 
   // Step 2
-  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
-  const [fileRows, setFileRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [isTxtMode, setIsTxtMode] = useState(false);
   const [parsedTxt, setParsedTxt] = useState<ParsedPayroll | null>(null);
 
   // Step 3
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-
-  // Step 4
-  const [validationRows, setValidationRows] = useState<ValidationRow[]>([]);
-  const [validating, setValidating] = useState(false);
+  const [employeeRows, setEmployeeRows] = useState<EmployeePreviewRow[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [createNew, setCreateNew] = useState(true);
+  const [updateExisting, setUpdateExisting] = useState(true);
 
   // Step 5
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResult, setImportResult] = useState<{ success: number; errors: number } | null>(null);
+  const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
       setStep(1);
-      setFileHeaders([]);
-      setFileRows([]);
       setFileName("");
-      setIsTxtMode(false);
       setParsedTxt(null);
-      setMapping({});
-      setValidationRows([]);
+      setEmployeeRows([]);
+      setCreateNew(true);
+      setUpdateExisting(true);
       setImporting(false);
       setImportProgress(0);
-      setImportResult(null);
       setTxtImportResult(null);
     }
   }, [open]);
 
-  // Load saved template
-  useEffect(() => {
-    if (open && companyId && fileHeaders.length > 0) {
-      supabase
-        .from("system_settings")
-        .select("value")
-        .eq("key", `payroll_import_template_${companyId}`)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.value) {
-            try {
-              const saved = JSON.parse(data.value) as Record<string, string>;
-              // Apply saved mapping only for headers that exist in current file
-              const newMapping: Record<string, string> = {};
-              for (const header of fileHeaders) {
-                if (saved[header]) {
-                  newMapping[header] = saved[header];
-                } else {
-                  newMapping[header] = autoMapColumn(header);
-                }
-              }
-              setMapping(newMapping);
-            } catch { /* ignore */ }
-          }
-        });
-    }
-  }, [open, companyId, fileHeaders]);
-
   // ── Parse file ──
   const parseFile = useCallback((file: File) => {
     setFileName(file.name);
-    const ext = file.name.split(".").pop()?.toLowerCase();
-
-    if (ext === "txt") {
-      // TXT mode: Relação de Cálculo Geral
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result as string;
-          const parsed = parseFolhaTxt(text);
-          if (parsed.funcionarios.length === 0) {
-            toast({ title: "Nenhum funcionário encontrado no arquivo", variant: "destructive" });
-            return;
-          }
-          setIsTxtMode(true);
-          setParsedTxt(parsed);
-          toast({
-            title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)`,
-            description: `Arquivo TXT parseado com sucesso`,
-          });
-          // Skip mapping step, go directly to validation
-          setStep(3); // We'll show a TXT preview instead of mapping
-        } catch (err) {
-          console.error("TXT parse error:", err);
-          toast({ title: "Erro ao ler arquivo TXT", variant: "destructive" });
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsed = parseFolhaTxt(text);
+        if (parsed.funcionarios.length === 0) {
+          toast({ title: "Nenhum funcionário encontrado no arquivo", variant: "destructive" });
+          return;
         }
-      };
-      reader.readAsText(file, "latin1"); // Brazilian encoding
-      return;
-    }
-
-    if (ext === "csv") {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (result) => {
-          const headers = result.meta.fields ?? [];
-          setFileHeaders(headers);
-          setFileRows(result.data as Record<string, string>[]);
-          const m: Record<string, string> = {};
-          headers.forEach(h => { m[h] = autoMapColumn(h); });
-          setMapping(m);
-          setIsTxtMode(false);
-          setParsedTxt(null);
-          setStep(3);
-        },
-        error: () => toast({ title: "Erro ao ler CSV", variant: "destructive" }),
-      });
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const wb = XLSX.read(e.target?.result, { type: "array" });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "" });
-          if (json.length === 0) {
-            toast({ title: "Planilha vazia", variant: "destructive" });
-            return;
-          }
-          const headers = Object.keys(json[0]);
-          setFileHeaders(headers);
-          setFileRows(json.map(row => {
-            const clean: Record<string, string> = {};
-            headers.forEach(h => { clean[h] = String(row[h] ?? ""); });
-            return clean;
-          }));
-          const m: Record<string, string> = {};
-          headers.forEach(h => { m[h] = autoMapColumn(h); });
-          setMapping(m);
-          setIsTxtMode(false);
-          setParsedTxt(null);
-          setStep(3);
-        } catch {
-          toast({ title: "Erro ao ler planilha", variant: "destructive" });
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
+        setParsedTxt(parsed);
+        toast({
+          title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)`,
+          description: `Período: ${parsed.periodo.tipo || "N/A"}`,
+        });
+      } catch (err) {
+        console.error("TXT parse error:", err);
+        toast({ title: "Erro ao ler arquivo TXT", description: String(err), variant: "destructive" });
+      }
+    };
+    reader.readAsText(file, "latin1");
   }, []);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -221,240 +123,131 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     e.target.value = "";
   };
 
-  // ── Save template ──
-  const saveTemplate = async () => {
-    if (!companyId) return;
-    const { error } = await supabase
-      .from("system_settings")
-      .upsert(
-        { key: `payroll_import_template_${companyId}`, value: JSON.stringify(mapping) } as any,
-        { onConflict: "key" }
-      );
-    if (error) {
-      toast({ title: "Erro ao salvar template", variant: "destructive" });
-    } else {
-      toast({ title: "Template de mapeamento salvo!" });
-    }
-  };
-
-  // ── Validate ──
-  const cpfColumnHeader = useMemo(() => {
-    return Object.entries(mapping).find(([, v]) => v === "numero_cpf")?.[0] ?? null;
-  }, [mapping]);
-
-  const hasCpfMapping = !!cpfColumnHeader;
-
-  // ── TXT Validation: match by name ──
-  const runTxtValidation = useCallback(async () => {
+  // ── Step 2 → 3: Load employees and build preview ──
+  const goToStep3 = useCallback(async () => {
     if (!parsedTxt || !companyId) return;
-    setValidating(true);
+    setLoadingEmployees(true);
 
     const { data: employees } = await supabase
       .from("employees")
-      .select("id, nome_completo, numero_funcional")
+      .select("id, numero_funcional, nome_completo, cargo, status")
       .eq("company_id", companyId)
       .not("numero_funcional", "is", null);
 
-    // Build lookup by numero_funcional
-    const empByNumFunc = new Map<string, { id: string; nome: string }>();
+    const empMap = new Map<string, { id: string; nome: string; cargo: string | null; status: string }>();
     (employees ?? []).forEach(e => {
       if (e.numero_funcional) {
-        empByNumFunc.set(e.numero_funcional, { id: e.id, nome: e.nome_completo });
+        empMap.set(e.numero_funcional, { id: e.id, nome: e.nome_completo, cargo: e.cargo, status: e.status });
       }
     });
 
-    const rows: ValidationRow[] = parsedTxt.funcionarios.map((func, idx) => {
-      const errors: string[] = [];
-      const warnings: string[] = [];
-
+    const rows: EmployeePreviewRow[] = parsedTxt.funcionarios.map(func => {
       const numFunc = String(func.numero);
-      const emp = empByNumFunc.get(numFunc);
+      const existing = empMap.get(numFunc);
+      const isDemitido = /demitid/i.test(func.situacao);
 
-      if (!emp) {
-        // Will be auto-created during import
-        warnings.push("Novo colaborador — será cadastrado");
-      }
-
-      if (func.situacao === "Demitido" || func.situacao === "demitido") {
-        warnings.push("Funcionário demitido");
+      let status: EmployeeStatus;
+      if (isDemitido) {
+        status = "demitido";
+      } else if (!existing) {
+        status = "novo";
+      } else if (
+        (func.cargo && func.cargo !== existing.cargo)
+      ) {
+        status = "atualizar";
+      } else {
+        status = "cadastrado";
       }
 
       return {
-        rowIndex: idx + 1,
-        rawData: { nome: func.nome, cargo: func.cargo, salario: String(func.salario_base) },
-        mappedData: {},
-        employeeId: emp?.id ?? "new",
-        employeeName: emp?.nome ?? func.nome,
-        cpf: null,
-        errors,
-        warnings,
+        func,
+        numFunc,
+        status,
+        existingId: existing?.id ?? null,
+        existingCargo: existing?.cargo ?? null,
+        existingSalario: null,
       };
     });
 
-    setValidationRows(rows);
-    setValidating(false);
-    setStep(4);
+    setEmployeeRows(rows);
+    setLoadingEmployees(false);
+    setStep(3);
   }, [parsedTxt, companyId]);
 
-  const runValidation = useCallback(async () => {
-    if (isTxtMode) {
-      return runTxtValidation();
-    }
+  // Counts
+  const counts = useMemo(() => {
+    const c = { cadastrado: 0, novo: 0, atualizar: 0, demitido: 0 };
+    employeeRows.forEach(r => c[r.status]++);
+    return c;
+  }, [employeeRows]);
 
-    if (!cpfColumnHeader || !companyId) return;
-    setValidating(true);
-
-    const { data: employees } = await supabase
-      .from("employees")
-      .select("id, nome_completo, numero_cpf")
-      .eq("company_id", companyId);
-
-    const empByCpf = new Map<string, { id: string; nome: string }>();
-    (employees ?? []).forEach(e => {
-      const cpfClean = e.numero_cpf.replace(/\D/g, "");
-      empByCpf.set(cpfClean, { id: e.id, nome: e.nome_completo });
-    });
-
-    const seenCpfs = new Set<string>();
-    const rows: ValidationRow[] = fileRows.map((row, idx) => {
-      const errors: string[] = [];
-      const warnings: string[] = [];
-      const cpfRaw = row[cpfColumnHeader] ?? "";
-      const cpfClean = cpfRaw.replace(/\D/g, "");
-
-      if (!cpfClean) {
-        errors.push("CPF vazio");
-      } else if (cpfClean.length < 11) {
-        errors.push("CPF inválido");
-      }
-
-      if (seenCpfs.has(cpfClean) && cpfClean) {
-        warnings.push("CPF duplicado no arquivo");
-      }
-      seenCpfs.add(cpfClean);
-
-      const emp = empByCpf.get(cpfClean);
-      if (!emp && cpfClean) {
-        errors.push("Colaborador não encontrado");
-      }
-
-      const mappedData: Record<string, unknown> = {};
-      for (const [header, field] of Object.entries(mapping)) {
-        if (field === "__skip__" || field === "numero_cpf") continue;
-        const val = row[header];
-        if (NUMERIC_FIELDS.has(field)) {
-          const parsed = parseNumber(val);
-          if (val && parsed === null) {
-            warnings.push(`Valor inválido para ${field}: "${val}"`);
-          }
-          mappedData[field] = parsed ?? 0;
-        } else {
-          mappedData[field] = val || null;
-        }
-      }
-
+  // ── Step 4: Folha preview (derived from parsedTxt) ──
+  const folhaRows = useMemo(() => {
+    if (!parsedTxt) return [];
+    return parsedTxt.funcionarios.map(f => {
+      const he = [35, 36, 37, 38].reduce((s, c) => s + f.rubricas.filter(r => r.codigo === c).reduce((a, r) => a + r.valor, 0), 0);
       return {
-        rowIndex: idx + 1,
-        rawData: row,
-        mappedData,
-        employeeId: emp?.id ?? null,
-        employeeName: emp?.nome ?? null,
-        cpf: cpfClean || null,
-        errors,
-        warnings,
+        nome: f.nome,
+        salarioBase: f.salario_base,
+        proventos: f.totais.proventos,
+        descontos: f.totais.descontos,
+        liquido: f.totais.liquido,
+        fgts: f.bases.fgts_gfip.valor,
+        he,
+        salarioDiverge: f.totais.proventos > f.salario_base * 1.5,
       };
     });
+  }, [parsedTxt]);
 
-    setValidationRows(rows);
-    setValidating(false);
-    setStep(4);
-  }, [isTxtMode, runTxtValidation, cpfColumnHeader, companyId, fileRows, mapping]);
+  const folhaTotals = useMemo(() => {
+    const t = { proventos: 0, descontos: 0, liquido: 0, fgts: 0, he: 0 };
+    folhaRows.forEach(r => {
+      t.proventos += r.proventos;
+      t.descontos += r.descontos;
+      t.liquido += r.liquido;
+      t.fgts += r.fgts;
+      t.he += r.he;
+    });
+    return t;
+  }, [folhaRows]);
 
-  // ── Import ──
-  // For TXT mode, all rows are valid (employees auto-created)
-  const validRows = useMemo(() => isTxtMode
-    ? validationRows
-    : validationRows.filter(r => r.errors.length === 0 && r.employeeId), [validationRows, isTxtMode]);
-  const errorRows = useMemo(() => isTxtMode
-    ? []
-    : validationRows.filter(r => r.errors.length > 0 || !r.employeeId), [validationRows, isTxtMode]);
-
-  // TXT import result state
-  const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
-
+  // ── Step 5: Import ──
   const runImport = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId || !parsedTxt) return;
     setImporting(true);
-    setImportProgress(0);
+    setImportProgress(10);
 
-    if (isTxtMode && parsedTxt) {
-      // Use the dedicated TXT import service
-      const res = await importFolhaTxt(parsedTxt, companyId, ano, mes);
-      setTxtImportResult(res);
-      setImportResult({
-        success: res.payroll_records,
-        errors: res.errors.length,
-      });
-      setImporting(false);
-      setStep(5);
-      if (res.payroll_records > 0) onImported();
-      return;
-    }
-
-    // CSV/Excel mode (existing logic)
-    if (validRows.length === 0) return;
-    let success = 0;
-    let errors = 0;
-
-    const batchSize = 50;
-    for (let i = 0; i < validRows.length; i += batchSize) {
-      const batch = validRows.slice(i, i + batchSize);
-      const records = batch.map(r => ({
-        ...r.mappedData,
-        employee_id: r.employeeId!,
-        ano,
-        mes,
-        company_id: companyId,
-        status: "importado",
-      }));
-
-      const { error } = await supabase
-        .from("payroll_monthly_records")
-        .upsert(records as any, { onConflict: "employee_id,ano,mes" });
-
-      if (error) {
-        errors += batch.length;
-        console.error("Import batch error:", error);
-      } else {
-        success += batch.length;
-      }
-
-      setImportProgress(Math.round(((i + batch.length) / validRows.length) * 100));
-    }
-
-    setImportResult({ success, errors });
+    const res = await importFolhaTxt(parsedTxt, companyId, ano, mes);
+    setImportProgress(100);
+    setTxtImportResult(res);
     setImporting(false);
     setStep(5);
-    if (success > 0) onImported();
-  }, [validRows, companyId, ano, mes, onImported, isTxtMode, parsedTxt]);
+    if (res.payroll_records > 0) onImported();
+  }, [companyId, parsedTxt, ano, mes, onImported]);
 
-  // ── Render steps ──
+  // ── Status badge ──
+  const statusBadge = (s: EmployeeStatus) => {
+    switch (s) {
+      case "cadastrado": return <Badge variant="outline" className="text-[10px] border-green-500 text-green-600"><UserCheck className="h-3 w-3 mr-0.5" />Cadastrado</Badge>;
+      case "novo": return <Badge variant="outline" className="text-[10px] border-blue-500 text-blue-600"><UserPlus className="h-3 w-3 mr-0.5" />Novo</Badge>;
+      case "atualizar": return <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600"><RefreshCw className="h-3 w-3 mr-0.5" />Atualizar</Badge>;
+      case "demitido": return <Badge variant="outline" className="text-[10px] border-red-500 text-red-600"><UserX className="h-3 w-3 mr-0.5" />Demitido</Badge>;
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" side="right">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
-            Importar Folha
+            Importar Folha — {monthNames[mes - 1]} {ano}
           </SheetTitle>
         </SheetHeader>
 
         {/* Steps indicator */}
         <div className="flex items-center gap-1 mb-6 text-xs">
-          {(isTxtMode
-            ? ["Competência", "Upload", "Preview TXT", "Validação", "Resultado"]
-            : ["Competência", "Upload", "Mapeamento", "Validação", "Resultado"]
-          ).map((label, i) => (
+          {STEP_LABELS.map((label, i) => (
             <div key={i} className="flex items-center gap-1">
               <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${
                 step > i + 1 ? "bg-primary text-primary-foreground" :
@@ -484,13 +277,13 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
             </div>
 
             {existingCount > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
-                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-warning">Registros existentes</p>
+                  <p className="font-medium text-yellow-700">Registros existentes</p>
                   <p className="text-muted-foreground">
                     Já existem {existingCount} registros para esta competência.
-                    A importação irá sobrescrever registros com mesmo CPF.
+                    A importação irá sobrescrever registros existentes.
                   </p>
                 </div>
               </div>
@@ -515,229 +308,111 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               <span className="text-sm font-medium text-muted-foreground">
                 Arraste ou clique para selecionar
               </span>
-              <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv, .txt</span>
+              <span className="text-xs text-muted-foreground">.txt (Relação de Cálculo Geral)</span>
               <input
                 type="file"
                 className="hidden"
-                accept=".csv,.xlsx,.xls,.txt"
+                accept=".txt"
                 onChange={handleFileInput}
               />
             </label>
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 3: Mapeamento / TXT Preview ── */}
-        {step === 3 && isTxtMode && parsedTxt && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                <FileSpreadsheet className="h-4 w-4 inline mr-1" />
-                {fileName} — {parsedTxt.funcionarios.length} funcionário(s)
-              </p>
-              <Badge variant="outline" className="text-xs">TXT Relação de Cálculo</Badge>
-            </div>
-
-            {parsedTxt.empresa.nome && (
-              <div className="rounded-lg border p-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Empresa no arquivo</span>
-                  <span className="font-medium">{parsedTxt.empresa.nome}</span>
+            {parsedTxt && (
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{fileName}</span>
+                  <Badge variant="outline" className="text-xs">TXT</Badge>
                 </div>
-                {parsedTxt.periodo.inicio && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Período</span>
-                    <span className="font-medium">{parsedTxt.periodo.tipo}</span>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Funcionários</span>
+                    <p className="font-semibold text-lg">{parsedTxt.funcionarios.length}</p>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Período</span>
+                    <p className="font-medium">{parsedTxt.periodo.tipo || "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Proventos</span>
+                    <p className="font-medium">{fmt(parsedTxt.totais_gerais.proventos)}</p>
+                  </div>
+                </div>
+                {parsedTxt.empresa.nome && (
+                  <p className="text-xs text-muted-foreground">Empresa: {parsedTxt.empresa.nome}</p>
                 )}
               </div>
             )}
 
-            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium text-primary">Importação inteligente</p>
-                <p className="text-muted-foreground text-xs">
-                  Colaboradores que não existem serão cadastrados automaticamente.
-                  A vinculação é feita pelo <strong>número funcional</strong> (Func).
-                </p>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+              <Button onClick={goToStep3} disabled={!parsedTxt || loadingEmployees}>
+                {loadingEmployees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Continuar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Colaboradores ── */}
+        {step === 3 && (
+          <div className="space-y-4">
+            {/* Counters */}
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-lg border p-2 text-center">
+                <div className="text-lg font-bold text-green-600">{counts.cadastrado}</div>
+                <div className="text-[10px] text-muted-foreground">Cadastrados</div>
+              </div>
+              <div className="rounded-lg border p-2 text-center">
+                <div className="text-lg font-bold text-blue-600">{counts.novo}</div>
+                <div className="text-[10px] text-muted-foreground">Novos</div>
+              </div>
+              <div className="rounded-lg border p-2 text-center">
+                <div className="text-lg font-bold text-yellow-600">{counts.atualizar}</div>
+                <div className="text-[10px] text-muted-foreground">Atualizar</div>
+              </div>
+              <div className="rounded-lg border p-2 text-center">
+                <div className="text-lg font-bold text-red-600">{counts.demitido}</div>
+                <div className="text-[10px] text-muted-foreground">Demitidos</div>
               </div>
             </div>
 
-            <ScrollArea className="h-[280px]">
+            {/* Options */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={createNew} onCheckedChange={(v) => setCreateNew(!!v)} />
+                Criar colaboradores novos automaticamente
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={updateExisting} onCheckedChange={(v) => setUpdateExisting(!!v)} />
+                Atualizar dados de colaboradores existentes
+              </label>
+            </div>
+
+            <ScrollArea className="h-[320px]">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">#</TableHead>
+                    <TableHead className="w-14">Func</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead className="text-right">Salário</TableHead>
-                    <TableHead className="text-right">Rubricas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parsedTxt.funcionarios.slice(0, 50).map((f, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-xs">{f.numero}</TableCell>
-                      <TableCell className="text-xs font-medium">{f.nome}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{f.cargo}</TableCell>
-                      <TableCell className="text-xs text-right">{f.salario_base.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
-                      <TableCell className="text-xs text-right">{f.rubricas.length}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={runValidation} disabled={validating}>
-                {validating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Validar Dados
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && !isTxtMode && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                <FileSpreadsheet className="h-4 w-4 inline mr-1" />
-                {fileName} — {fileRows.length} linhas, {fileHeaders.length} colunas
-              </p>
-              <Button variant="outline" size="sm" onClick={saveTemplate}>
-                <Save className="h-3.5 w-3.5 mr-1" /> Salvar Template
-              </Button>
-            </div>
-
-            {!hasCpfMapping && (
-              <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
-                <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                <span>Mapeie pelo menos a coluna <strong>CPF</strong> para continuar.</span>
-              </div>
-            )}
-
-            <ScrollArea className="h-[400px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Coluna do Arquivo</TableHead>
-                    <TableHead className="w-[140px]">Amostra</TableHead>
-                    <TableHead>Campo Destino</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {fileHeaders.map((header) => (
-                    <TableRow key={header}>
-                      <TableCell className="font-mono text-xs">{header}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">
-                        {fileRows[0]?.[header] ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={mapping[header] ?? "__skip__"}
-                          onValueChange={(v) => setMapping(prev => ({ ...prev, [header]: v }))}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PAYROLL_FIELD_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-
-            {fileRows.length > 0 && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">Preview (3 primeiras linhas)</summary>
-                <div className="mt-2 overflow-x-auto">
-                  <table className="w-full text-xs border">
-                    <thead>
-                      <tr>{fileHeaders.slice(0, 8).map(h => <th key={h} className="border p-1 bg-muted">{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {fileRows.slice(0, 3).map((row, i) => (
-                        <tr key={i}>{fileHeaders.slice(0, 8).map(h => <td key={h} className="border p-1">{row[h]}</td>)}</tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            )}
-
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={runValidation} disabled={!hasCpfMapping || validating}>
-                {validating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Validar Dados
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 4: Validação ── */}
-        {step === 4 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-primary">{validRows.length}</div>
-                <div className="text-xs text-muted-foreground">Válidos</div>
-              </div>
-              <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-destructive">{errorRows.length}</div>
-                <div className="text-xs text-muted-foreground">Com erro</div>
-              </div>
-            </div>
-
-            <ScrollArea className="h-[350px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>CPF</TableHead>
-                    <TableHead>Colaborador</TableHead>
+                    <TableHead>Situação</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {validationRows.map((row) => (
-                    <TableRow key={row.rowIndex} className={row.errors.length > 0 ? "bg-destructive/5" : row.warnings.length > 0 ? "bg-warning/5" : ""}>
-                      <TableCell className="text-xs">{row.rowIndex}</TableCell>
-                      <TableCell className="font-mono text-xs">{row.cpf || "—"}</TableCell>
-                      <TableCell className="text-sm">{row.employeeName || "—"}</TableCell>
-                      <TableCell>
-                        {row.errors.length > 0 ? (
-                          <div className="flex flex-col gap-0.5">
-                            {row.errors.map((e, i) => (
-                              <Badge key={i} variant="destructive" className="text-[10px] w-fit">{e}</Badge>
-                            ))}
-                          </div>
-                        ) : row.warnings.length > 0 ? (
-                          <div className="flex flex-col gap-0.5">
-                            {row.warnings.map((w, i) => (
-                              <Badge key={i} variant="outline" className="text-[10px] w-fit border-warning text-warning">{w}</Badge>
-                            ))}
-                            <Badge variant="outline" className="text-[10px] w-fit border-primary text-primary">OK</Badge>
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] border-primary text-primary">
-                            <CheckCircle2 className="h-3 w-3 mr-0.5" /> OK
-                          </Badge>
-                        )}
-                      </TableCell>
+                  {employeeRows.map((row, i) => (
+                    <TableRow key={i} className={
+                      row.status === "novo" ? "bg-blue-500/5" :
+                      row.status === "atualizar" ? "bg-yellow-500/5" :
+                      row.status === "demitido" ? "bg-red-500/5" : ""
+                    }>
+                      <TableCell className="text-xs font-mono">{row.numFunc}</TableCell>
+                      <TableCell className="text-xs font-medium">{row.func.nome}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{row.func.cargo}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(row.func.salario_base)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{row.func.situacao}</TableCell>
+                      <TableCell>{statusBadge(row.status)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -745,26 +420,113 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
             </ScrollArea>
 
             <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+              <Button onClick={() => setStep(4)}>
+                Continuar → Folha
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Folha (preview dos dados mapeados) ── */}
+        {step === 4 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">{parsedTxt?.funcionarios.length} registros de folha</p>
+              {parsedTxt?.totais_gerais && (
+                <Badge variant="outline" className="text-xs">
+                  Líquido total: {fmt(parsedTxt.totais_gerais.liquido)}
+                </Badge>
+              )}
+            </div>
+
+            <ScrollArea className="h-[380px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead className="text-right">Salário</TableHead>
+                    <TableHead className="text-right">Proventos</TableHead>
+                    <TableHead className="text-right">Descontos</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead className="text-right">FGTS</TableHead>
+                    <TableHead className="text-right">HE</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {folhaRows.map((r, i) => (
+                    <TableRow key={i} className={r.salarioDiverge ? "bg-yellow-500/10" : ""}>
+                      <TableCell className="text-xs font-medium max-w-[140px] truncate">{r.nome}</TableCell>
+                      <TableCell className="text-xs text-right">{fmtNum(r.salarioBase)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmtNum(r.proventos)}</TableCell>
+                      <TableCell className="text-xs text-right text-red-600">{fmtNum(r.descontos)}</TableCell>
+                      <TableCell className="text-xs text-right font-medium">{fmtNum(r.liquido)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmtNum(r.fgts)}</TableCell>
+                      <TableCell className="text-xs text-right">{r.he > 0 ? fmtNum(r.he) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                {/* Footer totals */}
+                <tfoot>
+                  <TableRow className="border-t-2 font-semibold">
+                    <TableCell className="text-xs">TOTAL</TableCell>
+                    <TableCell className="text-xs text-right">—</TableCell>
+                    <TableCell className="text-xs text-right">{fmtNum(folhaTotals.proventos)}</TableCell>
+                    <TableCell className="text-xs text-right text-red-600">{fmtNum(folhaTotals.descontos)}</TableCell>
+                    <TableCell className="text-xs text-right">{fmtNum(folhaTotals.liquido)}</TableCell>
+                    <TableCell className="text-xs text-right">{fmtNum(folhaTotals.fgts)}</TableCell>
+                    <TableCell className="text-xs text-right">{fmtNum(folhaTotals.he)}</TableCell>
+                  </TableRow>
+                </tfoot>
+              </Table>
+            </ScrollArea>
+
+            {/* Compare with TXT totals */}
+            {parsedTxt?.totais_gerais && (
+              <div className="rounded-lg border p-3 space-y-1 text-xs">
+                <p className="font-medium text-muted-foreground">Conferência com totais do arquivo:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-muted-foreground">Proventos TXT</span>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.proventos - folhaTotals.proventos) > 1 ? "text-red-600" : "text-green-600"}`}>
+                      {fmt(parsedTxt.totais_gerais.proventos)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Descontos TXT</span>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.descontos - folhaTotals.descontos) > 1 ? "text-red-600" : "text-green-600"}`}>
+                      {fmt(parsedTxt.totais_gerais.descontos)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Líquido TXT</span>
+                    <p className={`font-medium ${Math.abs(parsedTxt.totais_gerais.liquido - folhaTotals.liquido) > 1 ? "text-red-600" : "text-green-600"}`}>
+                      {fmt(parsedTxt.totais_gerais.liquido)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(3)}>Voltar</Button>
-              <Button onClick={runImport} disabled={validRows.length === 0 || importing}>
+              <Button onClick={runImport} disabled={importing}>
                 {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Importar {validRows.length} registro{validRows.length !== 1 ? "s" : ""}
+                Importar {parsedTxt?.funcionarios.length} registros
               </Button>
             </div>
 
-            {importing && (
-              <Progress value={importProgress} className="h-2" />
-            )}
+            {importing && <Progress value={importProgress} className="h-2" />}
           </div>
         )}
 
         {/* ── Step 5: Resultado ── */}
-        {step === 5 && importResult && (
+        {step === 5 && txtImportResult && (
           <div className="space-y-6 text-center py-8">
-            {importResult.errors === 0 ? (
-              <CheckCircle2 className="h-16 w-16 text-primary mx-auto" />
+            {txtImportResult.errors.length === 0 ? (
+              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
             ) : (
-              <AlertTriangle className="h-16 w-16 text-warning mx-auto" />
+              <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto" />
             )}
 
             <div>
@@ -774,32 +536,26 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               </p>
             </div>
 
-            <div className={`grid gap-3 max-w-sm mx-auto ${txtImportResult ? "grid-cols-3" : "grid-cols-2"}`}>
-              {txtImportResult && (
-                <div className="rounded-lg border p-3 text-center">
-                  <div className="text-2xl font-bold text-primary">{txtImportResult.employees_created}</div>
-                  <div className="text-xs text-muted-foreground">Colaboradores criados</div>
-                </div>
-              )}
+            <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto">
               <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-primary">{importResult.success}</div>
-                <div className="text-xs text-muted-foreground">Registros importados</div>
+                <div className="text-2xl font-bold text-blue-600">{txtImportResult.employees_created}</div>
+                <div className="text-xs text-muted-foreground">Criados</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold text-destructive">{importResult.errors}</div>
-                <div className="text-xs text-muted-foreground">Erros</div>
+                <div className="text-2xl font-bold text-yellow-600">{txtImportResult.employees_updated}</div>
+                <div className="text-xs text-muted-foreground">Atualizados</div>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <div className="text-2xl font-bold text-green-600">{txtImportResult.payroll_records}</div>
+                <div className="text-xs text-muted-foreground">Folha</div>
               </div>
             </div>
 
-            {txtImportResult && txtImportResult.employees_updated > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {txtImportResult.employees_updated} colaborador(es) atualizado(s)
-              </p>
-            )}
-
-            {txtImportResult && txtImportResult.errors.length > 0 && (
+            {txtImportResult.errors.length > 0 && (
               <details className="text-left text-xs max-w-sm mx-auto">
-                <summary className="cursor-pointer text-destructive">Ver erros</summary>
+                <summary className="cursor-pointer text-red-600 font-medium">
+                  {txtImportResult.errors.length} erro(s)
+                </summary>
                 <ul className="mt-1 space-y-0.5 text-muted-foreground">
                   {txtImportResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
                 </ul>
@@ -812,18 +568,4 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
       </SheetContent>
     </Sheet>
   );
-}
-
-// Parse Brazilian number format: "1.234,56" → 1234.56
-function parseNumber(val: string | undefined | null): number | null {
-  if (!val || !val.trim()) return null;
-  let clean = val.trim();
-  // Remove currency symbols
-  clean = clean.replace(/R\$\s*/g, "");
-  // Brazilian format: 1.234,56
-  if (clean.includes(",")) {
-    clean = clean.replace(/\./g, "").replace(",", ".");
-  }
-  const num = Number(clean);
-  return isNaN(num) ? null : num;
 }
