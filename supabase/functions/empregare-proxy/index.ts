@@ -64,8 +64,9 @@ Deno.serve(async (req) => {
     const fetchOptions: RequestInit = {
       method: httpMethod,
       headers: {
+        "Accept": "application/json",
         "Content-Type": "application/json",
-        "api_key": empregareToken,
+        "Authorization": `Bearer ${empregareToken}`,
         ...(empresaId ? { "EmpresaId": empresaId } : {}),
       },
     };
