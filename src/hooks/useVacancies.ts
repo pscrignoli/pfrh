@@ -60,7 +60,7 @@ export function useVacancies() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchVacancies]);
 
-  const createVacancy = async (vacancy: { title: string; department_id: string | null; work_model: string; status?: string }) => {
+  const createVacancy = async (vacancy: { title: string; department_id: string | null; work_model: string; status?: string; opened_at?: string }) => {
     const payload: Record<string, unknown> = {
       title: vacancy.title,
       work_model: (vacancy.work_model || "presencial") as "presencial" | "hibrido" | "remoto",
@@ -72,6 +72,10 @@ export function useVacancies() {
 
     if (vacancy.status) {
       payload.status = vacancy.status;
+    }
+
+    if (vacancy.opened_at) {
+      payload.opened_at = vacancy.opened_at;
     }
 
     const { data, error } = await withTimeout(

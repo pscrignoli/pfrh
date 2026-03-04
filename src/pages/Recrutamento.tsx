@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Briefcase, MapPin, Users, Download } from "lucide-react";
+import { format } from "date-fns";
+import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon } from "lucide-react";
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +12,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useVacancies } from "@/hooks/useVacancies";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { useVacancies, type Vacancy } from "@/hooks/useVacancies";
 import { useDepartments } from "@/hooks/useDepartments";
 import VacancyFieldsEditor from "@/components/recrutamento/VacancyFieldsEditor";
 import type { VacancyField } from "@/hooks/useVacancyFields";
 import { useVacancyFields } from "@/hooks/useVacancyFields";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -29,20 +34,44 @@ const workModelLabels: Record<string, string> = {
   remoto: "Remoto",
 };
 
+interface VacancyForm {
+  title: string;
+  department_id: string;
+  work_model: string;
+  status: string;
+  opened_at: Date | undefined;
+}
+
+const defaultForm: VacancyForm = {
+  title: "",
+  department_id: "",
+  work_model: "presencial",
+  status: "aberta",
+  opened_at: new Date(),
+};
+
 export default function Recrutamento() {
   const navigate = useNavigate();
-  const { vacancies, loading, createVacancy } = useVacancies();
+  const { vacancies, loading, createVacancy, refetch } = useVacancies();
   const { departments } = useDepartments(true);
   const { saveFields } = useVacancyFields(undefined);
+
+  // Create dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ title: "", department_id: "", work_model: "presencial" });
+  const [form, setForm] = useState<VacancyForm>({ ...defaultForm });
   const [vacancyFields, setVacancyFields] = useState<VacancyField[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<VacancyForm>({ ...defaultForm });
+  const [editVacancyId, setEditVacancyId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
   const resetDialog = () => {
     setStep(1);
-    setForm({ title: "", department_id: "", work_model: "presencial" });
+    setForm({ ...defaultForm });
     setVacancyFields([]);
     setDialogOpen(false);
   };
@@ -59,9 +88,9 @@ export default function Recrutamento() {
         title: form.title.trim(),
         department_id: form.department_id || null,
         work_model: form.work_model,
+        opened_at: form.opened_at ? format(form.opened_at, "yyyy-MM-dd") : undefined,
       });
 
-      // Save custom fields if any
       if (vacancyFields.length > 0 && vacancyId) {
         await saveFields(vacancyId, vacancyFields);
       }
@@ -75,6 +104,123 @@ export default function Recrutamento() {
       setSaving(false);
     }
   };
+
+  const openEdit = (v: Vacancy, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditVacancyId(v.id);
+    setEditForm({
+      title: v.title,
+      department_id: v.department_id || "",
+      work_model: v.work_model,
+      status: v.status,
+      opened_at: v.opened_at ? new Date(v.opened_at + "T00:00:00") : undefined,
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editVacancyId) return;
+    if (!editForm.title.trim()) { toast.error("Informe o título da vaga."); return; }
+    setEditSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        title: editForm.title.trim(),
+        department_id: editForm.department_id || null,
+        work_model: editForm.work_model,
+        status: editForm.status,
+        opened_at: editForm.opened_at ? format(editForm.opened_at, "yyyy-MM-dd") : null,
+      };
+      const { error } = await supabase
+        .from("vacancies")
+        .update(payload as any)
+        .eq("id", editVacancyId);
+      if (error) throw new Error(error.message);
+      toast.success("Vaga atualizada!");
+      setEditOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao atualizar vaga.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const DatePickerField = ({ value, onChange, label }: { value: Date | undefined; onChange: (d: Date | undefined) => void; label: string }) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd/MM/yyyy") : "Selecione a data"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={onChange}
+            initialFocus
+            className={cn("p-3 pointer-events-auto")}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+
+  const VacancyFormFields = ({ formData, setFormData, showStatus }: { formData: VacancyForm; setFormData: (f: VacancyForm) => void; showStatus?: boolean }) => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Título da Vaga *</Label>
+        <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Analista de RH" />
+      </div>
+      <div className="space-y-2">
+        <Label>Departamento</Label>
+        <Select value={formData.department_id} onValueChange={(v) => setFormData({ ...formData, department_id: v })}>
+          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+          <SelectContent>
+            {departments.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Modelo de Trabalho</Label>
+          <Select value={formData.work_model} onValueChange={(v) => setFormData({ ...formData, work_model: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="presencial">Presencial</SelectItem>
+              <SelectItem value="hibrido">Híbrido</SelectItem>
+              <SelectItem value="remoto">Remoto</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {showStatus && (
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aberta">Aberta</SelectItem>
+                <SelectItem value="pausada">Pausada</SelectItem>
+                <SelectItem value="fechada">Fechada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+      <DatePickerField
+        label="Data de Abertura"
+        value={formData.opened_at}
+        onChange={(d) => setFormData({ ...formData, opened_at: d })}
+      />
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -120,13 +266,23 @@ export default function Recrutamento() {
             return (
               <Card
                 key={v.id}
-                className="cursor-pointer hover:shadow-md transition-shadow border hover:border-primary/30"
+                className="cursor-pointer hover:shadow-md transition-shadow border hover:border-primary/30 group"
                 onClick={() => navigate(`/recrutamento/vagas/${v.id}`)}
               >
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold text-base leading-tight line-clamp-2">{v.title}</h3>
-                    <Badge variant="outline" className={sc.className}>{sc.label}</Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => openEdit(v, e)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Badge variant="outline" className={sc.className}>{sc.label}</Badge>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
                     {v.departments?.name && (
@@ -156,6 +312,7 @@ export default function Recrutamento() {
         </div>
       )}
 
+      {/* Create vacancy dialog */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) resetDialog(); else setDialogOpen(true); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -166,34 +323,7 @@ export default function Recrutamento() {
           </DialogHeader>
 
           {step === 1 ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Título da Vaga *</Label>
-                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ex: Analista de RH" />
-              </div>
-              <div className="space-y-2">
-                <Label>Departamento</Label>
-                <Select value={form.department_id} onValueChange={(v) => setForm({ ...form, department_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Modelo de Trabalho</Label>
-                <Select value={form.work_model} onValueChange={(v) => setForm({ ...form, work_model: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="presencial">Presencial</SelectItem>
-                    <SelectItem value="hibrido">Híbrido</SelectItem>
-                    <SelectItem value="remoto">Remoto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <VacancyFormFields formData={form} setFormData={setForm} />
           ) : (
             <VacancyFieldsEditor fields={vacancyFields} onChange={setVacancyFields} />
           )}
@@ -210,6 +340,23 @@ export default function Recrutamento() {
             ) : (
               <Button onClick={handleCreate} disabled={saving}>{saving ? "Criando..." : "Criar Vaga"}</Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit vacancy dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Vaga</DialogTitle>
+            <DialogDescription>Altere as informações da vaga.</DialogDescription>
+          </DialogHeader>
+          <VacancyFormFields formData={editForm} setFormData={setEditForm} showStatus />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEditSave} disabled={editSaving}>
+              {editSaving ? "Salvando..." : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
