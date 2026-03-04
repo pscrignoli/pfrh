@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -114,6 +114,7 @@ export default function Recrutamento() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nova Vaga</DialogTitle>
+            <DialogDescription>Preencha os dados para criar uma nova vaga.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
