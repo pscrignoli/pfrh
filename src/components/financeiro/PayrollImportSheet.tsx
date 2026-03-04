@@ -13,20 +13,20 @@ import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2, UserPlus, RefreshCw, UserX, UserCheck,
+  AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2, UserPlus, RefreshCw, UserX, UserCheck, XCircle, Pencil,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  ano: number;
-  mes: number;
-  existingCount: number;
-  onImported: () => void;
+  onImported: (ano: number, mes: number) => void;
 }
 
 const monthNames = [
@@ -34,7 +34,7 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const STEP_LABELS = ["Competência", "Upload", "Colaboradores", "Folha", "Importação"];
+const STEP_LABELS = ["Upload", "Colaboradores", "Folha", "Importação"];
 
 type EmployeeStatus = "cadastrado" | "novo" | "atualizar" | "demitido";
 
@@ -50,25 +50,58 @@ interface EmployeePreviewRow {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtNum = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
-export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onImported }: Props) {
-  const { companyId, companyName } = useCompany();
+/** Extract mes/ano from parsed periodo.fim (ISO "2026-02-28") */
+function extractPeriodo(parsed: ParsedPayroll): { mes: number; ano: number } | null {
+  const fim = parsed.periodo.fim; // "2026-02-28"
+  if (!fim) return null;
+  const m = fim.match(/^(\d{4})-(\d{2})/);
+  if (!m) return null;
+  return { ano: Number(m[1]), mes: Number(m[2]) };
+}
+
+/** Normalize CNPJ to digits only */
+function normalizeCnpj(cnpj: string): string {
+  return cnpj.replace(/\D/g, "");
+}
+
+export function PayrollImportSheet({ open, onClose, onImported }: Props) {
+  const { companyId, companyName, companies } = useCompany();
   const [step, setStep] = useState(1);
 
-  // Step 2
+  // Step 1: Upload + auto-detect
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [parsedTxt, setParsedTxt] = useState<ParsedPayroll | null>(null);
+  const [detectedMes, setDetectedMes] = useState<number>(0);
+  const [detectedAno, setDetectedAno] = useState<number>(0);
+  const [manualOverride, setManualOverride] = useState(false);
+  const [existingCount, setExistingCount] = useState(0);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
-  // Step 3
+  // Empresa validation
+  const empresaMismatch = useMemo(() => {
+    if (!parsedTxt || !companyId) return false;
+    const fileCnpj = normalizeCnpj(parsedTxt.empresa.cnpj);
+    if (!fileCnpj) return false; // Can't validate without CNPJ
+    const selectedCompany = companies.find(c => c.id === companyId);
+    if (!selectedCompany?.cnpj) return false; // Can't validate
+    return normalizeCnpj(selectedCompany.cnpj) !== fileCnpj;
+  }, [parsedTxt, companyId, companies]);
+
+  // Step 2: Colaboradores
   const [employeeRows, setEmployeeRows] = useState<EmployeePreviewRow[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [createNew, setCreateNew] = useState(true);
   const [updateExisting, setUpdateExisting] = useState(true);
 
-  // Step 5
+  // Step 4: Result
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [txtImportResult, setTxtImportResult] = useState<ImportResult | null>(null);
+
+  // Effective mes/ano (detected or manually overridden)
+  const mes = detectedMes;
+  const ano = detectedAno;
 
   // Reset on close
   useEffect(() => {
@@ -76,6 +109,10 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
       setStep(1);
       setFileName("");
       setParsedTxt(null);
+      setDetectedMes(0);
+      setDetectedAno(0);
+      setManualOverride(false);
+      setExistingCount(0);
       setEmployeeRows([]);
       setCreateNew(true);
       setUpdateExisting(true);
@@ -84,6 +121,29 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
       setTxtImportResult(null);
     }
   }, [open]);
+
+  // Check existing records when period is detected
+  useEffect(() => {
+    if (!companyId || !mes || !ano) {
+      setExistingCount(0);
+      return;
+    }
+    let cancelled = false;
+    setCheckingExisting(true);
+    supabase
+      .from("payroll_monthly_records")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("ano", ano)
+      .eq("mes", mes)
+      .then(({ count }) => {
+        if (!cancelled) {
+          setExistingCount(count ?? 0);
+          setCheckingExisting(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [companyId, mes, ano]);
 
   // ── Parse file ──
   const parseFile = useCallback((file: File) => {
@@ -98,9 +158,22 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           return;
         }
         setParsedTxt(parsed);
+
+        // Auto-detect period
+        const periodo = extractPeriodo(parsed);
+        if (periodo) {
+          setDetectedMes(periodo.mes);
+          setDetectedAno(periodo.ano);
+        } else {
+          // Fallback to current month
+          const now = new Date();
+          setDetectedMes(now.getMonth() + 1);
+          setDetectedAno(now.getFullYear());
+          setManualOverride(true); // Force manual since detection failed
+        }
+
         toast({
           title: `${parsed.funcionarios.length} funcionário(s) encontrado(s)`,
-          description: `Período: ${parsed.periodo.tipo || "N/A"}`,
         });
       } catch (err) {
         console.error("TXT parse error:", err);
@@ -123,9 +196,9 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     e.target.value = "";
   };
 
-  // ── Step 2 → 3: Load employees and build preview ──
-  const goToStep3 = useCallback(async () => {
-    if (!parsedTxt || !companyId) return;
+  // ── Step 1 → 2: Load employees and build preview ──
+  const goToColaboradores = useCallback(async () => {
+    if (!parsedTxt || !companyId || !mes || !ano) return;
     setLoadingEmployees(true);
 
     const { data: employees } = await supabase
@@ -151,9 +224,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
         status = "demitido";
       } else if (!existing) {
         status = "novo";
-      } else if (
-        (func.cargo && func.cargo !== existing.cargo)
-      ) {
+      } else if (func.cargo && func.cargo !== existing.cargo) {
         status = "atualizar";
       } else {
         status = "cadastrado";
@@ -171,8 +242,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
 
     setEmployeeRows(rows);
     setLoadingEmployees(false);
-    setStep(3);
-  }, [parsedTxt, companyId]);
+    setStep(2);
+  }, [parsedTxt, companyId, mes, ano]);
 
   // Counts
   const counts = useMemo(() => {
@@ -181,7 +252,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     return c;
   }, [employeeRows]);
 
-  // ── Step 4: Folha preview (derived from parsedTxt) ──
+  // ── Step 3: Folha preview ──
   const folhaRows = useMemo(() => {
     if (!parsedTxt) return [];
     return parsedTxt.funcionarios.map(f => {
@@ -211,9 +282,9 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     return t;
   }, [folhaRows]);
 
-  // ── Step 5: Import ──
+  // ── Step 4: Import ──
   const runImport = useCallback(async () => {
-    if (!companyId || !parsedTxt) return;
+    if (!companyId || !parsedTxt || !mes || !ano) return;
     setImporting(true);
     setImportProgress(10);
 
@@ -221,8 +292,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     setImportProgress(100);
     setTxtImportResult(res);
     setImporting(false);
-    setStep(5);
-    if (res.payroll_records > 0) onImported();
+    setStep(4);
+    if (res.payroll_records > 0) onImported(ano, mes);
   }, [companyId, parsedTxt, ano, mes, onImported]);
 
   // ── Status badge ──
@@ -235,13 +306,15 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
     }
   };
 
+  const canProceed = parsedTxt && mes > 0 && ano > 0 && !empresaMismatch;
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" side="right">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
-            Importar Folha — {monthNames[mes - 1]} {ano}
+            Importar Folha
           </SheetTitle>
         </SheetHeader>
 
@@ -257,47 +330,16 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
                 {step > i + 1 ? "✓" : i + 1}
               </div>
               <span className={step === i + 1 ? "font-medium" : "text-muted-foreground"}>{label}</span>
-              {i < 4 && <span className="text-muted-foreground mx-1">→</span>}
+              {i < STEP_LABELS.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
             </div>
           ))}
         </div>
 
-        {/* ── Step 1: Competência ── */}
+        {/* ── Step 1: Upload + Auto-detect ── */}
         {step === 1 && (
-          <div className="space-y-6">
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Empresa</span>
-                <span className="font-medium">{companyName}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Competência</span>
-                <span className="font-medium">{monthNames[mes - 1]} / {ano}</span>
-              </div>
-            </div>
-
-            {existingCount > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium text-yellow-700">Registros existentes</p>
-                  <p className="text-muted-foreground">
-                    Já existem {existingCount} registros para esta competência.
-                    A importação irá sobrescrever registros existentes.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <Button className="w-full" onClick={() => setStep(2)}>Continuar</Button>
-          </div>
-        )}
-
-        {/* ── Step 2: Upload ── */}
-        {step === 2 && (
           <div className="space-y-4">
             <label
-              className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                 dragOver ? "border-primary bg-primary/5" : "hover:bg-muted/50"
               }`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -317,35 +359,102 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               />
             </label>
 
+            {/* Auto-detected info card */}
             {parsedTxt && (
-              <div className="rounded-lg border p-4 space-y-2">
+              <div className="rounded-lg border p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{fileName}</span>
-                  <Badge variant="outline" className="text-xs">TXT</Badge>
+                  <Badge variant="outline" className="text-xs">Detectado automaticamente</Badge>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Funcionários</span>
+                    <span className="text-muted-foreground text-xs">Empresa no arquivo</span>
+                    <p className="font-medium">{parsedTxt.empresa.nome || "—"}</p>
+                    {parsedTxt.empresa.cnpj && (
+                      <p className="text-xs text-muted-foreground">{parsedTxt.empresa.cnpj}</p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Competência</span>
+                    {!manualOverride ? (
+                      <div className="flex items-center gap-1">
+                        <p className="font-medium">{mes > 0 ? `${monthNames[mes - 1]} / ${ano}` : "—"}</p>
+                        <button
+                          onClick={() => setManualOverride(true)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Corrigir período manualmente"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1.5 mt-0.5">
+                        <Select value={String(mes)} onValueChange={(v) => setDetectedMes(Number(v))}>
+                          <SelectTrigger className="h-7 text-xs w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {monthNames.map((m, i) => (
+                              <SelectItem key={i} value={String(i + 1)} className="text-xs">{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={String(ano)} onValueChange={(v) => setDetectedAno(Number(v))}>
+                          <SelectTrigger className="h-7 text-xs w-[80px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2024, 2025, 2026, 2027].map(y => (
+                              <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Funcionários</span>
                     <p className="font-semibold text-lg">{parsedTxt.funcionarios.length}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Período</span>
-                    <p className="font-medium">{parsedTxt.periodo.tipo || "—"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Proventos</span>
+                    <span className="text-muted-foreground text-xs">Total Proventos</span>
                     <p className="font-medium">{fmt(parsedTxt.totais_gerais.proventos)}</p>
                   </div>
                 </div>
-                {parsedTxt.empresa.nome && (
-                  <p className="text-xs text-muted-foreground">Empresa: {parsedTxt.empresa.nome}</p>
+
+                {/* Enterprise mismatch alert */}
+                {empresaMismatch && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm">
+                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium text-red-700">Empresa divergente</p>
+                      <p className="text-muted-foreground text-xs">
+                        A empresa do arquivo ({parsedTxt.empresa.nome}) não corresponde
+                        à empresa selecionada ({companyName}). Verifique antes de continuar.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Existing records warning */}
+                {existingCount > 0 && !checkingExisting && (
+                  <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium text-yellow-700">Competência já importada</p>
+                      <p className="text-muted-foreground text-xs">
+                        {monthNames[mes - 1]}/{ano} já possui {existingCount} registros.
+                        Reimportar substituirá os dados existentes.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-              <Button onClick={goToStep3} disabled={!parsedTxt || loadingEmployees}>
+            <div className="flex justify-end">
+              <Button onClick={goToColaboradores} disabled={!canProceed || loadingEmployees}>
                 {loadingEmployees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Continuar
               </Button>
@@ -353,10 +462,9 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           </div>
         )}
 
-        {/* ── Step 3: Colaboradores ── */}
-        {step === 3 && (
+        {/* ── Step 2: Colaboradores ── */}
+        {step === 2 && (
           <div className="space-y-4">
-            {/* Counters */}
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-lg border p-2 text-center">
                 <div className="text-lg font-bold text-green-600">{counts.cadastrado}</div>
@@ -376,7 +484,6 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               </div>
             </div>
 
-            {/* Options */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={createNew} onCheckedChange={(v) => setCreateNew(!!v)} />
@@ -420,27 +527,27 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
             </ScrollArea>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
-              <Button onClick={() => setStep(4)}>
-                Continuar → Folha
-              </Button>
+              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+              <Button onClick={() => setStep(3)}>Continuar → Folha</Button>
             </div>
           </div>
         )}
 
-        {/* ── Step 4: Folha (preview dos dados mapeados) ── */}
-        {step === 4 && (
+        {/* ── Step 3: Folha preview ── */}
+        {step === 3 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">{parsedTxt?.funcionarios.length} registros de folha</p>
+              <p className="text-sm font-medium">
+                {parsedTxt?.funcionarios.length} registros · {monthNames[mes - 1]}/{ano}
+              </p>
               {parsedTxt?.totais_gerais && (
                 <Badge variant="outline" className="text-xs">
-                  Líquido total: {fmt(parsedTxt.totais_gerais.liquido)}
+                  Líquido: {fmt(parsedTxt.totais_gerais.liquido)}
                 </Badge>
               )}
             </div>
 
-            <ScrollArea className="h-[380px]">
+            <ScrollArea className="h-[340px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -466,7 +573,6 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
                     </TableRow>
                   ))}
                 </TableBody>
-                {/* Footer totals */}
                 <tfoot>
                   <TableRow className="border-t-2 font-semibold">
                     <TableCell className="text-xs">TOTAL</TableCell>
@@ -481,7 +587,6 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
               </Table>
             </ScrollArea>
 
-            {/* Compare with TXT totals */}
             {parsedTxt?.totais_gerais && (
               <div className="rounded-lg border p-3 space-y-1 text-xs">
                 <p className="font-medium text-muted-foreground">Conferência com totais do arquivo:</p>
@@ -509,7 +614,7 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
             )}
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(3)}>Voltar</Button>
+              <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
               <Button onClick={runImport} disabled={importing}>
                 {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Importar {parsedTxt?.funcionarios.length} registros
@@ -520,8 +625,8 @@ export function PayrollImportSheet({ open, onClose, ano, mes, existingCount, onI
           </div>
         )}
 
-        {/* ── Step 5: Resultado ── */}
-        {step === 5 && txtImportResult && (
+        {/* ── Step 4: Resultado ── */}
+        {step === 4 && txtImportResult && (
           <div className="space-y-6 text-center py-8">
             {txtImportResult.errors.length === 0 ? (
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />

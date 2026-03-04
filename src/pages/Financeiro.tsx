@@ -347,10 +347,11 @@ export default function Financeiro() {
       <PayrollImportSheet
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        ano={ano}
-        mes={mes}
-        existingCount={records.length}
-        onImported={refetch}
+        onImported={(importedAno, importedMes) => {
+          setAno(importedAno);
+          setMes(importedMes);
+          refetch();
+        }}
       />
 
       <ComparativoSheet
