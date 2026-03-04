@@ -34,8 +34,15 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase
       .from("companies")
       .select("*")
-      .eq("status", "active")
-      .order("name");
+      .eq("status", "active");
+    // P&F always first
+    (data ?? []).sort((a: any, b: any) => {
+      const aName = (a.name ?? "").toLowerCase();
+      const bName = (b.name ?? "").toLowerCase();
+      if (aName.includes("p&f")) return -1;
+      if (bName.includes("p&f")) return 1;
+      return aName.localeCompare(bName);
+    });
     const list = (data as Company[]) ?? [];
     setCompanies(list);
 
