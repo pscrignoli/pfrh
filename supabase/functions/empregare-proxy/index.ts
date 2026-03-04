@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       method: httpMethod,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${empregareToken}`,
+        "api_key": empregareToken,
         ...(empresaId ? { "EmpresaId": empresaId } : {}),
       },
     };
