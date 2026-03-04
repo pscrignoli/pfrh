@@ -29,7 +29,7 @@ import {
 import {
   AlertTriangle, CheckCircle2, Upload, FileSpreadsheet, Loader2,
   UserPlus, RefreshCw, UserX, UserCheck, XCircle, Pencil,
-  ShieldAlert, ShieldCheck, Info, Search, Eye, EyeOff,
+  ShieldAlert, ShieldCheck, Info, Search, Eye, EyeOff, CheckCheck, RotateCcw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -365,12 +365,41 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     });
   };
 
+  // Bulk dismiss
+  const bulkDismiss = useCallback((alerts: AuditAlert[]) => {
+    setDismissedAlerts(prev => {
+      const next = new Set(prev);
+      alerts.forEach(a => {
+        const key = alertKey(a);
+        if (!correctedAlerts.has(key)) next.add(key);
+      });
+      return next;
+    });
+  }, [correctedAlerts]);
+
+  const bulkDismissAll = useCallback(() => {
+    if (!auditResult) return;
+    const all = [...auditResult.criticos, ...auditResult.atencao, ...auditResult.informativos];
+    bulkDismiss(all);
+  }, [auditResult, bulkDismiss]);
+
+  const bulkDismissBySeverity = useCallback((severity: "atencao" | "informativos") => {
+    if (!auditResult) return;
+    bulkDismiss(severity === "atencao" ? auditResult.atencao : auditResult.informativos);
+  }, [auditResult, bulkDismiss]);
+
+  // Undo all corrections
+  const undoAllCorrections = useCallback(() => {
+    setCorrectedAlerts(new Map());
+    setCorrectionLogs([]);
+    setDismissedAlerts(new Set());
+  }, []);
+
   // Audit: apply correction
   const handleCorrection = useCallback((alert: AuditAlert, apply: CorrectionApply) => {
     const key = alertKey(alert);
     setCorrectedAlerts(prev => new Map(prev).set(key, apply));
 
-    // Build correction logs
     const logs: CorrectionLog[] = Object.entries(apply.corrections).map(([campo, valor]) => ({
       funcionario: alert.funcionario,
       numero: alert.numero,
@@ -381,7 +410,6 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       justificativa: apply.justificativa,
     }));
 
-    // If no field corrections, still log the justificativa
     if (logs.length === 0) {
       logs.push({
         funcionario: alert.funcionario,
@@ -396,7 +424,6 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
 
     setCorrectionLogs(prev => [...prev.filter(l => !(l.numero === alert.numero && l.regra === alert.regra)), ...logs]);
 
-    // Remove from dismissed if it was there
     setDismissedAlerts(prev => {
       const next = new Set(prev);
       next.delete(key);
@@ -873,7 +900,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
               </div>
             )}
 
-            {/* Filters */}
+            {/* Filters + Bulk actions */}
             {totalAlerts(auditResult) > 0 && (
               <>
                 <div className="flex items-center gap-2">
@@ -917,8 +944,54 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                   </div>
                 </div>
 
+                {/* Bulk action bar */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-[10px]"
+                    onClick={bulkDismissAll}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    Ignorar Todos ({totalAlerts(auditResult)})
+                  </Button>
+                  {auditResult.atencao.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] border-yellow-500/40 text-yellow-600 hover:bg-yellow-500/10"
+                      onClick={() => bulkDismissBySeverity("atencao")}
+                    >
+                      <CheckCheck className="h-3 w-3 mr-1" />
+                      Ignorar Atenção ({auditResult.atencao.length})
+                    </Button>
+                  )}
+                  {auditResult.informativos.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+                      onClick={() => bulkDismissBySeverity("informativos")}
+                    >
+                      <CheckCheck className="h-3 w-3 mr-1" />
+                      Ignorar Info ({auditResult.informativos.length})
+                    </Button>
+                  )}
+                  {(correctedAlerts.size > 0 || dismissedAlerts.size > 0) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] text-destructive hover:text-destructive ml-auto"
+                      onClick={undoAllCorrections}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Resetar tudo
+                    </Button>
+                  )}
+                </div>
+
                 {/* Alert list */}
-                <ScrollArea className="h-[280px]">
+                <ScrollArea className="h-[240px]">
                   <div className="space-y-2">
                     {filteredAlerts.map((alert, i) => {
                       const key = alertKey(alert);

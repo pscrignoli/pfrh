@@ -1,12 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   ShieldAlert, AlertTriangle, Info, CheckCircle2, Pencil,
 } from "lucide-react";
@@ -38,9 +34,8 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 
 const SITUACAO_OPTIONS = [
   { value: "Trabalhando", label: "Trabalhando" },
-  { value: "Demitido", label: "Demitido" },
   { value: "Auxilio Doenca", label: "Auxílio Doença" },
-  { value: "Licenca Maternidade", label: "Licença Maternidade" },
+  { value: "Licenca Maternidade", label: "Lic. Maternidade" },
   { value: "Afastado", label: "Afastado" },
 ];
 
@@ -50,21 +45,62 @@ const severityConfig = {
   informativo: { icon: Info, bgClass: "bg-blue-500/10 border-blue-500/30", textClass: "text-blue-600", label: "Info" },
 } as const;
 
-// Rules that support the "Corrigir" button
 const CORRECTABLE_RULES = new Set([
-  "proventos_zero",
-  "proventos_divergentes",
-  "fgts_divergente",
-  "fgts_zero",
-  "salario_acima_media",
-  "salario_abaixo_media",
-  "he_excessiva",
-  "situacao_vazia",
-  "liquido_negativo",
-  "salario_zero",
-  "duplicado",
-  "desconto_excessivo",
+  "proventos_zero", "proventos_divergentes", "fgts_divergente", "fgts_zero",
+  "salario_acima_media", "salario_abaixo_media", "he_excessiva", "situacao_vazia",
+  "liquido_negativo", "salario_zero", "duplicado", "desconto_excessivo",
 ]);
+
+// ── Inline Editable Value ──
+
+function EditableValue({ value, onSave, label }: {
+  value: number;
+  onSave: (v: number) => void;
+  label: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(fmtNum(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const save = useCallback(() => {
+    const parsed = parseFloat(text.replace(/\./g, "").replace(",", "."));
+    if (!isNaN(parsed)) onSave(parsed);
+    setEditing(false);
+  }, [text, onSave]);
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="inline-block w-[90px] h-5 px-1 text-[10px] font-mono border border-primary rounded bg-primary/5 outline-none"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="cursor-pointer group/edit inline-flex items-center gap-0.5 hover:bg-primary/10 rounded px-0.5 -mx-0.5 transition-colors"
+      onClick={() => { setText(fmtNum(value)); setEditing(true); }}
+      title={`Editar ${label}`}
+    >
+      <strong>{fmtNum(value)}</strong>
+      <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/edit:opacity-60 text-primary transition-opacity" />
+    </span>
+  );
+}
+
+// ── Main Component ──
 
 interface Props {
   alert: AuditAlert;
@@ -77,188 +113,127 @@ interface Props {
 export function AuditAlertCard({ alert, isDismissed, isCorrected, onDismiss, onCorrect }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [justificativa, setJustificativa] = useState("");
-
-  // Form-specific state
-  const [situacao, setSituacao] = useState("");
-  const [proventos, setProventos] = useState("");
-  const [fgts, setFgts] = useState("");
-  const [he, setHe] = useState("");
+  const [pendingCorrections, setPendingCorrections] = useState<Record<string, unknown>>({});
 
   const config = severityConfig[alert.severity];
   const Icon = config.icon;
   const isCorrectable = CORRECTABLE_RULES.has(alert.regra) && alert.severity !== "informativo";
   const resolved = isDismissed || isCorrected;
 
+  // Quick apply (one-click correction with auto justificativa)
+  const quickApply = useCallback((corrections: Record<string, unknown>, justif: string) => {
+    onCorrect({ numero: alert.numero, regra: alert.regra, corrections, justificativa: justif });
+  }, [alert, onCorrect]);
+
+  // Inline value edit → auto-apply with justificativa
+  const handleInlineEdit = useCallback((campo: string, valor: number) => {
+    setPendingCorrections(prev => ({ ...prev, [campo]: valor }));
+    if (!expanded) setExpanded(true);
+  }, [expanded]);
+
   const handleSave = () => {
-    const corrections: Record<string, unknown> = {};
-
-    if (alert.regra === "proventos_zero" || alert.regra === "situacao_vazia") {
-      if (situacao) corrections.situacao = situacao;
-    }
-    if (alert.regra === "proventos_divergentes" && proventos) {
-      corrections.proventos = parseFloat(proventos.replace(/\./g, "").replace(",", "."));
-    }
-    if ((alert.regra === "fgts_divergente" || alert.regra === "fgts_zero") && fgts) {
-      corrections.fgts = parseFloat(fgts.replace(/\./g, "").replace(",", "."));
-    }
-    if (alert.regra === "he_excessiva" && he) {
-      corrections.he = parseFloat(he.replace(/\./g, "").replace(",", "."));
-    }
-
     onCorrect({
       numero: alert.numero,
       regra: alert.regra,
-      corrections,
+      corrections: pendingCorrections,
       justificativa,
     });
     setExpanded(false);
+    setPendingCorrections({});
   };
 
+  // Compute suggestion for FGTS
+  const fgtsSuggestion = (alert.regra === "fgts_divergente" || alert.regra === "fgts_zero")
+    ? Math.round(((alert.valores.salario_base as number) || 0) * 0.08 * 100) / 100
+    : null;
+
+  // Render alert values with click-to-edit on numeric values
   const renderAlertValues = (valores: Record<string, unknown>) => {
     const entries = Object.entries(valores);
     if (entries.length === 0) return null;
+
+    // Fields that can be edited inline per rule
+    const editableFields: Record<string, string[]> = {
+      proventos_divergentes: ["proventos"],
+      fgts_divergente: ["fgts"],
+      fgts_zero: ["fgts"],
+      he_excessiva: ["he"],
+    };
+    const editables = new Set(editableFields[alert.regra] ?? []);
+
     return (
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-        {entries.map(([k, v]) => (
-          <span key={k} className="text-[10px] text-muted-foreground">
-            {k.replace(/_/g, " ")}: <strong>{typeof v === "number" ? fmtNum(v) : String(v ?? "—")}</strong>
-          </span>
+        {entries.map(([k, v]) => {
+          const corrected = pendingCorrections[k];
+          const isEdited = corrected !== undefined;
+
+          if (editables.has(k) && typeof v === "number" && !resolved) {
+            return (
+              <span key={k} className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
+                {k.replace(/_/g, " ")}:{" "}
+                {isEdited ? (
+                  <>
+                    <span className="line-through opacity-50">{fmtNum(v)}</span>
+                    <span className="text-green-600 font-semibold"> → {fmtNum(corrected as number)}</span>
+                  </>
+                ) : (
+                  <EditableValue value={v} label={k} onSave={(nv) => handleInlineEdit(k, nv)} />
+                )}
+              </span>
+            );
+          }
+
+          return (
+            <span key={k} className="text-[10px] text-muted-foreground">
+              {k.replace(/_/g, " ")}: <strong>{typeof v === "number" ? fmtNum(v) : String(v ?? "—")}</strong>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Quick situacao badges
+  const renderQuickSituacao = () => {
+    if (alert.regra !== "situacao_vazia" && alert.regra !== "proventos_zero") return null;
+    if (resolved) return null;
+    return (
+      <div className="flex gap-1 mt-1.5 flex-wrap">
+        {SITUACAO_OPTIONS.map(opt => (
+          <Badge
+            key={opt.value}
+            variant="outline"
+            className="text-[9px] cursor-pointer hover:bg-primary/10 hover:border-primary/40 transition-colors"
+            onClick={() => quickApply({ situacao: opt.value }, `Situação definida como ${opt.label}`)}
+          >
+            {opt.label}
+          </Badge>
         ))}
       </div>
     );
   };
 
-  // Render inline correction form based on rule
-  const renderCorrectionForm = () => {
-    switch (alert.regra) {
-      case "proventos_zero":
-        return (
-          <div className="space-y-2">
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground">Situação correta</label>
-              <Select value={situacao} onValueChange={(v) => setSituacao(v)}>
-                <SelectTrigger className="h-8 text-xs mt-0.5"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {SITUACAO_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {(situacao === "Auxilio Doenca" || situacao === "Licenca Maternidade" || situacao === "Afastado") && (
-                <p className="text-[10px] text-green-600 mt-1">✓ Proventos zerados são esperados para essa situação</p>
-              )}
-            </div>
-          </div>
-        );
+  // Accept suggestion button
+  const renderSuggestion = () => {
+    if (resolved) return null;
 
-      case "situacao_vazia":
-        return (
-          <div className="space-y-2">
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground">Situação</label>
-              <Select value={situacao} onValueChange={(v) => setSituacao(v)}>
-                <SelectTrigger className="h-8 text-xs mt-0.5"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {SITUACAO_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        );
-
-      case "proventos_divergentes":
-        return (
-          <div className="space-y-2">
-            {alert.valores.salario_base && (
-              <p className="text-[10px] text-muted-foreground">
-                Salário base: {fmt(alert.valores.salario_base as number)} · Proventos: {fmt(alert.valores.proventos as number)}
-              </p>
-            )}
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground">Proventos corrigido (R$)</label>
-              <Input
-                className="h-8 text-xs mt-0.5"
-                placeholder={fmtNum(alert.valores.proventos as number)}
-                value={proventos}
-                onChange={(e) => setProventos(e.target.value)}
-              />
-            </div>
-          </div>
-        );
-
-      case "fgts_divergente":
-      case "fgts_zero": {
-        const salBase = (alert.valores.salario_base as number) || 0;
-        const isDemitido = String(alert.valores.situacao ?? "").toLowerCase().includes("demitid");
-        return (
-          <div className="space-y-2">
-            <div className="flex gap-3 text-[10px] text-muted-foreground">
-              <span>8% do salário = <strong>{fmt(salBase * 0.08)}</strong></span>
-              {alert.valores.esperado && (
-                <span>Esperado = <strong>{fmt(alert.valores.esperado as number)}</strong></span>
-              )}
-            </div>
-            {isDemitido && (
-              <p className="text-[10px] text-yellow-600">⚠ FGTS de rescisão (GRRF) pode diferir do 8% mensal</p>
-            )}
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground">FGTS corrigido (R$)</label>
-              <Input
-                className="h-8 text-xs mt-0.5"
-                placeholder={fmtNum((alert.valores.fgts as number) || 0)}
-                value={fgts}
-                onChange={(e) => setFgts(e.target.value)}
-              />
-            </div>
-          </div>
-        );
-      }
-
-      case "salario_acima_media":
-      case "salario_abaixo_media":
-        return (
-          <div className="space-y-1">
-            <p className="text-[10px] text-muted-foreground">
-              Salário: {fmt(alert.valores.salario as number)} · Média: {fmt(alert.valores.media as number)} · Desvio: {fmt(alert.valores.desvio as number)}
-            </p>
-            <p className="text-[10px] text-muted-foreground italic">Salário não pode ser editado (vem do arquivo). Adicione uma justificativa.</p>
-          </div>
-        );
-
-      case "he_excessiva":
-        return (
-          <div className="space-y-2">
-            <p className="text-[10px] text-muted-foreground">
-              HE = {(alert.valores.pct as number)}% do salário base ({fmt(alert.valores.salario_base as number)})
-            </p>
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground">Valor HE corrigido (R$)</label>
-              <Input
-                className="h-8 text-xs mt-0.5"
-                placeholder={fmtNum(alert.valores.he as number)}
-                value={he}
-                onChange={(e) => setHe(e.target.value)}
-              />
-            </div>
-          </div>
-        );
-
-      // Justificativa-only rules
-      case "liquido_negativo":
-      case "salario_zero":
-      case "duplicado":
-      case "desconto_excessivo":
-        return (
-          <p className="text-[10px] text-muted-foreground italic">
-            Este tipo de alerta não suporta correção de valor. Adicione uma justificativa para registrar sua revisão.
-          </p>
-        );
-
-      default:
-        return null;
+    if (fgtsSuggestion !== null && fgtsSuggestion > 0) {
+      return (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">Sugestão: <strong className="text-primary">{fmt(fgtsSuggestion)}</strong> (8% do salário)</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-5 px-1.5 text-[9px] border-green-500/40 text-green-600 hover:bg-green-500/10"
+            onClick={() => quickApply({ fgts: fgtsSuggestion }, "FGTS ajustado para 8% do salário base")}
+          >
+            Aplicar
+          </Button>
+        </div>
+      );
     }
+
+    return null;
   };
 
   return (
@@ -289,6 +264,8 @@ export function AuditAlertCard({ alert, isDismissed, isCorrected, onDismiss, onC
             {alert.descricao}
           </p>
           {renderAlertValues(alert.valores)}
+          {renderQuickSituacao()}
+          {renderSuggestion()}
         </div>
 
         {/* Action buttons */}
@@ -322,7 +299,15 @@ export function AuditAlertCard({ alert, isDismissed, isCorrected, onDismiss, onC
       {/* Expanded correction form */}
       {expanded && !resolved && (
         <div className="mt-3 ml-6 space-y-2 border-t pt-3">
-          {renderCorrectionForm()}
+          {Object.keys(pendingCorrections).length > 0 && (
+            <div className="text-[10px] text-green-600 font-medium">
+              {Object.entries(pendingCorrections).map(([k, v]) => (
+                <span key={k} className="mr-3">
+                  {k}: <span className="line-through opacity-50 text-muted-foreground">{fmtNum(alert.valores[k] as number)}</span> → <strong>{fmtNum(v as number)}</strong>
+                </span>
+              ))}
+            </div>
+          )}
           <div>
             <label className="text-[10px] font-medium text-muted-foreground">Justificativa</label>
             <Textarea

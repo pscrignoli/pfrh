@@ -75,7 +75,7 @@ export interface DestaquesMes {
 
 export interface ConferenciaFinalData {
   totalizadores: TotalizadorRow[];
-  provaReal: { proventos: number; descontos: number; calculado: number; informado: number; confere: boolean };
+  provaReal: { proventos: number; vantagens: number; descontos: number; calculado: number; informado: number; confere: boolean };
   headcount: HeadcountRow[];
   encargos: EncargosData;
   faixasSalariais: FaixaSalarial[];
@@ -129,6 +129,7 @@ export function gerarConferenciaFinal(
 
   // ── 1. Totalizadores ──
   const sumProventos = funcs.reduce((s, f) => s + f.totais.proventos, 0);
+  const sumVantagens = funcs.reduce((s, f) => s + f.totais.vantagens, 0);
   const sumDescontos = funcs.reduce((s, f) => s + f.totais.descontos, 0);
   const sumLiquido = funcs.reduce((s, f) => s + f.totais.liquido, 0);
   const sumFgtsGfip = funcs.reduce((s, f) => s + f.bases.fgts_gfip.valor, 0);
@@ -146,14 +147,17 @@ export function gerarConferenciaFinal(
 
   const totalizadores: TotalizadorRow[] = [
     mkRow("Proventos", totaisArquivo.proventos, sumProventos),
+    mkRow("Vantagens", totaisArquivo.vantagens ?? 0, sumVantagens),
     mkRow("Descontos", totaisArquivo.descontos, sumDescontos),
     mkRow("Líquido", totaisArquivo.liquido, sumLiquido),
     mkRow("FGTS Total", sumFgts, sumFgts, `GFIP ${fmt(sumFgtsGfip)} + GRRF ${fmt(sumFgtsGrrf)}`),
   ];
 
-  const provaRealCalc = sumProventos - sumDescontos;
+  // Prova real: Proventos + Vantagens - Descontos = Líquido
+  const provaRealCalc = sumProventos + sumVantagens - sumDescontos;
   const provaReal = {
     proventos: sumProventos,
+    vantagens: sumVantagens,
     descontos: sumDescontos,
     calculado: provaRealCalc,
     informado: sumLiquido,
