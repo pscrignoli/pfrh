@@ -10,17 +10,27 @@ export interface Company {
   created_at: string;
 }
 
+type CompanyTheme = "pf" | "biocollagen";
+
 interface CompanyContextValue {
   companyId: string | null;
   companyName: string | null;
   companies: Company[];
   setCompanyId: (id: string) => void;
   loading: boolean;
+  companyTheme: CompanyTheme;
 }
 
 const STORAGE_KEY = "selected_company_id";
 
 const CompanyContext = createContext<CompanyContextValue | undefined>(undefined);
+
+function resolveTheme(name: string | null): CompanyTheme {
+  if (!name) return "pf";
+  const lower = name.toLowerCase();
+  if (lower.includes("biocollagen") || lower.includes("bio")) return "biocollagen";
+  return "pf";
+}
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -68,6 +78,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     ? companies.find((c) => c.id === companyId)?.name ?? null
     : null;
 
+  const companyTheme = resolveTheme(companyName);
+
+  // Apply data-company attribute to html element for CSS theme switching
+  useEffect(() => {
+    document.documentElement.setAttribute("data-company", companyTheme);
+  }, [companyTheme]);
+
   return (
     <CompanyContext.Provider
       value={{
@@ -76,6 +93,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         companies,
         setCompanyId,
         loading,
+        companyTheme,
       }}
     >
       {children}
