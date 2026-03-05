@@ -68,7 +68,11 @@ export default function EmpregareVagasList({ vagas, onSelect }: Props) {
           filtered.map((v) => {
             const sit = (v.situacao ?? "aberta").toLowerCase();
             const sc = situacaoConfig[sit] ?? situacaoConfig.aberta;
-            const totalEtapas = (v.etapas || []).reduce((s: number, e: any) => s + (e.qntde ?? e.Qntde ?? e.qtd ?? 0), 0);
+            const totalCandidatos = (v.etapas || []).reduce((s: number, e: any) => {
+              const nome = (e.nome ?? e.Nome ?? "").toLowerCase();
+              if (nome === "todos" || nome === "all") return e.qntde ?? e.Qntde ?? e.qtd ?? s;
+              return s;
+            }, 0);
 
             return (
               <div
@@ -81,7 +85,7 @@ export default function EmpregareVagasList({ vagas, onSelect }: Props) {
                   <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                     {v.cidade && <span>{v.cidade}{v.estado ? ` - ${v.estado}` : ""}</span>}
                     {v.total_vagas > 1 && <span>· {v.total_vagas} posições</span>}
-                    {totalEtapas > 0 && <span>· {totalEtapas} candidatos</span>}
+                    {totalCandidatos > 0 && <span>· {totalCandidatos} candidatos</span>}
                   </div>
                   {v.responsaveis?.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-0.5">
