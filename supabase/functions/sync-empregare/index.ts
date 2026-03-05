@@ -77,9 +77,9 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function syncDepartments(bearer: string, format: string, empresaId: string): Promise<{ synced: number }> {
   const sb = getServiceClient();
   const data = await empregareGet("/api/setores/listar", bearer, format, empresaId);
-  await logIntegration("/api/setores/listar", {}, { count: data?.length ?? 0 }, "success");
 
-  const setores = Array.isArray(data) ? data : (data?.setores ?? data?.Setores ?? []);
+  const setores = Array.isArray(data) ? data : (data?.dados ?? data?.Dados ?? data?.setores ?? data?.Setores ?? []);
+  await logIntegration("/api/setores/listar", {}, { count: setores.length }, "success");
   let synced = 0;
 
   for (const setor of setores) {
@@ -142,15 +142,31 @@ async function syncVagas(bearer: string, format: string, empresaId: string): Pro
       const empId = v.ID ?? v.id;
       if (!empId) continue;
 
-      // Determine company from setor/filial
-      const filialId = v.setor?.filialID ?? v.Setor?.FilialID ?? v.setor?.FilialID;
-      const setorId = v.setor?.setorID ?? v.Setor?.SetorID ?? v.setor?.SetorID;
+      // setor is an ARRAY in listarBI response
+      const setorArr = Array.isArray(v.setor) ? v.setor : (v.setor ? [v.setor] : []);
+      const firstSetor = setorArr[0] ?? {};
+      const filialId = firstSetor.filial?.id ?? firstSetor.filialID ?? firstSetor.FilialID;
+      const setorId = firstSetor.id ?? firstSetor.setorID ?? firstSetor.SetorID;
       const companyId = filialId ? (filialToCompany[filialId] ?? PF_COMPANY_ID) : PF_COMPANY_ID;
       const departmentId = setorId ? (setorToDept[setorId] ?? null) : null;
 
-      const salario = v.salario ?? v.Salario ?? {};
-      const cidades = v.cidades ?? v.Cidades ?? [];
+      // cidades = vagaCidade in listarBI
+      const cidades = v.vagaCidade ?? v.cidades ?? v.Cidades ?? [];
       const firstCity = cidades[0] ?? {};
+
+      // etapas = vagaEtapa in listarBI
+      const etapas = v.vagaEtapa ?? v.etapas ?? v.Etapas ?? [];
+
+      // responsaveis = vagaGestor in listarBI
+      const responsaveis = v.vagaGestor ?? v.vagaRequisitante ?? v.responsaveis ?? v.Responsaveis ?? [];
+
+      // salario fields are TOP-LEVEL in listarBI (not nested)
+      const salarioMin = v.salarioInicial ?? v.salario?.salarioInicial ?? null;
+      const salarioMax = v.salarioFinal ?? v.salario?.salarioFinal ?? null;
+      const salarioCombinar = v.salarioCombinar ?? v.salario?.salarioCombinar ?? false;
+
+      // situacao = "status" in listarBI
+      const situacao = v.status ?? v.situacao ?? v.Situacao ?? null;
 
       const record = {
         empregare_id: empId,
@@ -159,12 +175,12 @@ async function syncVagas(bearer: string, format: string, empresaId: string): Pro
         titulo: v.titulo ?? v.Titulo ?? "",
         descricao: v.descricao ?? v.Descricao ?? null,
         requisitos: v.requisito ?? v.Requisito ?? null,
-        situacao: v.situacao ?? v.Situacao ?? null,
+        situacao,
         tipo_recrutamento: v.tipoRecrutamento ?? v.TipoRecrutamento ?? null,
         trabalho_remoto: v.trabalhoRemoto ?? v.TrabalhoRemoto ?? null,
-        salario_min: salario.salarioInicial ?? salario.SalarioInicial ?? null,
-        salario_max: salario.salarioFinal ?? salario.SalarioFinal ?? null,
-        salario_combinar: salario.salarioCombinar ?? salario.SalarioCombinar ?? false,
+        salario_min: salarioMin,
+        salario_max: salarioMax,
+        salario_combinar: salarioCombinar,
         total_vagas: v.totalVagas ?? v.TotalVagas ?? 1,
         cidade: firstCity.cidadeNome ?? firstCity.CidadeNome ?? null,
         estado: firstCity.estadoNome ?? firstCity.EstadoNome ?? null,
@@ -172,8 +188,8 @@ async function syncVagas(bearer: string, format: string, empresaId: string): Pro
         meta_encerramento: v.metaEncerramento ?? v.MetaEncerramento ?? null,
         requisicao_id: v.requisicaoID ?? v.RequisicaoID ?? null,
         beneficios: JSON.stringify(v.beneficios ?? v.Beneficios ?? []),
-        etapas: JSON.stringify(v.etapas ?? v.Etapas ?? []),
-        responsaveis: JSON.stringify(v.responsaveis ?? v.Responsaveis ?? v.gestores ?? v.Gestores ?? []),
+        etapas: JSON.stringify(etapas),
+        responsaveis: JSON.stringify(responsaveis),
         data_cadastro: v.dataCadastro ?? v.DataCadastro ?? null,
         data_sync: new Date().toISOString(),
         raw_json: JSON.stringify(v),
