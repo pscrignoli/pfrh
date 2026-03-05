@@ -13,8 +13,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 348 100% 55%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
@@ -22,7 +22,7 @@
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96%;
+    --accent: 0 68% 70%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
@@ -30,31 +30,80 @@
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --ring: 348 100% 55%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 0 0% 4%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 348 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 16%;
+    --sidebar-accent: 0 0% 10%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 47% 16%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-border: 0 0% 10%;
+    --sidebar-ring: 348 100% 55%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --info: 221 83% 53%;
+    --info: 348 100% 55%;
     --info-foreground: 0 0% 100%;
 
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 38 92% 50%;
+    --chart-1: 348 100% 55%;
+    --chart-2: 0 68% 70%;
+    --chart-3: 0 100% 82%;
     --chart-4: 262 83% 58%;
-    --chart-5: 0 84% 60%;
+    --chart-5: 142 76% 36%;
+
+    --company-glow: 255, 23, 68;
+    --header-accent: 348 100% 55%;
+  }
+
+  /* ── P&F: Red Neon ── */
+  [data-company="pf"] {
+    --primary: 348 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 348 100% 55%;
+    --accent: 0 68% 70%;
+    --accent-foreground: 222 47% 11%;
+
+    --sidebar-primary: 348 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 348 100% 55%;
+
+    --info: 348 100% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --chart-1: 348 100% 55%;
+    --chart-2: 0 68% 70%;
+    --chart-3: 0 100% 82%;
+
+    --company-glow: 255, 23, 68;
+    --header-accent: 348 100% 55%;
+  }
+
+  /* ── Biocollagen: Blue Neon ── */
+  [data-company="biocollagen"] {
+    --primary: 218 100% 58%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 218 100% 58%;
+    --accent: 211 89% 68%;
+    --accent-foreground: 222 47% 11%;
+
+    --sidebar-primary: 218 100% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 218 100% 58%;
+
+    --info: 218 100% 58%;
+    --info-foreground: 0 0% 100%;
+
+    --chart-1: 218 100% 58%;
+    --chart-2: 211 89% 68%;
+    --chart-3: 210 86% 78%;
+
+    --company-glow: 41, 121, 255;
+    --header-accent: 218 100% 58%;
   }
 
   .dark {
@@ -67,7 +116,7 @@
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221 83% 53%;
+    --primary: 348 100% 55%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 33% 17%;
@@ -84,25 +133,25 @@
 
     --border: 217 33% 17%;
     --input: 217 33% 17%;
-    --ring: 221 83% 53%;
+    --ring: 348 100% 55%;
 
-    --sidebar-background: 222 47% 7%;
+    --sidebar-background: 0 0% 4%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 348 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 47% 13%;
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 222 47% 13%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 348 100% 55%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --info: 221 83% 53%;
+    --info: 348 100% 55%;
     --info-foreground: 0 0% 100%;
 
-    --chart-1: 221 83% 53%;
+    --chart-1: 348 100% 55%;
     --chart-2: 142 76% 36%;
     --chart-3: 38 92% 50%;
     --chart-4: 262 83% 58%;
@@ -117,5 +166,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Smooth theme transitions — only color-related properties */
+@layer utilities {
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
   }
 }
