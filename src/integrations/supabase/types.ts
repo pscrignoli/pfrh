@@ -123,6 +123,7 @@ export type Database = {
           code: string | null
           company_id: string | null
           created_at: string
+          empregare_setor_id: number | null
           id: string
           name: string
           status: string
@@ -131,6 +132,7 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string
+          empregare_setor_id?: number | null
           id?: string
           name: string
           status?: string
@@ -139,6 +141,7 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string
+          empregare_setor_id?: number | null
           id?: string
           name?: string
           status?: string
@@ -319,6 +322,271 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empregare_candidatos: {
+        Row: {
+          cidade: string | null
+          company_id: string | null
+          curriculo_json: Json | null
+          curriculo_url: string | null
+          data_contratacao: string | null
+          data_sync: string | null
+          email: string | null
+          empregare_pessoa_id: number
+          empregare_vaga_id: number | null
+          estado: string | null
+          etapa_atual: string | null
+          id: string
+          marcadores: Json | null
+          nome: string | null
+          status: string | null
+          telefone: string | null
+        }
+        Insert: {
+          cidade?: string | null
+          company_id?: string | null
+          curriculo_json?: Json | null
+          curriculo_url?: string | null
+          data_contratacao?: string | null
+          data_sync?: string | null
+          email?: string | null
+          empregare_pessoa_id: number
+          empregare_vaga_id?: number | null
+          estado?: string | null
+          etapa_atual?: string | null
+          id?: string
+          marcadores?: Json | null
+          nome?: string | null
+          status?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          cidade?: string | null
+          company_id?: string | null
+          curriculo_json?: Json | null
+          curriculo_url?: string | null
+          data_contratacao?: string | null
+          data_sync?: string | null
+          email?: string | null
+          empregare_pessoa_id?: number
+          empregare_vaga_id?: number | null
+          estado?: string | null
+          etapa_atual?: string | null
+          id?: string
+          marcadores?: Json | null
+          nome?: string | null
+          status?: string | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empregare_candidatos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empregare_candidatos_empregare_vaga_id_fkey"
+            columns: ["empregare_vaga_id"]
+            isOneToOne: false
+            referencedRelation: "empregare_vagas"
+            referencedColumns: ["empregare_id"]
+          },
+        ]
+      }
+      empregare_company_map: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          empregare_filial_id: number
+          empregare_titulo: string | null
+          empregare_unidade_id: number
+          id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          empregare_filial_id: number
+          empregare_titulo?: string | null
+          empregare_unidade_id: number
+          id?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          empregare_filial_id?: number
+          empregare_titulo?: string | null
+          empregare_unidade_id?: number
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empregare_company_map_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empregare_kanban_cards: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          data_entrada_etapa: string | null
+          email: string | null
+          empregare_pessoa_id: number | null
+          empregare_vaga_id: number
+          etapa_atual: string
+          etapa_ordem: number | null
+          id: string
+          nome: string
+          observacao: string | null
+          origem: string | null
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          data_entrada_etapa?: string | null
+          email?: string | null
+          empregare_pessoa_id?: number | null
+          empregare_vaga_id: number
+          etapa_atual: string
+          etapa_ordem?: number | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          origem?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          data_entrada_etapa?: string | null
+          email?: string | null
+          empregare_pessoa_id?: number | null
+          empregare_vaga_id?: number
+          etapa_atual?: string
+          etapa_ordem?: number | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          origem?: string | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empregare_kanban_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empregare_vagas: {
+        Row: {
+          beneficios: Json | null
+          cidade: string | null
+          company_id: string | null
+          data_cadastro: string | null
+          data_sync: string | null
+          department_id: string | null
+          descricao: string | null
+          empregare_id: number
+          estado: string | null
+          etapas: Json | null
+          horario: string | null
+          id: string
+          meta_encerramento: string | null
+          raw_json: Json | null
+          requisicao_id: number | null
+          requisitos: string | null
+          responsaveis: Json | null
+          salario_combinar: boolean | null
+          salario_max: number | null
+          salario_min: number | null
+          situacao: string | null
+          tipo_recrutamento: string | null
+          titulo: string | null
+          total_vagas: number | null
+          trabalho_remoto: string | null
+        }
+        Insert: {
+          beneficios?: Json | null
+          cidade?: string | null
+          company_id?: string | null
+          data_cadastro?: string | null
+          data_sync?: string | null
+          department_id?: string | null
+          descricao?: string | null
+          empregare_id: number
+          estado?: string | null
+          etapas?: Json | null
+          horario?: string | null
+          id?: string
+          meta_encerramento?: string | null
+          raw_json?: Json | null
+          requisicao_id?: number | null
+          requisitos?: string | null
+          responsaveis?: Json | null
+          salario_combinar?: boolean | null
+          salario_max?: number | null
+          salario_min?: number | null
+          situacao?: string | null
+          tipo_recrutamento?: string | null
+          titulo?: string | null
+          total_vagas?: number | null
+          trabalho_remoto?: string | null
+        }
+        Update: {
+          beneficios?: Json | null
+          cidade?: string | null
+          company_id?: string | null
+          data_cadastro?: string | null
+          data_sync?: string | null
+          department_id?: string | null
+          descricao?: string | null
+          empregare_id?: number
+          estado?: string | null
+          etapas?: Json | null
+          horario?: string | null
+          id?: string
+          meta_encerramento?: string | null
+          raw_json?: Json | null
+          requisicao_id?: number | null
+          requisitos?: string | null
+          responsaveis?: Json | null
+          salario_combinar?: boolean | null
+          salario_max?: number | null
+          salario_min?: number | null
+          situacao?: string | null
+          tipo_recrutamento?: string | null
+          titulo?: string | null
+          total_vagas?: number | null
+          trabalho_remoto?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empregare_vagas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empregare_vagas_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
         ]
