@@ -7,14 +7,12 @@ const corsHeaders = {
 };
 
 const EMPREGARE_BASE_URL = "https://corporate.empregare.com";
-
 const PF_COMPANY_ID = "79d39d5d-7012-4e76-9b8c-f7457242aa03";
 const BIO_COMPANY_ID = "7b550b60-c18b-4491-a7d5-8eebcf1f210e";
-
-// Setores a ignorar (são empresas, não departamentos)
 const IGNORAR_SETORES = [38553, 47993, 48619];
-// Setores Biocollagen
 const SETORES_BIO = [48843, 48844, 48845];
+
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function getServiceClient() {
   return createClient(
@@ -39,7 +37,7 @@ async function logIntegration(endpoint: string, reqPayload: unknown, resPayload:
     response_payload: typeof resPayload === "object" ? resPayload as any : { raw: String(resPayload).slice(0, 2000) },
     status,
     error_message: errorMessage ?? null,
-  }).then(() => {});
+  });
 }
 
 function buildHeaders(format: string, bearer: string, empresaId: string): Record<string, string> {
@@ -71,13 +69,10 @@ async function empregareGet(endpoint: string, bearer: string, format: string, em
   return data;
 }
 
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
 // ── SYNC DEPARTMENTS ──
 async function syncDepartments(bearer: string, format: string, empresaId: string): Promise<{ synced: number }> {
   const sb = getServiceClient();
   const data = await empregareGet("/api/setores/listar", bearer, format, empresaId);
-
   const setores = Array.isArray(data) ? data : (data?.dados ?? data?.Dados ?? data?.setores ?? data?.Setores ?? []);
   await logIntegration("/api/setores/listar", {}, { count: setores.length }, "success");
   let synced = 0;
@@ -86,120 +81,105 @@ async function syncDepartments(bearer: string, format: string, empresaId: string
     const setorId = setor.ID ?? setor.id ?? setor.SetorID ?? setor.setorID;
     const nome = setor.Titulo ?? setor.titulo ?? setor.Nome ?? setor.nome ?? "";
     if (!setorId || IGNORAR_SETORES.includes(setorId)) continue;
-
     const companyId = SETORES_BIO.includes(setorId) ? BIO_COMPANY_ID : PF_COMPANY_ID;
 
-    // Check if exists
     const { data: existing } = await sb.from("departments").select("id, name").eq("empregare_setor_id", setorId).maybeSingle();
     if (existing) {
-      if (existing.name !== nome) {
-        await sb.from("departments").update({ name: nome } as any).eq("id", existing.id);
-      }
+      if (existing.name !== nome) await sb.from("departments").update({ name: nome } as any).eq("id", existing.id);
     } else {
-      await sb.from("departments").insert({
-        name: nome,
-        company_id: companyId,
-        empregare_setor_id: setorId,
-        status: "active",
-      } as any);
+      await sb.from("departments").insert({ name: nome, company_id: companyId, empregare_setor_id: setorId, status: "active" } as any);
     }
     synced++;
   }
-
   return { synced };
 }
 
-// ── SYNC VAGAS (using listarBI) ──
-async function syncVagas(bearer: string, format: string, empresaId: string): Promise<{ total: number; pages: number }> {
-  const sb = getServiceClient();
+// ── Helper: build vaga record from listarBI item ──
+function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorToDept: Record<number, string>) {
+  const empId = v.ID ?? v.id;
+  if (!empId) return null;
 
-  // Fetch company map
+  const setorArr = Array.isArray(v.setor) ? v.setor : (v.setor ? [v.setor] : []);
+  const firstSetor = setorArr[0] ?? {};
+  const filialId = firstSetor.filial?.id ?? firstSetor.filialID ?? firstSetor.FilialID;
+  const setorId = firstSetor.id ?? firstSetor.setorID ?? firstSetor.SetorID;
+  const companyId = filialId ? (filialToCompany[filialId] ?? PF_COMPANY_ID) : PF_COMPANY_ID;
+  const departmentId = setorId ? (setorToDept[setorId] ?? null) : null;
+
+  const cidades = v.vagaCidade ?? v.cidades ?? v.Cidades ?? [];
+  const firstCity = cidades[0] ?? {};
+  const etapas = v.vagaEtapa ?? v.etapas ?? v.Etapas ?? [];
+  const responsaveis = v.vagaGestor ?? v.vagaRequisitante ?? v.responsaveis ?? v.Responsaveis ?? [];
+
+  const situacao = v.status ?? v.situacao ?? v.Situacao ?? null;
+
+  return {
+    empregare_id: empId,
+    company_id: companyId,
+    department_id: departmentId,
+    titulo: v.titulo ?? v.Titulo ?? "",
+    descricao: v.descricao ?? v.Descricao ?? null,
+    requisitos: v.requisito ?? v.Requisito ?? null,
+    situacao,
+    tipo_recrutamento: v.tipoRecrutamento ?? v.TipoRecrutamento ?? null,
+    trabalho_remoto: v.trabalhoRemoto ?? v.TrabalhoRemoto ?? null,
+    salario_min: v.salarioInicial ?? v.salario?.salarioInicial ?? null,
+    salario_max: v.salarioFinal ?? v.salario?.salarioFinal ?? null,
+    salario_combinar: v.salarioCombinar ?? v.salario?.salarioCombinar ?? false,
+    total_vagas: v.totalVagas ?? v.TotalVagas ?? 1,
+    cidade: firstCity.cidadeNome ?? firstCity.CidadeNome ?? null,
+    estado: firstCity.estadoNome ?? firstCity.EstadoNome ?? null,
+    horario: v.horario ?? v.Horario ?? null,
+    meta_encerramento: v.metaEncerramento ?? v.MetaEncerramento ?? null,
+    requisicao_id: v.requisicaoID ?? v.RequisicaoID ?? null,
+    beneficios: JSON.stringify(v.beneficios ?? v.Beneficios ?? []),
+    etapas: JSON.stringify(etapas),
+    responsaveis: JSON.stringify(responsaveis),
+    data_cadastro: v.dataCadastro ?? v.DataCadastro ?? null,
+    data_sync: new Date().toISOString(),
+    raw_json: JSON.stringify(v),
+  };
+}
+
+// ── Fetch maps ──
+async function fetchMaps() {
+  const sb = getServiceClient();
   const { data: companyMap } = await sb.from("empregare_company_map").select("*");
   const filialToCompany: Record<number, string> = {};
-  for (const m of (companyMap || [])) {
-    filialToCompany[(m as any).empregare_filial_id] = (m as any).company_id;
-  }
+  for (const m of (companyMap || [])) filialToCompany[(m as any).empregare_filial_id] = (m as any).company_id;
 
-  // Fetch department map
   const { data: deptMap } = await sb.from("departments").select("id, empregare_setor_id").not("empregare_setor_id", "is", null);
   const setorToDept: Record<number, string> = {};
-  for (const d of (deptMap || [])) {
-    if ((d as any).empregare_setor_id) setorToDept[(d as any).empregare_setor_id] = d.id;
-  }
+  for (const d of (deptMap || [])) if ((d as any).empregare_setor_id) setorToDept[(d as any).empregare_setor_id] = d.id;
+
+  return { filialToCompany, setorToDept };
+}
+
+// ── SYNC VAGAS: paginate ALL pages, optionally filtered ──
+async function syncVagasPages(bearer: string, format: string, empresaId: string, filtroSituacao?: string): Promise<{ total: number; pages: number }> {
+  const sb = getServiceClient();
+  const { filialToCompany, setorToDept } = await fetchMaps();
 
   let page = 1;
   let totalPages = 1;
   let totalVagas = 0;
 
   while (page <= totalPages) {
-    const data = await empregareGet(`/api/vaga/listarBI?pagina=${page}&quantidade=50`, bearer, format, empresaId);
-    await logIntegration(`/api/vaga/listarBI?pagina=${page}`, {}, { totalRegistros: data?.totalRegistros, pagAtual: data?.pagAtual, totalPag: data?.totalPag }, "success");
+    let url = `/api/vaga/listarBI?pagina=${page}&quantidade=50`;
+    if (filtroSituacao) url += `&situacao=${filtroSituacao}`;
 
-    totalPages = data?.totalPag ?? data?.TotalPag ?? 1;
+    const data = await empregareGet(url, bearer, format, empresaId);
+    await logIntegration(url, {}, { totalRegistros: data?.totalRegistros, pagAtual: data?.pagAtual, totalPag: data?.totalPag ?? data?.totalPaginas }, "success");
+
+    totalPages = data?.totalPag ?? data?.totalPaginas ?? data?.TotalPag ?? 1;
     const vagas = data?.vagas ?? data?.Vagas ?? [];
 
     for (const v of vagas) {
-      const empId = v.ID ?? v.id;
-      if (!empId) continue;
+      const record = buildVagaRecord(v, filialToCompany, setorToDept);
+      if (!record) continue;
 
-      // setor is an ARRAY in listarBI response
-      const setorArr = Array.isArray(v.setor) ? v.setor : (v.setor ? [v.setor] : []);
-      const firstSetor = setorArr[0] ?? {};
-      const filialId = firstSetor.filial?.id ?? firstSetor.filialID ?? firstSetor.FilialID;
-      const setorId = firstSetor.id ?? firstSetor.setorID ?? firstSetor.SetorID;
-      const companyId = filialId ? (filialToCompany[filialId] ?? PF_COMPANY_ID) : PF_COMPANY_ID;
-      const departmentId = setorId ? (setorToDept[setorId] ?? null) : null;
-
-      // cidades = vagaCidade in listarBI
-      const cidades = v.vagaCidade ?? v.cidades ?? v.Cidades ?? [];
-      const firstCity = cidades[0] ?? {};
-
-      // etapas = vagaEtapa in listarBI
-      const etapas = v.vagaEtapa ?? v.etapas ?? v.Etapas ?? [];
-
-      // responsaveis = vagaGestor in listarBI
-      const responsaveis = v.vagaGestor ?? v.vagaRequisitante ?? v.responsaveis ?? v.Responsaveis ?? [];
-
-      // salario fields are TOP-LEVEL in listarBI (not nested)
-      const salarioMin = v.salarioInicial ?? v.salario?.salarioInicial ?? null;
-      const salarioMax = v.salarioFinal ?? v.salario?.salarioFinal ?? null;
-      const salarioCombinar = v.salarioCombinar ?? v.salario?.salarioCombinar ?? false;
-
-      // situacao = "status" in listarBI
-      const situacao = v.status ?? v.situacao ?? v.Situacao ?? null;
-
-      const record = {
-        empregare_id: empId,
-        company_id: companyId,
-        department_id: departmentId,
-        titulo: v.titulo ?? v.Titulo ?? "",
-        descricao: v.descricao ?? v.Descricao ?? null,
-        requisitos: v.requisito ?? v.Requisito ?? null,
-        situacao,
-        tipo_recrutamento: v.tipoRecrutamento ?? v.TipoRecrutamento ?? null,
-        trabalho_remoto: v.trabalhoRemoto ?? v.TrabalhoRemoto ?? null,
-        salario_min: salarioMin,
-        salario_max: salarioMax,
-        salario_combinar: salarioCombinar,
-        total_vagas: v.totalVagas ?? v.TotalVagas ?? 1,
-        cidade: firstCity.cidadeNome ?? firstCity.CidadeNome ?? null,
-        estado: firstCity.estadoNome ?? firstCity.EstadoNome ?? null,
-        horario: v.horario ?? v.Horario ?? null,
-        meta_encerramento: v.metaEncerramento ?? v.MetaEncerramento ?? null,
-        requisicao_id: v.requisicaoID ?? v.RequisicaoID ?? null,
-        beneficios: JSON.stringify(v.beneficios ?? v.Beneficios ?? []),
-        etapas: JSON.stringify(etapas),
-        responsaveis: JSON.stringify(responsaveis),
-        data_cadastro: v.dataCadastro ?? v.DataCadastro ?? null,
-        data_sync: new Date().toISOString(),
-        raw_json: JSON.stringify(v),
-      };
-
-      // Upsert
       const { error } = await sb.from("empregare_vagas").upsert(record as any, { onConflict: "empregare_id" });
-      if (error) {
-        await logIntegration("upsert empregare_vagas", { empregare_id: empId }, { error: error.message }, "error", error.message);
-      }
+      if (error) await logIntegration("upsert empregare_vagas", { empregare_id: record.empregare_id }, { error: error.message }, "error", error.message);
       totalVagas++;
     }
 
@@ -210,12 +190,43 @@ async function syncVagas(bearer: string, format: string, empresaId: string): Pro
   return { total: totalVagas, pages: totalPages };
 }
 
+// ── ENRICH OPEN VACANCIES: fetch /api/vaga/detalhes/{id} for etapa counts ──
+async function enrichOpenVacancies(bearer: string, format: string, empresaId: string): Promise<{ enriched: number }> {
+  const sb = getServiceClient();
+
+  // Get all open vacancies
+  const { data: openVagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").eq("situacao", "Aberta");
+  let enriched = 0;
+
+  for (const vaga of (openVagas || [])) {
+    const vagaId = (vaga as any).empregare_id;
+    try {
+      const detalhes = await empregareGet(`/api/vaga/detalhes/${vagaId}`, bearer, format, empresaId);
+      await delay(200);
+
+      const vagaData = detalhes?.vaga ?? detalhes?.Vaga ?? detalhes;
+      const etapas = vagaData?.etapas ?? vagaData?.Etapas ?? vagaData?.vagaEtapa ?? [];
+
+      // Update etapas with counts from detalhes
+      if (etapas.length > 0) {
+        await sb.from("empregare_vagas").update({
+          etapas: JSON.stringify(etapas),
+          data_sync: new Date().toISOString(),
+        } as any).eq("empregare_id", vagaId);
+      }
+      enriched++;
+    } catch (e) {
+      await logIntegration(`/api/vaga/detalhes/${vagaId}`, {}, { error: e.message }, "error", e.message);
+    }
+  }
+
+  return { enriched };
+}
+
 // ── SYNC CANDIDATOS (contratados via requisicao) ──
 async function syncCandidatos(bearer: string, format: string, empresaId: string): Promise<{ synced: number }> {
   const sb = getServiceClient();
-
-  // Get vagas with requisicao_id
-  const { data: vagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").not("requisicao_id", "is", null);
+  const { data: vagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").not("requisicao_id", "is", null).eq("situacao", "Aberta");
   let synced = 0;
 
   for (const vaga of (vagas || [])) {
@@ -280,7 +291,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -296,7 +306,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Get auth credentials
     const bearer = await getSetting("empregare_bearer");
     const format = await getSetting("empregare_auth_format");
     const empresaId = await getSetting("empregare_empresa_id") ?? "";
@@ -305,7 +314,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { step } = body; // "departments", "vagas", "candidatos", "all"
+    const { step } = body;
 
     const results: Record<string, any> = {};
 
@@ -314,7 +323,14 @@ Deno.serve(async (req) => {
     }
 
     if (step === "vagas" || step === "all") {
-      results.vagas = await syncVagas(bearer, format, empresaId);
+      // Step 1: Sync open vacancies first (most important)
+      results.vagasAbertas = await syncVagasPages(bearer, format, empresaId, "Aberta");
+
+      // Step 2: Sync ALL vacancies (all pages, no filter) for complete history
+      results.vagasHistorico = await syncVagasPages(bearer, format, empresaId);
+
+      // Step 3: Enrich open vacancies with detailed etapa counts
+      results.enriched = await enrichOpenVacancies(bearer, format, empresaId);
     }
 
     if (step === "candidatos" || step === "all") {
