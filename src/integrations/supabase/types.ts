@@ -230,14 +230,20 @@ export type Database = {
       }
       employees: {
         Row: {
+          cadastro_completo: boolean | null
           cargo: string | null
+          cbo: string | null
           company_id: string | null
           created_at: string
           ctps: string | null
           data_admissao: string
+          data_demissao: string | null
           data_nascimento: string | null
           departamento: string | null
+          dependentes_ir: number | null
+          dependentes_sf: number | null
           email_holerite: string | null
+          empregare_pessoa_id: number | null
           empresa: string | null
           genero: Database["public"]["Enums"]["gender_type"] | null
           grau_parentesco: string | null
@@ -251,6 +257,8 @@ export type Database = {
           numero_funcional: string | null
           numero_pis_nit: string | null
           numero_rg: string | null
+          salario_base: number | null
+          sindicato_codigo: string | null
           status: Database["public"]["Enums"]["employee_status"]
           telefone: string | null
           telefone_emergencia: string | null
@@ -259,14 +267,20 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          cadastro_completo?: boolean | null
           cargo?: string | null
+          cbo?: string | null
           company_id?: string | null
           created_at?: string
           ctps?: string | null
           data_admissao: string
+          data_demissao?: string | null
           data_nascimento?: string | null
           departamento?: string | null
+          dependentes_ir?: number | null
+          dependentes_sf?: number | null
           email_holerite?: string | null
+          empregare_pessoa_id?: number | null
           empresa?: string | null
           genero?: Database["public"]["Enums"]["gender_type"] | null
           grau_parentesco?: string | null
@@ -280,6 +294,8 @@ export type Database = {
           numero_funcional?: string | null
           numero_pis_nit?: string | null
           numero_rg?: string | null
+          salario_base?: number | null
+          sindicato_codigo?: string | null
           status?: Database["public"]["Enums"]["employee_status"]
           telefone?: string | null
           telefone_emergencia?: string | null
@@ -288,14 +304,20 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          cadastro_completo?: boolean | null
           cargo?: string | null
+          cbo?: string | null
           company_id?: string | null
           created_at?: string
           ctps?: string | null
           data_admissao?: string
+          data_demissao?: string | null
           data_nascimento?: string | null
           departamento?: string | null
+          dependentes_ir?: number | null
+          dependentes_sf?: number | null
           email_holerite?: string | null
+          empregare_pessoa_id?: number | null
           empresa?: string | null
           genero?: Database["public"]["Enums"]["gender_type"] | null
           grau_parentesco?: string | null
@@ -309,6 +331,8 @@ export type Database = {
           numero_funcional?: string | null
           numero_pis_nit?: string | null
           numero_rg?: string | null
+          salario_base?: number | null
+          sindicato_codigo?: string | null
           status?: Database["public"]["Enums"]["employee_status"]
           telefone?: string | null
           telefone_emergencia?: string | null

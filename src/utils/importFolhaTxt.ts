@@ -2,6 +2,7 @@
  * Service: Import parsed TXT payroll data.
  * 1. Upserts employees by numero_funcional + company_id
  * 2. Creates payroll_monthly_records mapped from rubricas
+ * 3. Enriches employees with Empregare candidate data (name matching)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ export interface ImportResult {
   employees_created: number;
   employees_updated: number;
   payroll_records: number;
+  enriched_from_empregare: number;
   errors: string[];
 }
 
@@ -23,6 +25,51 @@ function mapSituacaoToStatus(situacao: string): string {
   if (s.includes("feria")) return "ferias";
   if (s.includes("inativ")) return "inativo";
   return "ativo";
+}
+
+// ── Contract type mapping ──
+
+function mapTipoContrato(situacao: string): string {
+  const s = situacao.toLowerCase();
+  if (s.includes("diretor")) return "clt";
+  if (s.includes("estagi")) return "estagio";
+  if (s.includes("tempor")) return "temporario";
+  if (s.includes("aprend")) return "aprendiz";
+  return "clt";
+}
+
+// ── Carga horária mensal → jornada semanal ──
+
+function chmToJornadaSemanal(chm: number): number {
+  if (chm <= 0) return 44;
+  if (chm <= 150) return 30;
+  if (chm <= 180) return 36;
+  return 44;
+}
+
+// ── Cadastro completude check ──
+
+function isCadastroCompleto(emp: Record<string, unknown>): boolean {
+  return !!(
+    emp.nome_completo &&
+    emp.numero_funcional &&
+    emp.numero_cpf &&
+    emp.data_nascimento &&
+    emp.cargo &&
+    emp.data_admissao
+  );
+}
+
+// ── Normalize name for matching ──
+
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z\s]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 // ── Rubrica helpers ──
@@ -88,6 +135,100 @@ function buildPayrollFields(func: FuncionarioParsed): Record<string, unknown> {
   };
 }
 
+// ── Build employee fields from parsed TXT ──
+
+function buildEmployeeFields(func: FuncionarioParsed, companyId: string, empresaNome: string | null): Record<string, unknown> {
+  const status = mapSituacaoToStatus(func.situacao);
+  return {
+    nome_completo: func.nome,
+    numero_funcional: String(func.numero),
+    company_id: companyId,
+    data_admissao: func.data_admissao ?? new Date().toISOString().slice(0, 10),
+    data_demissao: func.data_demissao || null,
+    cargo: func.cargo || null,
+    status,
+    numero_cpf: null,
+    empresa: empresaNome || null,
+    salario_base: func.salario_base || null,
+    cbo: func.cbo || null,
+    jornada_semanal: chmToJornadaSemanal(func.carga_horaria),
+    departamento: func.organograma || null,
+    tipo_contrato: mapTipoContrato(func.situacao),
+    dependentes_ir: func.dependentes_ir,
+    dependentes_sf: func.dependentes_sf,
+    sindicato_codigo: func.sindicato_codigo || null,
+    cadastro_completo: false,
+  };
+}
+
+// ── Empregare enrichment ──
+
+async function enrichWithEmpregare(
+  newEmployees: Array<{ id: string; nome: string; cargo: string | null }>,
+  companyId: string,
+): Promise<{ enriched: number; errors: string[] }> {
+  const result = { enriched: 0, errors: [] as string[] };
+  if (newEmployees.length === 0) return result;
+
+  // Fetch unlinked hired candidates
+  const { data: candidatos, error: fetchErr } = await supabase
+    .from("empregare_candidatos")
+    .select("*")
+    .eq("status", "contratado")
+    .eq("company_id", companyId);
+
+  if (fetchErr || !candidatos || candidatos.length === 0) return result;
+
+  // Build normalized name map for candidates
+  const candidatoMap = new Map<string, typeof candidatos[0]>();
+  for (const c of candidatos) {
+    if (c.nome) {
+      candidatoMap.set(normalizeName(c.nome), c);
+    }
+  }
+
+  for (const emp of newEmployees) {
+    const normalizedEmpName = normalizeName(emp.nome);
+    const match = candidatoMap.get(normalizedEmpName);
+
+    if (!match) continue;
+
+    // Enrich employee with Empregare data
+    const updates: Record<string, unknown> = {
+      empregare_pessoa_id: match.empregare_pessoa_id,
+    };
+
+    if (match.email) updates.email_holerite = match.email;
+    if (match.telefone) updates.telefone = match.telefone;
+
+    // Compute cadastro_completo
+    const empData = {
+      nome_completo: emp.nome,
+      numero_funcional: true,
+      numero_cpf: null, // Empregare doesn't provide CPF
+      data_nascimento: null,
+      cargo: emp.cargo,
+      data_admissao: true,
+    };
+    updates.cadastro_completo = isCadastroCompleto(empData);
+
+    const { error: updErr } = await supabase
+      .from("employees")
+      .update(updates as any)
+      .eq("id", emp.id);
+
+    if (updErr) {
+      result.errors.push(`Erro ao enriquecer ${emp.nome}: ${updErr.message}`);
+    } else {
+      result.enriched++;
+      // Remove from map to avoid double-matching
+      candidatoMap.delete(normalizedEmpName);
+    }
+  }
+
+  return result;
+}
+
 // ── Main import function ──
 
 export async function importFolhaTxt(
@@ -100,6 +241,7 @@ export async function importFolhaTxt(
     employees_created: 0,
     employees_updated: 0,
     payroll_records: 0,
+    enriched_from_empregare: 0,
     errors: [],
   };
 
@@ -124,6 +266,7 @@ export async function importFolhaTxt(
 
   // 2. Process each funcionario
   const payrollRecords: Record<string, unknown>[] = [];
+  const newlyCreatedEmployees: Array<{ id: string; nome: string; cargo: string | null }> = [];
 
   for (const func of parsed.funcionarios) {
     const numFunc = String(func.numero);
@@ -132,18 +275,33 @@ export async function importFolhaTxt(
     let employeeId: string;
 
     if (existing) {
-      // Update salary/status if changed
+      // Update all extractable fields
       employeeId = existing.id;
       const newStatus = mapSituacaoToStatus(func.situacao);
-      const updates: Record<string, unknown> = {};
+      const updates: Record<string, unknown> = {
+        status: newStatus,
+        salario_base: func.salario_base || undefined,
+        cbo: func.cbo || undefined,
+        jornada_semanal: chmToJornadaSemanal(func.carga_horaria),
+        dependentes_ir: func.dependentes_ir,
+        dependentes_sf: func.dependentes_sf,
+        sindicato_codigo: func.sindicato_codigo || undefined,
+        tipo_contrato: mapTipoContrato(func.situacao),
+      };
 
       if (func.cargo && func.cargo !== existing.cargo) {
         updates.cargo = func.cargo;
       }
-      // Always could update status
-      updates.status = newStatus;
       if (func.data_demissao) {
         updates.data_demissao = func.data_demissao;
+      }
+      if (func.organograma) {
+        updates.departamento = func.organograma;
+      }
+
+      // Remove undefined values
+      for (const key of Object.keys(updates)) {
+        if (updates[key] === undefined) delete updates[key];
       }
 
       if (Object.keys(updates).length > 0) {
@@ -159,17 +317,8 @@ export async function importFolhaTxt(
         }
       }
     } else {
-      // Create new employee
-      const newEmployee = {
-        nome_completo: func.nome,
-        numero_funcional: numFunc,
-        company_id: companyId,
-        data_admissao: func.data_admissao ?? new Date().toISOString().slice(0, 10),
-        cargo: func.cargo || null,
-        status: mapSituacaoToStatus(func.situacao),
-        numero_cpf: null,
-        empresa: parsed.empresa.nome || null,
-      };
+      // Create new employee with all available fields
+      const newEmployee = buildEmployeeFields(func, companyId, parsed.empresa.nome);
 
       const { data: created, error: createErr } = await supabase
         .from("employees")
@@ -184,6 +333,7 @@ export async function importFolhaTxt(
 
       employeeId = created.id;
       empByNumFunc.set(numFunc, { id: employeeId, nome: func.nome, cargo: func.cargo });
+      newlyCreatedEmployees.push({ id: employeeId, nome: func.nome, cargo: func.cargo });
       result.employees_created++;
     }
 
@@ -212,6 +362,13 @@ export async function importFolhaTxt(
     } else {
       result.payroll_records += batch.length;
     }
+  }
+
+  // 5. Enrich new employees with Empregare data
+  if (newlyCreatedEmployees.length > 0) {
+    const enrichResult = await enrichWithEmpregare(newlyCreatedEmployees, companyId);
+    result.enriched_from_empregare = enrichResult.enriched;
+    result.errors.push(...enrichResult.errors);
   }
 
   return result;

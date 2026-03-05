@@ -57,6 +57,8 @@ export interface FuncionarioParsed {
   cnpj_filial: string;
   organograma: string;
   dependentes_ir: number;
+  dependentes_sf: number;
+  sindicato_codigo: string;
   rubricas: Rubrica[];
   totais: TotaisFunc;
   bases: {
@@ -276,6 +278,9 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
   const depIRMatch = funcLine.match(/Dep\.IR:\s*(\d+)/);
   const dependentes_ir = depIRMatch ? Number(depIRMatch[1]) : 0;
 
+  const depSFMatch = funcLine.match(/Dep\.SF:\s*(\d+)/);
+  const dependentes_sf = depSFMatch ? Number(depSFMatch[1]) : 0;
+
   // Parse Cargo: line
   const cargoLine = lines.find(l => /^\s*Cargo:/.test(l));
   let cargo = "";
@@ -283,6 +288,8 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
   let salario_base = 0;
   let cbo = "";
   let situacao = "";
+
+  let sindicato_codigo = "";
 
   if (cargoLine) {
     const cargoMatch = cargoLine.match(/Cargo:\s*(.+?)(?:\s{2,}|C\.H\.M)/);
@@ -296,6 +303,9 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
 
     const cboMatch = cargoLine.match(/CBO\s+(\d+)/);
     cbo = cboMatch ? cboMatch[1] : "";
+
+    const sindMatch = cargoLine.match(/Sind(?:icato)?[:\s]+(\d+)/i);
+    sindicato_codigo = sindMatch ? sindMatch[1] : "";
 
     // Situacao is usually at the end
     const sitMatch = cargoLine.match(/(?:Sindicato.*?|CBO\s+\d+\s+\S+\s+\d+)\s+([\w\s]+?)\s*$/);
@@ -378,6 +388,8 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
     cnpj_filial,
     organograma,
     dependentes_ir,
+    dependentes_sf,
+    sindicato_codigo,
     rubricas,
     totais,
     bases,

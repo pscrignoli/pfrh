@@ -1126,7 +1126,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto">
               <div className="rounded-lg border p-3 text-center">
                 <div className="text-2xl font-bold text-blue-600">{txtImportResult.employees_created}</div>
                 <div className="text-xs text-muted-foreground">Criados</div>
@@ -1139,6 +1139,12 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
                 <div className="text-2xl font-bold text-green-600">{txtImportResult.payroll_records}</div>
                 <div className="text-xs text-muted-foreground">Folha</div>
               </div>
+              {(txtImportResult.enriched_from_empregare ?? 0) > 0 && (
+                <div className="rounded-lg border p-3 text-center">
+                  <div className="text-2xl font-bold text-purple-600">{txtImportResult.enriched_from_empregare}</div>
+                  <div className="text-xs text-muted-foreground">Enriquecidos</div>
+                </div>
+              )}
             </div>
 
             {/* Audit summary in result */}
