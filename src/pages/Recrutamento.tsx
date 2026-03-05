@@ -5,7 +5,6 @@ import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2,
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -266,40 +265,40 @@ export default function Recrutamento() {
   };
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Recrutamento</h1>
-          <p className="text-muted-foreground text-sm">
-            Gerencie vagas e candidatos
+          <div className="flex items-center gap-3">
+            <RecrutamentoStats {...stats} />
             {lastSync && (
-              <span className="ml-2 text-xs">· Último sync: {new Date(lastSync).toLocaleString("pt-BR")}</span>
+              <span className="text-[10px] text-muted-foreground/60 ml-2">
+                Sync: {new Date(lastSync).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              </span>
             )}
-          </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={cn("h-4 w-4 mr-1", syncing && "animate-spin")} />
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}
+            className="transition-all duration-300 hover:border-primary/40">
+            <RefreshCw className={cn("h-4 w-4 mr-1.5", syncing && "animate-spin")} />
             {syncing ? "Sincronizando..." : "Sincronizar"}
           </Button>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Nova Vaga
+          <Button onClick={() => setDialogOpen(true)} className="shadow-[0_0_15px_-5px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.5)] transition-shadow duration-300">
+            <Plus className="h-4 w-4 mr-1.5" /> Nova Vaga
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <RecrutamentoStats {...stats} />
-
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="empregare">
+        <TabsList className="bg-muted/50 backdrop-blur-sm">
+          <TabsTrigger value="empregare" className="data-[state=active]:shadow-sm transition-all duration-200">
             Empregare
             <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{empregareVagas.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="local">
+          <TabsTrigger value="local" className="data-[state=active]:shadow-sm transition-all duration-200">
             Vagas Internas
             <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{vacancies.length}</Badge>
           </TabsTrigger>
@@ -341,42 +340,43 @@ export default function Recrutamento() {
               <p className="text-sm">Clique em "+ Nova Vaga" para começar.</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {vacancies.map((v) => {
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {vacancies.map((v, i) => {
                 const sc = statusConfig[v.status] || statusConfig.aberta;
                 return (
-                  <Card
+                  <div
                     key={v.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow border hover:border-primary/30 group"
+                    className="group relative p-5 rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm
+                      hover:border-primary/30 hover:shadow-[0_0_20px_-8px_hsl(var(--primary)/0.15)]
+                      cursor-pointer transition-all duration-300 ease-out space-y-3 animate-fade-in"
+                    style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
                     onClick={() => navigate(`/recrutamento/vagas/${v.id}`)}
                   >
-                    <CardContent className="p-5 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-base leading-tight line-clamp-2">{v.title}</h3>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => openEdit(v, e)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Badge variant="outline" className={sc.className}>{sc.label}</Badge>
-                        </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors duration-200">{v.title}</h3>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => openEdit(v, e)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Badge variant="outline" className={sc.className}>{sc.label}</Badge>
                       </div>
-                      <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-                        {v.departments?.name && (
-                          <span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5" /> {v.departments.name}</span>
-                        )}
-                        <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {workModelLabels[v.work_model]}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm pt-1 border-t">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <Users className="h-3.5 w-3.5 text-primary" />
-                          {v.candidate_count ?? 0} candidato{(v.candidate_count ?? 0) !== 1 ? "s" : ""}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {v.opened_at ? new Date(v.opened_at + "T00:00:00").toLocaleDateString("pt-BR") : new Date(v.created_at).toLocaleDateString("pt-BR")}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                      {v.departments?.name && (
+                        <span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5" /> {v.departments.name}</span>
+                      )}
+                      <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {workModelLabels[v.work_model]}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-border/30">
+                      <span className="flex items-center gap-1.5 font-medium text-primary/80">
+                        <Users className="h-3.5 w-3.5" />
+                        {v.candidate_count ?? 0} candidato{(v.candidate_count ?? 0) !== 1 ? "s" : ""}
+                      </span>
+                      <span className="text-muted-foreground/60">
+                        {v.opened_at ? new Date(v.opened_at + "T00:00:00").toLocaleDateString("pt-BR") : new Date(v.created_at).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
