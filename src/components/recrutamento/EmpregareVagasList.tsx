@@ -20,12 +20,12 @@ const situacaoConfig: Record<string, { label: string; className: string }> = {
 
 export default function EmpregareVagasList({ vagas, onSelect }: Props) {
   const [search, setSearch] = useState("");
-  const [filterSituacao, setFilterSituacao] = useState<string>("todas");
+  const [filterSituacao, setFilterSituacao] = useState<string>("aberta");
 
   const filtered = vagas.filter((v) => {
     const matchSearch = !search || v.titulo.toLowerCase().includes(search.toLowerCase()) ||
       (v.cidade ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchSituacao = filterSituacao === "todas" || (v.situacao ?? "").toLowerCase() === filterSituacao;
+    const matchSituacao = filterSituacao === "todas" || (v.situacao ?? "").toLowerCase() === filterSituacao.toLowerCase();
     return matchSearch && matchSituacao;
   });
 
