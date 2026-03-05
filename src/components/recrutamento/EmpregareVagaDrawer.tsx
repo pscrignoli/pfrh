@@ -14,9 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-
+import { Tooltip as UiTooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, LabelList } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Cell, ResponsiveContainer, LabelList } from "recharts";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
@@ -287,12 +287,21 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
                   </div>
                 )}
 
-                {/* External link */}
-                <Button variant="outline" size="sm" asChild className="w-fit">
-                  <a href={empregareUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir no Empregare
-                  </a>
-                </Button>
+                {/* External link with fallback tooltip */}
+                <TooltipProvider>
+                  <UiTooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" asChild className="w-fit">
+                        <a href={empregareUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir no Empregare
+                        </a>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs text-center">
+                      <p className="text-xs">Se a página não abrir, busque pelo <strong>ID {vaga.empregare_id}</strong> no painel do Empregare Corporate.</p>
+                    </TooltipContent>
+                  </UiTooltip>
+                </TooltipProvider>
               </div>
 
               <Separator />
