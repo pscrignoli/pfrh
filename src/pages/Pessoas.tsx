@@ -14,7 +14,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search } from "lucide-react";
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
+import { Plus, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
 
 const statusColors: Record<string, string> = {
@@ -25,10 +28,24 @@ const statusColors: Record<string, string> = {
   desligado: "bg-destructive text-destructive-foreground",
 };
 
+/** Returns list of missing required field labels */
+function getMissingFields(emp: Employee): string[] {
+  const missing: string[] = [];
+  if (!emp.numero_cpf) missing.push("CPF");
+  if (!emp.data_nascimento) missing.push("Data Nascimento");
+  if (!emp.cargo) missing.push("Cargo");
+  if (!emp.telefone) missing.push("Telefone");
+  if (!emp.email_holerite) missing.push("E-mail");
+  if (!emp.numero_rg) missing.push("RG");
+  if (!emp.numero_pis_nit) missing.push("PIS/NIT");
+  return missing;
+}
+
 export default function Pessoas() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
+  const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
@@ -39,6 +56,16 @@ export default function Pessoas() {
     status: statusFilter,
     departamento: deptFilter,
   });
+
+  // Client-side filter for cadastro_completo
+  const filteredEmployees = cadastroFilter === null
+    ? employees
+    : employees.filter((emp) => {
+        const isComplete = (emp as any).cadastro_completo === true;
+        return cadastroFilter === "completo" ? isComplete : !isComplete;
+      });
+
+  const incompleteCount = employees.filter((emp) => !(emp as any).cadastro_completo).length;
 
   const handleNew = () => {
     setEditEmployee(null);
@@ -51,14 +78,18 @@ export default function Pessoas() {
     setFormOpen(true);
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Colaboradores</h1>
           <p className="text-muted-foreground text-sm">
-            {employees.length} colaborador{employees.length !== 1 ? "es" : ""} encontrado{employees.length !== 1 ? "s" : ""}
+            {filteredEmployees.length} colaborador{filteredEmployees.length !== 1 ? "es" : ""} encontrado{filteredEmployees.length !== 1 ? "s" : ""}
+            {incompleteCount > 0 && (
+              <span className="ml-2 text-warning">
+                · {incompleteCount} incompleto{incompleteCount !== 1 ? "s" : ""}
+              </span>
+            )}
           </p>
         </div>
         <Button onClick={handleNew}>
@@ -100,57 +131,95 @@ export default function Pessoas() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={cadastroFilter ?? "all"} onValueChange={(v) => setCadastroFilter(v === "all" ? null : v)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Cadastro" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os cadastros</SelectItem>
+            <SelectItem value="incompleto">Apenas incompletos</SelectItem>
+            <SelectItem value="completo">Apenas completos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Matrícula</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Departamento</TableHead>
-                <TableHead>Cargo</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <TooltipProvider>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8">
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
+                  <TableHead>Matrícula</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Departamento</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px]">Cadastro</TableHead>
                 </TableRow>
-              ) : employees.length > 0 ? (
-                employees.map((emp) => (
-                  <TableRow
-                    key={emp.id}
-                    className="cursor-pointer"
-                    onClick={() => setDetailEmployee(emp)}
-                  >
-                    <TableCell className="font-mono text-xs">{emp.matricula_interna || "—"}</TableCell>
-                    <TableCell className="font-medium">{emp.nome_completo}</TableCell>
-                    <TableCell>{emp.empresa || "—"}</TableCell>
-                    <TableCell>{emp.departamento || "—"}</TableCell>
-                    <TableCell>{emp.cargo || "—"}</TableCell>
-                    <TableCell>
-                      <Badge className={`border-0 ${statusColors[emp.status] ?? ""}`}>
-                        {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8">
+                      <Skeleton className="h-10 w-full" />
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
-                    Nenhum colaborador encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredEmployees.length > 0 ? (
+                  filteredEmployees.map((emp) => {
+                    const isComplete = (emp as any).cadastro_completo === true;
+                    const missingFields = getMissingFields(emp);
+                    return (
+                      <TableRow
+                        key={emp.id}
+                        className="cursor-pointer"
+                        onClick={() => setDetailEmployee(emp)}
+                      >
+                        <TableCell className="font-mono text-xs">{emp.matricula_interna || emp.numero_funcional || "—"}</TableCell>
+                        <TableCell className="font-medium">{emp.nome_completo}</TableCell>
+                        <TableCell>{emp.empresa || "—"}</TableCell>
+                        <TableCell>{emp.departamento || "—"}</TableCell>
+                        <TableCell>{emp.cargo || "—"}</TableCell>
+                        <TableCell>
+                          <Badge className={`border-0 ${statusColors[emp.status] ?? ""}`}>
+                            {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {isComplete ? (
+                            <Badge variant="secondary" className="border-0 bg-success/10 text-success gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Completo
+                            </Badge>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="border-0 bg-warning/10 text-warning gap-1 cursor-help">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Incompleto
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-xs">
+                                <p className="text-xs font-medium mb-1">Campos faltantes:</p>
+                                <p className="text-xs">{missingFields.length > 0 ? missingFields.join(", ") : "Verificar dados"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                      Nenhum colaborador encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TooltipProvider>
         </CardContent>
       </Card>
 

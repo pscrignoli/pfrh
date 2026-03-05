@@ -5,7 +5,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   ativo: "bg-success text-success-foreground",
@@ -34,15 +34,29 @@ interface Props {
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
   if (!employee) return null;
 
+  const ext = employee as any;
+  const isComplete = ext.cadastro_completo === true;
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="pb-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-xl">{employee.nome_completo}</SheetTitle>
-            <Badge className={`border-0 ${statusColors[employee.status] ?? ""}`}>
-              {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {isComplete ? (
+                <Badge variant="secondary" className="border-0 bg-success/10 text-success gap-1 text-xs">
+                  <CheckCircle2 className="h-3 w-3" /> Completo
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="border-0 bg-warning/10 text-warning gap-1 text-xs">
+                  <AlertTriangle className="h-3 w-3" /> Incompleto
+                </Badge>
+              )}
+              <Badge className={`border-0 ${statusColors[employee.status] ?? ""}`}>
+                {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+              </Badge>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
             {employee.cargo ?? "Sem cargo"} · {employee.departamento ?? "Sem depto"}
@@ -71,12 +85,30 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
             <CardContent className="grid grid-cols-2 gap-4">
               <Field label="Empresa" value={employee.empresa} />
               <Field label="Admissão" value={new Date(employee.data_admissao + "T00:00:00").toLocaleDateString("pt-BR")} />
+              <Field label="Demissão" value={ext.data_demissao ? new Date(ext.data_demissao + "T00:00:00").toLocaleDateString("pt-BR") : null} />
               <Field label="Tipo Contrato" value={employee.tipo_contrato?.toUpperCase()} />
               <Field label="Jornada" value={employee.jornada_semanal ? `${employee.jornada_semanal}h/sem` : null} />
+              <Field label="Salário Base" value={ext.salario_base ? `R$ ${Number(ext.salario_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
+              <Field label="CBO" value={ext.cbo} />
+              <Field label="Sindicato" value={ext.sindicato_codigo} />
               <Field label="Matrícula Interna" value={employee.matricula_interna} />
+              <Field label="Nº Funcional" value={employee.numero_funcional} />
               <Field label="Matrícula e-Social" value={employee.matricula_esocial} />
               <Field label="CTPS" value={employee.ctps} />
               <Field label="PIS/NIT" value={employee.numero_pis_nit} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Dependentes & Outros</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <Field label="Dependentes IR" value={ext.dependentes_ir ?? 0} />
+              <Field label="Dependentes SF" value={ext.dependentes_sf ?? 0} />
+              {ext.empregare_pessoa_id && (
+                <Field label="Empregare ID" value={ext.empregare_pessoa_id} />
+              )}
             </CardContent>
           </Card>
 
