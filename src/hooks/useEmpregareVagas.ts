@@ -129,19 +129,22 @@ export function useEmpregareVagas() {
     }
   }, [companyId]);
 
-  // Stats — compare case-insensitive against "Aberta"
-  const abertas = vagas.filter(v => v.situacao === "Aberta" || v.situacao?.toLowerCase() === "aberta");
+  // Stats
+  const abertas = vagas.filter(v => (v.situacao ?? "").toLowerCase() === "aberta");
   const stats = {
     total: vagas.length,
     abertas: abertas.length,
-    posicoes: abertas.reduce((s, v) => s + (v.total_vagas || 0), 0),
-    contratados: vagas.reduce((s, v) => {
+    posicoes: abertas.reduce((s, v) => s + (Number(v.total_vagas) || 0), 0),
+    contratados: vagas.reduce((sum, v) => {
       const etapas = v.etapas || [];
-      return s + etapas.reduce((sum: number, e: any) => {
+      let count = 0;
+      for (const e of etapas) {
         const nome = (e.nome ?? e.Nome ?? e.titulo ?? e.Titulo ?? "").toLowerCase();
-        if (nome.includes("contratad")) return sum + (e.qntde ?? e.Qntde ?? e.qtd ?? e.totalCandidatos ?? 0);
-        return sum;
-      }, 0);
+        if (nome.includes("contratad")) {
+          count += Number(e.qntde ?? e.Qntde ?? e.qtd ?? e.totalCandidatos ?? 0) || 0;
+        }
+      }
+      return sum + count;
     }, 0),
   };
 

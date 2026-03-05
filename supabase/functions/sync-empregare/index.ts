@@ -126,7 +126,7 @@ function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorT
     salario_min: v.salarioInicial ?? v.salario?.salarioInicial ?? null,
     salario_max: v.salarioFinal ?? v.salario?.salarioFinal ?? null,
     salario_combinar: v.salarioCombinar ?? v.salario?.salarioCombinar ?? false,
-    total_vagas: v.totalVagas ?? v.TotalVagas ?? 1,
+    total_vagas: Number(v.nVaga ?? v.totalVagas ?? v.TotalVagas ?? 1) || 1,
     cidade: firstCity.cidadeNome ?? firstCity.CidadeNome ?? null,
     estado: firstCity.estadoNome ?? firstCity.EstadoNome ?? null,
     horario: v.horario ?? v.Horario ?? null,
@@ -271,6 +271,36 @@ async function syncCandidatos(bearer: string, format: string, empresaId: string)
           };
 
           await sb.from("empregare_candidatos").upsert(record as any, { onConflict: "empregare_pessoa_id,empregare_vaga_id" });
+
+          // Also create kanban card for this contratado
+          const etapasVaga = await sb.from("empregare_vagas").select("etapas").eq("empregare_id", (vaga as any).empregare_id).maybeSingle();
+          const etapasArr = etapasVaga?.data?.etapas ? (typeof etapasVaga.data.etapas === "string" ? JSON.parse(etapasVaga.data.etapas as string) : etapasVaga.data.etapas) : [];
+          const contratadoEtapa = etapasArr.find((e: any) => (e.nome ?? e.Nome ?? "").toLowerCase().includes("contratad"));
+          const etapaNome = contratadoEtapa?.nome ?? contratadoEtapa?.Nome ?? "Contratados";
+          const etapaOrdem = contratadoEtapa?.ordem ?? contratadoEtapa?.Ordem ?? 99;
+
+          // Check if kanban card already exists
+          const { data: existingCard } = await sb.from("empregare_kanban_cards")
+            .select("id")
+            .eq("empregare_vaga_id", (vaga as any).empregare_id)
+            .eq("empregare_pessoa_id", pessoaId)
+            .maybeSingle();
+
+          if (!existingCard) {
+            await sb.from("empregare_kanban_cards").insert({
+              empregare_vaga_id: (vaga as any).empregare_id,
+              empregare_pessoa_id: pessoaId,
+              company_id: (vaga as any).company_id,
+              nome: record.nome,
+              email: record.email,
+              telefone: record.telefone,
+              etapa_atual: etapaNome,
+              etapa_ordem: etapaOrdem,
+              origem: "api",
+              data_entrada_etapa: record.data_contratacao ?? new Date().toISOString(),
+            } as any);
+          }
+
           synced++;
         } catch (e) {
           await logIntegration(`/api/pessoa/detalhes/${pessoaId}`, {}, { error: e.message }, "error", e.message);
