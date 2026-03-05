@@ -8,7 +8,8 @@ const corsHeaders = {
 
 const EMPREGARE_BASE_URL = "https://corporate.empregare.com";
 
-/** Build a service-role Supabase client for reading system_settings */
+// ── Supabase helpers ──
+
 function getServiceClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -16,7 +17,6 @@ function getServiceClient() {
   );
 }
 
-/** Read a system_settings value by key */
 async function getSetting(key: string): Promise<string | null> {
   const sb = getServiceClient();
   const { data } = await sb
@@ -27,7 +27,6 @@ async function getSetting(key: string): Promise<string | null> {
   return data?.value ?? null;
 }
 
-/** Write a system_settings value */
 async function setSetting(key: string, value: string): Promise<void> {
   const sb = getServiceClient();
   await sb
@@ -35,9 +34,7 @@ async function setSetting(key: string, value: string): Promise<void> {
     .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
 }
 
-/** Log to integration_logs */
 async function logIntegration(
-  companyId: string | null,
   endpoint: string,
   reqPayload: unknown,
   resPayload: unknown,
@@ -46,7 +43,7 @@ async function logIntegration(
 ) {
   const sb = getServiceClient();
   await sb.from("integration_logs").insert({
-    company_id: companyId,
+    company_id: null,
     direction: "outbound",
     source: "empregare",
     endpoint,
@@ -54,85 +51,196 @@ async function logIntegration(
     response_payload: resPayload as any,
     status,
     error_message: errorMessage ?? null,
-  });
+  }).then(() => {});
 }
 
-/** Authenticate with Empregare and get a fresh bearer token */
-async function authenticateEmpregare(apiToken: string): Promise<string> {
-  const res = await fetch(`${EMPREGARE_BASE_URL}/api/auth/token`, {
-    method: "POST",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiToken}`,
+// ── Auth discovery ──
+
+interface AuthResult {
+  bearer: string;
+  format: string;
+}
+
+/** Try to parse a bearer token from a JSON response */
+function extractToken(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+  return data.token || data.Token || data.bearer || data.Bearer ||
+    data.access_token || data.AccessToken || data.accessToken || null;
+}
+
+/** Check if a response is valid JSON (not HTML error page) */
+function isValidJsonResponse(text: string): boolean {
+  if (text.trimStart().startsWith("<!DOCTYPE") || text.trimStart().startsWith("<html")) return false;
+  try { JSON.parse(text); return true; } catch { return false; }
+}
+
+/** Try all auth formats and return the first that works */
+async function discoverAuth(apiToken: string, empresaId: string): Promise<AuthResult> {
+  const authUrl = `${EMPREGARE_BASE_URL}/api/auth/token`;
+
+  // ── Phase 1: Try POST /api/auth/token with different body formats ──
+
+  const bodyAttempts: { format: string; body?: string; headers: Record<string, string> }[] = [
+    {
+      format: "body_token_empresaId",
+      body: JSON.stringify({ token: apiToken, empresaId }),
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
     },
-  });
+    {
+      format: "body_apiKey_empresaId",
+      body: JSON.stringify({ apiKey: apiToken, empresaId }),
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    },
+    {
+      format: "header_bearer_empresaId",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiToken}`,
+        "EmpresaId": empresaId,
+      },
+    },
+  ];
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Auth failed (${res.status}): ${text}`);
+  for (const attempt of bodyAttempts) {
+    try {
+      const res = await fetch(authUrl, {
+        method: "POST",
+        headers: attempt.headers,
+        ...(attempt.body ? { body: attempt.body } : {}),
+      });
+      const text = await res.text();
+
+      await logIntegration("/api/auth/token", { format: attempt.format }, { status: res.status, body: text.slice(0, 500) }, res.ok ? "success" : "error", res.ok ? undefined : `HTTP ${res.status}`);
+
+      if (res.ok && isValidJsonResponse(text)) {
+        const data = JSON.parse(text);
+        const bearer = extractToken(data);
+        if (bearer) {
+          return { bearer, format: attempt.format };
+        }
+      }
+    } catch (e) {
+      await logIntegration("/api/auth/token", { format: attempt.format }, { error: e.message }, "error", e.message);
+    }
   }
 
-  const data = await res.json();
-  // The API may return the token in different fields; try common ones
-  const bearer = data?.token || data?.access_token || data?.Token || data?.AccessToken;
-  if (!bearer) {
-    throw new Error(`Auth response did not contain a token: ${JSON.stringify(data)}`);
+  // ── Phase 2: Try calling /api/vaga/listar directly with different header formats ──
+
+  const directAttempts: { format: string; headers: Record<string, string> }[] = [
+    {
+      format: "direct_bearer",
+      headers: { "Accept": "application/json", "Authorization": `Bearer ${apiToken}`, "EmpresaId": empresaId },
+    },
+    {
+      format: "direct_no_prefix",
+      headers: { "Accept": "application/json", "Authorization": apiToken, "EmpresaId": empresaId },
+    },
+    {
+      format: "direct_xapikey",
+      headers: { "Accept": "application/json", "X-Api-Key": apiToken, "EmpresaId": empresaId },
+    },
+    {
+      format: "direct_token_header",
+      headers: { "Accept": "application/json", "Token": apiToken, "EmpresaId": empresaId },
+    },
+  ];
+
+  const testUrl = `${EMPREGARE_BASE_URL}/api/vaga/listar`;
+
+  for (const attempt of directAttempts) {
+    try {
+      const res = await fetch(testUrl, { method: "GET", headers: attempt.headers });
+      const text = await res.text();
+
+      await logIntegration("/api/vaga/listar (auth test)", { format: attempt.format }, { status: res.status, body: text.slice(0, 500) }, res.ok ? "success" : "error", res.ok ? undefined : `HTTP ${res.status}`);
+
+      if (res.ok && isValidJsonResponse(text)) {
+        // This format works — token is used directly (no bearer exchange needed)
+        return { bearer: apiToken, format: attempt.format };
+      }
+    } catch (e) {
+      await logIntegration("/api/vaga/listar (auth test)", { format: attempt.format }, { error: e.message }, "error", e.message);
+    }
   }
-  return bearer;
+
+  throw new Error("Nenhum formato de autenticação funcionou. Verifique token e EmpresaID.");
 }
 
-/** Get (or refresh) the bearer token */
-async function getBearerToken(forceRefresh = false): Promise<string> {
-  if (!forceRefresh) {
-    const cached = await getSetting("empregare_bearer");
-    if (cached) return cached;
+/** Build headers for a request using the discovered auth format */
+function buildHeaders(format: string, bearer: string, empresaId: string): Record<string, string> {
+  const base: Record<string, string> = { "Accept": "application/json", "Content-Type": "application/json" };
+
+  if (format.startsWith("direct_")) {
+    if (format === "direct_bearer") {
+      base["Authorization"] = `Bearer ${bearer}`;
+    } else if (format === "direct_no_prefix") {
+      base["Authorization"] = bearer;
+    } else if (format === "direct_xapikey") {
+      base["X-Api-Key"] = bearer;
+    } else if (format === "direct_token_header") {
+      base["Token"] = bearer;
+    }
+    base["EmpresaId"] = empresaId;
+  } else {
+    // Bearer token from auth endpoint
+    base["Authorization"] = `Bearer ${bearer}`;
+    base["EmpresaId"] = empresaId;
   }
 
+  return base;
+}
+
+/** Get or discover auth credentials */
+async function getAuth(forceRediscover = false): Promise<{ bearer: string; format: string }> {
   const apiToken = await getSetting("empregare_api_token");
+  const empresaId = await getSetting("empregare_empresa_id") ?? "";
+
   if (!apiToken) {
-    throw new Error("Token da API Empregare não configurado. Vá em Configurações > Empregare.");
+    throw new Error("Token da API Empregare não configurado.");
   }
 
-  const bearer = await authenticateEmpregare(apiToken);
-  await setSetting("empregare_bearer", bearer);
-  return bearer;
+  if (!forceRediscover) {
+    const savedFormat = await getSetting("empregare_auth_format");
+    const savedBearer = await getSetting("empregare_bearer");
+    if (savedFormat && savedBearer) {
+      return { bearer: savedBearer, format: savedFormat };
+    }
+  }
+
+  const result = await discoverAuth(apiToken, empresaId);
+  await setSetting("empregare_bearer", result.bearer);
+  await setSetting("empregare_auth_format", result.format);
+  return result;
 }
 
-/** Make a request to Empregare API with auto-retry on 401 */
+/** Make a proxied request to the Empregare API */
 async function empregareRequest(
   endpoint: string,
   method: string,
   payload?: unknown
 ): Promise<{ status: number; data: unknown }> {
-  const empresaId = Deno.env.get("EMPREGARE_EMPRESA_ID") ?? (await getSetting("empregare_empresa_id"));
+  const empresaId = await getSetting("empregare_empresa_id") ?? "";
+  let auth = await getAuth();
 
-  let bearer = await getBearerToken();
   const targetUrl = `${EMPREGARE_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-  const doFetch = async (token: string) => {
-    const opts: RequestInit = {
-      method,
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        ...(empresaId ? { "EmpresaId": empresaId } : {}),
-      },
-    };
+  const doFetch = async (bearer: string, format: string) => {
+    const headers = buildHeaders(format, bearer, empresaId);
+    const opts: RequestInit = { method, headers };
     if (method !== "GET" && payload) {
       opts.body = typeof payload === "string" ? payload : JSON.stringify(payload);
     }
     return fetch(targetUrl, opts);
   };
 
-  let res = await doFetch(bearer);
+  let res = await doFetch(auth.bearer, auth.format);
 
-  // Auto-retry on 401 (token expired)
+  // Auto-retry: if 401, rediscover auth
   if (res.status === 401) {
-    await res.text(); // consume body
-    bearer = await getBearerToken(true);
-    res = await doFetch(bearer);
+    await res.text(); // consume
+    auth = await getAuth(true);
+    res = await doFetch(auth.bearer, auth.format);
   }
 
   const text = await res.text();
@@ -140,21 +248,15 @@ async function empregareRequest(
   try {
     data = JSON.parse(text);
   } catch {
-    data = { raw: text };
+    data = { raw: text.slice(0, 2000) };
   }
 
-  // Log the call
-  await logIntegration(
-    null,
-    endpoint,
-    { method, ...(payload ? { payload } : {}) },
-    data,
-    res.ok ? "success" : "error",
-    res.ok ? undefined : `HTTP ${res.status}`
-  ).catch(() => {}); // non-blocking
+  await logIntegration(endpoint, { method, ...(payload ? { payload } : {}) }, data, res.ok ? "success" : "error", res.ok ? undefined : `HTTP ${res.status}`).catch(() => {});
 
   return { status: res.status, data };
 }
+
+// ── Main handler ──
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -162,7 +264,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check — verify Supabase user
+    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -188,22 +290,32 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { method, endpoint, payload, action } = body;
 
-    // Special action: authenticate (test connection)
+    // ── Action: test_connection ──
     if (action === "test_connection") {
-      const apiToken = body.api_token;
-      if (!apiToken) {
+      const { api_token, empresa_id } = body;
+      if (!api_token) {
         return new Response(
-          JSON.stringify({ error: "api_token é obrigatório para test_connection." }),
+          JSON.stringify({ error: "api_token é obrigatório." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Save credentials first
+      await setSetting("empregare_api_token", api_token);
+      if (empresa_id) await setSetting("empregare_empresa_id", empresa_id);
+
+      // Clear cached auth to force rediscovery
+      await setSetting("empregare_bearer", "");
+      await setSetting("empregare_auth_format", "");
+
       try {
-        const bearer = await authenticateEmpregare(apiToken);
-        // Save both tokens
-        await setSetting("empregare_api_token", apiToken);
-        await setSetting("empregare_bearer", bearer);
+        const auth = await getAuth(true);
         return new Response(
-          JSON.stringify({ success: true, message: "Autenticação bem-sucedida." }),
+          JSON.stringify({
+            success: true,
+            message: `Autenticação bem-sucedida! Formato: ${auth.format}`,
+            format: auth.format,
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (e) {
@@ -214,7 +326,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Normal proxy request
+    // ── Normal proxy ──
     if (!endpoint) {
       return new Response(
         JSON.stringify({ error: "Endpoint é obrigatório." }),

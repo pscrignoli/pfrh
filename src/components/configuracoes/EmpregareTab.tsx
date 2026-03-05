@@ -13,8 +13,9 @@ import { toast } from "@/hooks/use-toast";
 import {
   FlaskConical, Loader2, Send, ShieldCheck, Eye, EyeOff,
   CheckCircle2, XCircle, Wifi, Building2, Briefcase, LayoutGrid,
+  Clock, AlertTriangle, ArrowRight,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
 
 // ── Connection Status Card ──
 interface ConnectionStatus {
@@ -22,6 +23,7 @@ interface ConnectionStatus {
   vagasCount: number | null;
   setoresCount: number | null;
   unidadesCount: number | null;
+  authFormat: string | null;
 }
 
 function StatusCard({ status, loading }: { status: ConnectionStatus; loading: boolean }) {
@@ -64,7 +66,95 @@ function StatusCard({ status, loading }: { status: ConnectionStatus; loading: bo
               {status.unidadesCount} unidades
             </Badge>
           )}
+          {status.authFormat && (
+            <Badge variant="secondary" className="gap-1.5 text-xs">
+              Formato: {status.authFormat}
+            </Badge>
+          )}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Integration Logs Card ──
+interface LogEntry {
+  id: string;
+  created_at: string;
+  endpoint: string | null;
+  status: string;
+  error_message: string | null;
+  response_payload: any;
+}
+
+function DiagnosticsCard() {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("integration_logs")
+      .select("id, created_at, endpoint, status, error_message, response_payload")
+      .eq("source", "empregare")
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        setLogs((data as LogEntry[]) ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Clock className="h-5 w-5 text-primary" />
+          Log de Diagnóstico (últimos 5)
+        </CardTitle>
+        <CardDescription>Requests recentes para a API Empregare.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center gap-2 py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Carregando…</span>
+          </div>
+        ) : logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">Nenhum log encontrado.</p>
+        ) : (
+          <div className="space-y-2">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className="flex flex-col gap-1 rounded-lg border p-3 text-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {log.status === "success" ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                    )}
+                    <code className="font-mono text-xs truncate">{log.endpoint ?? "—"}</code>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {format(new Date(log.created_at), "dd/MM HH:mm:ss")}
+                  </span>
+                </div>
+                {log.error_message && (
+                  <p className="text-xs text-destructive ml-6">{log.error_message}</p>
+                )}
+                {log.response_payload && (
+                  <pre className="text-xs text-muted-foreground ml-6 max-h-16 overflow-auto whitespace-pre-wrap font-mono bg-muted/50 rounded p-1.5">
+                    {typeof log.response_payload === "string"
+                      ? log.response_payload.slice(0, 300)
+                      : JSON.stringify(log.response_payload, null, 1).slice(0, 300)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -72,18 +162,17 @@ function StatusCard({ status, loading }: { status: ConnectionStatus; loading: bo
 
 // ── Main Component ──
 export default function EmpregareTab() {
-  const { user } = useAuth();
-
   // Token config
   const [apiToken, setApiToken] = useState("");
+  const [empresaId, setEmpresaId] = useState("");
   const [showToken, setShowToken] = useState(false);
-  const [loadingToken, setLoadingToken] = useState(true);
+  const [loadingConfig, setLoadingConfig] = useState(true);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Status
   const [status, setStatus] = useState<ConnectionStatus>({
-    connected: false, vagasCount: null, setoresCount: null, unidadesCount: null,
+    connected: false, vagasCount: null, setoresCount: null, unidadesCount: null, authFormat: null,
   });
   const [statusLoading, setStatusLoading] = useState(false);
 
@@ -95,20 +184,22 @@ export default function EmpregareTab() {
   const [result, setResult] = useState<string | null>(null);
   const [statusCode, setStatusCode] = useState<number | null>(null);
 
-  // Load saved token
+  // Diagnostics refresh key
+  const [diagKey, setDiagKey] = useState(0);
+
+  // Load saved config
   useEffect(() => {
-    supabase
-      .from("system_settings")
-      .select("value")
-      .eq("key", "empregare_api_token")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.value) setApiToken(data.value);
-        setLoadingToken(false);
-      });
+    Promise.all([
+      supabase.from("system_settings").select("value").eq("key", "empregare_api_token").maybeSingle(),
+      supabase.from("system_settings").select("value").eq("key", "empregare_empresa_id").maybeSingle(),
+    ]).then(([tokenRes, empresaRes]) => {
+      if (tokenRes.data?.value) setApiToken(tokenRes.data.value);
+      if (empresaRes.data?.value) setEmpresaId(empresaRes.data.value);
+      setLoadingConfig(false);
+    });
   }, []);
 
-  // Fetch status counts after connection
+  // Fetch status counts
   const fetchStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
@@ -118,13 +209,16 @@ export default function EmpregareTab() {
         { key: "unidades", endpoint: "/api/unidade-negocio/listar", method: "GET" },
       ];
 
-      const results = await Promise.allSettled(
-        endpoints.map((ep) =>
-          supabase.functions.invoke("empregare-proxy", {
-            body: { method: ep.method, endpoint: ep.endpoint },
-          })
-        )
-      );
+      const [results, formatRes] = await Promise.all([
+        Promise.allSettled(
+          endpoints.map((ep) =>
+            supabase.functions.invoke("empregare-proxy", {
+              body: { method: ep.method, endpoint: ep.endpoint },
+            })
+          )
+        ),
+        supabase.from("system_settings").select("value").eq("key", "empregare_auth_format").maybeSingle(),
+      ]);
 
       let vagasCount: number | null = null;
       let setoresCount: number | null = null;
@@ -145,11 +239,13 @@ export default function EmpregareTab() {
         vagasCount,
         setoresCount,
         unidadesCount,
+        authFormat: formatRes.data?.value ?? null,
       });
     } catch {
       // silent
     } finally {
       setStatusLoading(false);
+      setDiagKey((k) => k + 1);
     }
   }, []);
 
@@ -158,12 +254,10 @@ export default function EmpregareTab() {
     supabase
       .from("system_settings")
       .select("value")
-      .eq("key", "empregare_bearer")
+      .eq("key", "empregare_auth_format")
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.value) {
-          fetchStatus();
-        }
+        if (data?.value) fetchStatus();
       });
   }, [fetchStatus]);
 
@@ -179,18 +273,25 @@ export default function EmpregareTab() {
 
     try {
       const { data, error } = await supabase.functions.invoke("empregare-proxy", {
-        body: { action: "test_connection", api_token: apiToken.trim() },
+        body: {
+          action: "test_connection",
+          api_token: apiToken.trim(),
+          empresa_id: empresaId.trim() || undefined,
+        },
       });
 
       if (error) {
         setConnectionResult({ success: false, message: error.message });
+        setDiagKey((k) => k + 1);
         return;
       }
 
       if (data?.success) {
-        setConnectionResult({ success: true, message: "Autenticação bem-sucedida! Token salvo." });
+        setConnectionResult({
+          success: true,
+          message: data.message || "Autenticação bem-sucedida!",
+        });
         toast({ title: "Conectado ao Empregare com sucesso!" });
-        // Fetch status data
         await fetchStatus();
       } else {
         setConnectionResult({ success: false, message: data?.error || "Falha na autenticação." });
@@ -199,6 +300,7 @@ export default function EmpregareTab() {
       setConnectionResult({ success: false, message: e.message });
     } finally {
       setTestingConnection(false);
+      setDiagKey((k) => k + 1);
     }
   };
 
@@ -226,20 +328,13 @@ export default function EmpregareTab() {
       }
 
       const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-
       const { data: fnData, error: fnError } = await supabase.functions.invoke("empregare-proxy", {
         body: { method, endpoint: path, payload: parsedPayload },
       });
 
       if (fnError) {
-        let errorBody: any = { error: fnError.message };
-        try {
-          if (typeof (fnError as any).context?.json === "function") {
-            errorBody = await (fnError as any).context.json();
-          }
-        } catch { /* ignore */ }
-        setStatusCode(errorBody?.status || 500);
-        setResult(JSON.stringify(errorBody, null, 2));
+        setStatusCode(500);
+        setResult(JSON.stringify({ error: fnError.message }, null, 2));
         return;
       }
 
@@ -250,6 +345,7 @@ export default function EmpregareTab() {
       setStatusCode(500);
     } finally {
       setLoading(false);
+      setDiagKey((k) => k + 1);
     }
   };
 
@@ -266,21 +362,21 @@ export default function EmpregareTab() {
             Configuração da API Empregare
           </CardTitle>
           <CardDescription>
-            Insira o token permanente da API. A autenticação bearer será gerenciada automaticamente.
+            Insira o token permanente e o EmpresaID. A autenticação será descoberta automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Token da API</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Token da API</label>
+              <div className="relative">
                 <Input
                   type={showToken ? "text" : "password"}
                   placeholder="Cole o token da API aqui"
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
                   className="pr-10 font-mono text-sm"
-                  disabled={loadingToken}
+                  disabled={loadingConfig}
                 />
                 <button
                   type="button"
@@ -290,18 +386,29 @@ export default function EmpregareTab() {
                   {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <Button onClick={handleTestConnection} disabled={testingConnection || !apiToken.trim()}>
-                {testingConnection ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Wifi className="h-4 w-4 mr-2" />
-                )}
-                Testar Conexão
-              </Button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">EmpresaID</label>
+              <Input
+                type="text"
+                placeholder="ID da empresa no Empregare"
+                value={empresaId}
+                onChange={(e) => setEmpresaId(e.target.value)}
+                className="font-mono text-sm"
+                disabled={loadingConfig}
+              />
             </div>
           </div>
 
-          {/* Connection result */}
+          <Button onClick={handleTestConnection} disabled={testingConnection || !apiToken.trim()}>
+            {testingConnection ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Wifi className="h-4 w-4 mr-2" />
+            )}
+            Testar Conexão
+          </Button>
+
           {connectionResult && (
             <Alert className={connectionResult.success ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}>
               {connectionResult.success ? (
@@ -318,12 +425,15 @@ export default function EmpregareTab() {
           <Alert className="border-primary/30 bg-primary/5">
             <ShieldCheck className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
-              O token é salvo no banco de dados e lido apenas pelo servidor. Nunca é exposto no frontend após salvo.
-              O bearer token (12h de validade) é renovado automaticamente quando expira.
+              O proxy testa automaticamente múltiplos formatos de autenticação (body JSON, headers, token direto)
+              e salva o formato que funcionar. Nos próximos requests, usa o formato salvo.
             </AlertDescription>
           </Alert>
         </CardContent>
       </Card>
+
+      {/* Diagnostics Log */}
+      <DiagnosticsCard key={diagKey} />
 
       {/* Sandbox */}
       <Card>
@@ -333,7 +443,7 @@ export default function EmpregareTab() {
             Laboratório de API (Sandbox)
           </CardTitle>
           <CardDescription>
-            Teste endpoints da API Empregare. A autenticação bearer é injetada automaticamente.
+            Teste endpoints da API Empregare. A autenticação é injetada automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
