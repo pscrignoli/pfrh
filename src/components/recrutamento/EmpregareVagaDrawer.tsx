@@ -155,7 +155,7 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
   const motivoAbertura = requisicao?.motivoAberturaDescricao ?? requisicao?.MotivoAberturaDescricao ?? null;
   const substituto = requisicao?.substituirNome ?? requisicao?.SubstituirNome ?? null;
 
-  const empregareUrl = `https://corporate.empregare.com/vaga/${vaga.empregare_id}`;
+  const empregareUrl = `https://corporate.empregare.com/#/vagas/detalhes/${vaga.empregare_id}`;
 
   const handleAddCandidate = async () => {
     if (!addForm.nome.trim()) { toast.error("Informe o nome."); return; }
