@@ -135,7 +135,7 @@ export default function Recrutamento() {
   const { departments } = useDepartments(true);
   const { companyId } = useCompany();
   const { saveFields } = useVacancyFields(undefined);
-  const { vagas: empregareVagas, loading: empLoading, lastSync, syncing, sync, stats, fetchKanbanCards, upsertKanbanCard } = useEmpregareVagas();
+  const { vagas: empregareVagas, loading: empLoading, lastSync, syncing, sync, stats } = useEmpregareVagas();
 
   // Tab
   const [tab, setTab] = useState("empregare");
@@ -389,8 +389,6 @@ export default function Recrutamento() {
         vaga={selectedVaga}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        fetchKanbanCards={fetchKanbanCards}
-        upsertKanbanCard={upsertKanbanCard}
       />
 
       {/* Create vacancy dialog */}
