@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, LabelList } from "recharts";
 import { toast } from "sonner";
@@ -199,8 +199,7 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:!overflow-y-scroll">
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 overflow-y-auto">
             <div className="p-6 pb-10 space-y-6">
 
               {/* ═══════════ HEADER ═══════════ */}
@@ -502,7 +501,6 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
               )}
 
             </div>
-          </ScrollArea>
         </SheetContent>
       </Sheet>
 
