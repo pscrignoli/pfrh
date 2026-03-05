@@ -133,7 +133,17 @@ export function useEmpregareVagas() {
   const abertas = vagas.filter(v => (v.situacao ?? "").toLowerCase() === "aberta");
   const stats = {
     total: vagas.length,
-    abertas: abertas.length,
+    candidatosEmProcesso: abertas.reduce((sum, v) => {
+      const etapas = v.etapas || [];
+      let count = 0;
+      for (const e of etapas) {
+        const nome = (e.nome ?? e.Nome ?? "").toLowerCase();
+        if (nome === "todos" || nome === "all") {
+          count += Number(e.qntde ?? e.Qntde ?? e.qtd ?? 0) || 0;
+        }
+      }
+      return sum + count;
+    }, 0),
     posicoes: abertas.reduce((s, v) => s + (Number(v.total_vagas) || 0), 0),
     contratados: vagas.reduce((sum, v) => {
       const etapas = v.etapas || [];
