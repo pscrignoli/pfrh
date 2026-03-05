@@ -1,17 +1,17 @@
-import { Briefcase, Users, UserCheck, Clock } from "lucide-react";
+import { Briefcase, Users, UserCheck, UserPlus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Props {
   total: number;
-  abertas: number;
+  candidatosEmProcesso: number;
   posicoes: number;
   contratados: number;
 }
 
-export default function RecrutamentoStats({ total, abertas, posicoes, contratados }: Props) {
+export default function RecrutamentoStats({ total, candidatosEmProcesso, posicoes, contratados }: Props) {
   const items = [
     { label: "Total Vagas", value: total, icon: Briefcase, color: "text-primary" },
-    { label: "Abertas", value: abertas, icon: Clock, color: "text-success" },
+    { label: "Candidatos em Processo", value: candidatosEmProcesso, icon: UserPlus, color: "text-info" },
     { label: "Posições Abertas", value: posicoes, icon: Users, color: "text-warning" },
     { label: "Contratados", value: contratados, icon: UserCheck, color: "text-chart-4" },
   ];
