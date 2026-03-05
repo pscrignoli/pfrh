@@ -200,8 +200,8 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
-            <div className="p-6 space-y-6">
+          <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:!overflow-y-scroll">
+            <div className="p-6 pb-10 space-y-6">
 
               {/* ═══════════ HEADER ═══════════ */}
               <div className="space-y-4">
@@ -404,12 +404,6 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
                 </>
               )}
 
-              {/* ═══════════ ADICIONAR CANDIDATO MANUAL ═══════════ */}
-              <div>
-                <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)} className="w-full">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Adicionar Candidato Manual
-                </Button>
-              </div>
 
               <Separator />
 
