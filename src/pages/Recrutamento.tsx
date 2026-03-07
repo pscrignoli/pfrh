@@ -287,6 +287,9 @@ export default function Recrutamento() {
             <RefreshCw className={cn("h-4 w-4 mr-1.5", syncing && "animate-spin")} />
             {syncing ? "Sincronizando..." : "Sincronizar"}
           </Button>
+          <Button variant="outline" onClick={() => setGeneratorOpen(true)} className="gap-1.5">
+            <Sparkles className="h-4 w-4" /> Gerar com IA
+          </Button>
           <Button onClick={() => setDialogOpen(true)} className="shadow-[0_0_15px_-5px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.5)] transition-shadow duration-300">
             <Plus className="h-4 w-4 mr-1.5" /> Nova Vaga
           </Button>
