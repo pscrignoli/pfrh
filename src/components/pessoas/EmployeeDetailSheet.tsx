@@ -5,7 +5,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap } from "lucide-react";
+
+const grauLabels: Record<string, string> = {
+  ensino_medio: "Ensino Médio",
+  tecnico: "Técnico",
+  superior: "Superior",
+  pos_mba: "Pós/MBA",
+  mestrado: "Mestrado",
+  doutorado: "Doutorado",
+  pos_doutorado: "Pós Doutorado",
+};
+
+const grauColors: Record<string, string> = {
+  ensino_medio: "bg-muted text-muted-foreground",
+  tecnico: "bg-cyan-100 text-cyan-700",
+  superior: "bg-green-100 text-green-700",
+  pos_mba: "bg-blue-100 text-blue-700",
+  mestrado: "bg-purple-100 text-purple-700",
+  doutorado: "bg-amber-100 text-amber-800",
+  pos_doutorado: "bg-amber-50 text-amber-900 border border-amber-300",
+};
 
 const statusColors: Record<string, string> = {
   ativo: "bg-success text-success-foreground",
