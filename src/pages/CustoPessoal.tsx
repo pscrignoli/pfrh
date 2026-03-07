@@ -263,69 +263,39 @@ export default function CustoPessoal() {
         </div>
       )}
 
-      {/* Dept + Top employees */}
+      {/* Dept cost */}
       {currentMonth && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Dept cost */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Custo por Departamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {deptCosts.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(200, deptCosts.length * 40)}>
-                  <BarChart data={deptCosts} layout="vertical" margin={{ left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                    <YAxis type="category" dataKey="departamento" width={120} tick={{ fontSize: 11 }} />
-                    <RTooltip
-                      formatter={(v: number, _: string, entry: any) => [
-                        `${currency(v)} (${entry.payload.headcount} colab. | Per capita: ${currency(entry.payload.perCapita)})`,
-                        "Custo"
-                      ]}
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        fontSize: "0.75rem",
-                      }}
-                    />
-                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top 10 */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Top 10 — Maiores Custos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {topEmployees.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
-              ) : (
-                <div className="space-y-2">
-                  {topEmployees.map((emp, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b last:border-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">{i + 1}.</span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{emp.nome}</p>
-                          <p className="text-xs text-muted-foreground truncate">{emp.cargo} — {emp.departamento}</p>
-                        </div>
-                      </div>
-                      <span className="text-sm font-semibold tabular-nums shrink-0 ml-2">{currency(emp.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Custo por Departamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {deptCosts.filter(d => d.departamento !== "Diretoria").length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(200, deptCosts.filter(d => d.departamento !== "Diretoria").length * 40)}>
+                <BarChart data={deptCosts.filter(d => d.departamento !== "Diretoria")} layout="vertical" margin={{ left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                  <YAxis type="category" dataKey="departamento" width={120} tick={{ fontSize: 11 }} />
+                  <RTooltip
+                    formatter={(v: number, _: string, entry: any) => [
+                      `${currency(v)} (${entry.payload.headcount} colab. | Per capita: ${currency(entry.payload.perCapita)})`,
+                      "Custo"
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      fontSize: "0.75rem",
+                    }}
+                  />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Cost breakdown table */}
