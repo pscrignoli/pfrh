@@ -3,6 +3,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import type { Employee } from "@/hooks/useEmployees";
 import { EmployeeFormDialog } from "@/components/pessoas/EmployeeFormDialog";
 import { EmployeeDetailSheet } from "@/components/pessoas/EmployeeDetailSheet";
+import { EmployeeImportDialog } from "@/components/pessoas/EmployeeImportDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
-import { Plus, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
 
 const statusColors: Record<string, string> = {
@@ -48,10 +49,11 @@ export default function Pessoas() {
   const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
 
-  const { employees, departamentos, loading, createEmployee, updateEmployee } = useEmployees({
+  const { employees, departamentos, loading, createEmployee, updateEmployee, refetch } = useEmployees({
     search,
     status: statusFilter,
     departamento: deptFilter,
@@ -92,10 +94,16 @@ export default function Pessoas() {
             )}
           </p>
         </div>
-        <Button onClick={handleNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Colaborador
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Importar Colaboradores
+          </Button>
+          <Button onClick={handleNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Colaborador
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -238,6 +246,13 @@ export default function Pessoas() {
         open={!!detailEmployee}
         onClose={() => setDetailEmployee(null)}
         onEdit={handleEdit}
+      />
+
+      {/* Import Dialog */}
+      <EmployeeImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onComplete={refetch}
       />
     </div>
   );
