@@ -277,11 +277,25 @@ export default function SimuladorRescisao() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Salário Base</Label>
-                <Input type="number" value={salarioBase} onChange={(e) => setSalarioBase(Number(e.target.value))} />
+                <Input
+                  value={salarioBaseInput}
+                  onChange={(e) => {
+                    setSalarioBaseInput(e.target.value);
+                    setSalarioBase(parseNumBR(e.target.value));
+                  }}
+                  placeholder="0,00"
+                />
               </div>
               <div>
                 <Label className="text-xs">Saldo FGTS</Label>
-                <Input type="number" value={saldoFgts} onChange={(e) => setSaldoFgts(Number(e.target.value))} />
+                <Input
+                  value={saldoFgtsInput}
+                  onChange={(e) => {
+                    setSaldoFgtsInput(e.target.value);
+                    setSaldoFgts(parseNumBR(e.target.value));
+                  }}
+                  placeholder="0,00"
+                />
               </div>
             </div>
 
