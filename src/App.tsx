@@ -20,6 +20,7 @@ import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
+import Aniversariantes from "@/pages/Aniversariantes";
 
 import NotFound from "./pages/NotFound";
 
