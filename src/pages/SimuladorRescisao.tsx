@@ -95,7 +95,8 @@ export default function SimuladorRescisao() {
   const [mesesPA, setMesesPA] = useState(0);
   const [meses13, setMeses13] = useState(0);
   const [resultado, setResultado] = useState<RescisaoResult | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [salarioBaseInput, setSalarioBaseInput] = useState("");
+  const [saldoFgtsInput, setSaldoFgtsInput] = useState("");
 
   // Pre-select employee
   useEffect(() => {
