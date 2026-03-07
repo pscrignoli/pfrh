@@ -176,3 +176,15 @@
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
   }
 }
+
+/* Birthday card subtle confetti animation */
+@keyframes birthday-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.birthday-today-card {
+  background-size: 200% 200%;
+  animation: birthday-shimmer 6s ease infinite;
+}
