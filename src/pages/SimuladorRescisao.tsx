@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, Download, Save, ArrowUpRight, ArrowDownRight, History } from "lucide-react";
+import { Calculator, Download, ArrowUpRight, ArrowDownRight, History } from "lucide-react";
 import { format, differenceInMonths, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -41,6 +41,17 @@ const avisoOptions: Record<TipoRescisao, TipoAvisoPrevio[]> = {
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const fmtNum = (v: number) =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const parseNumBR = (s: string) => {
+  const cleaned = s.replace(/\./g, "").replace(",", ".");
+  return Number(cleaned) || 0;
+};
+
+const formatInputBR = (v: number) =>
+  v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
 function calcAutoFields(dataAdmissao: string, dataDemissao: string) {
   const adm = new Date(dataAdmissao + "T00:00:00");
@@ -84,7 +95,8 @@ export default function SimuladorRescisao() {
   const [mesesPA, setMesesPA] = useState(0);
   const [meses13, setMeses13] = useState(0);
   const [resultado, setResultado] = useState<RescisaoResult | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [salarioBaseInput, setSalarioBaseInput] = useState("");
+  const [saldoFgtsInput, setSaldoFgtsInput] = useState("");
 
   // Pre-select employee
   useEffect(() => {
@@ -97,7 +109,9 @@ export default function SimuladorRescisao() {
     const emp = employees.find((e) => e.id === id);
     if (!emp) return;
     setEmployeeId(id);
-    setSalarioBase(emp.salario_base ?? 0);
+    const sal = emp.salario_base ?? 0;
+    setSalarioBase(sal);
+    setSalarioBaseInput(formatInputBR(sal));
     setDataAdmissao(emp.data_admissao);
 
     const auto = calcAutoFields(emp.data_admissao, dataDemissao);
@@ -108,6 +122,7 @@ export default function SimuladorRescisao() {
     // Fetch FGTS
     const fgts = await fetchFgtsEstimado(id);
     setSaldoFgts(fgts);
+    setSaldoFgtsInput(formatInputBR(fgts));
   };
 
   // Recalc auto fields when dates change
@@ -149,17 +164,56 @@ export default function SimuladorRescisao() {
     setResultado(calcularRescisao(input));
   };
 
-  const handleSave = async () => {
-    if (!resultado) return;
-    setSaving(true);
-    try {
-      await salvarSimulacao(employeeId, tipoRescisao, dataDemissao, resultado);
-      toast.success("Simulação salva com sucesso!");
-    } catch (err: any) {
-      toast.error("Erro: " + err.message);
-    } finally {
-      setSaving(false);
-    }
+  const handleExportPDF = () => {
+    if (!resultado || !selectedEmp) return;
+    const lines = [
+      `SIMULAÇÃO DE RESCISÃO — ${selectedEmp.nome_completo}`,
+      `Data: ${format(new Date(), "dd/MM/yyyy")}`,
+      `Tipo: ${tipoRescisaoLabels[tipoRescisao]}`,
+      `Aviso Prévio: ${avisoPrevio}`,
+      `Salário Base: ${fmtBRL(salarioBase)}`,
+      `Admissão: ${dataAdmissao.split("-").reverse().join("/")}`,
+      `Demissão: ${dataDemissao.split("-").reverse().join("/")}`,
+      "",
+      "=== PROVENTOS ===",
+      `Saldo de Salário: ${fmtBRL(resultado.saldoSalario)}`,
+      resultado.avisoPrevioIndenizado > 0 ? `Aviso Prévio Indenizado (${resultado.diasAviso}d): ${fmtBRL(resultado.avisoPrevioIndenizado)}` : null,
+      `13º Proporcional: ${fmtBRL(resultado.decimoTerceiroProporcional)}`,
+      `Férias Proporcionais: ${fmtBRL(resultado.feriasProporcionais)}`,
+      `1/3 sobre Férias: ${fmtBRL(resultado.tercoFeriasProporcionais)}`,
+      resultado.feriasVencidas > 0 ? `Férias Vencidas: ${fmtBRL(resultado.feriasVencidas)}` : null,
+      resultado.tercoFeriasVencidas > 0 ? `1/3 sobre Férias Vencidas: ${fmtBRL(resultado.tercoFeriasVencidas)}` : null,
+      `TOTAL PROVENTOS: ${fmtBRL(resultado.totalProventos)}`,
+      "",
+      "=== DESCONTOS ===",
+      `INSS: ${fmtBRL(resultado.inssRescisao)}`,
+      `IRRF: ${fmtBRL(resultado.irrfRescisao)}`,
+      resultado.avisoPrevioDesconto > 0 ? `Aviso Prévio (desconto): ${fmtBRL(resultado.avisoPrevioDesconto)}` : null,
+      `TOTAL DESCONTOS: ${fmtBRL(resultado.totalDescontos)}`,
+      "",
+      `LÍQUIDO RESCISÃO: ${fmtBRL(resultado.liquidoRescisao)}`,
+      "",
+      "=== CUSTOS EMPRESA ===",
+      `Multa FGTS: ${fmtBRL(resultado.multaFgts)}`,
+      `INSS Patronal: ${fmtBRL(resultado.inssPatronal)}`,
+      `FGTS sobre Rescisão: ${fmtBRL(resultado.fgtsSobreRescisao)}`,
+      `CUSTO TOTAL EMPRESA: ${fmtBRL(resultado.custoTotalEmpresa)}`,
+      "",
+      "=== RESUMO COLABORADOR ===",
+      `Líquido Rescisão: ${fmtBRL(resultado.liquidoRescisao)}`,
+      `Saque FGTS: ${fmtBRL(resultado.saqueFgts)}`,
+      resultado.seguroDesempregoParcelas > 0 ? `Seguro Desemprego: ${resultado.seguroDesempregoParcelas}x ${fmtBRL(resultado.seguroDesempregoValor)}` : null,
+      `TOTAL RECEBIDO: ${fmtBRL(resultado.totalRecebido)}`,
+    ].filter(Boolean).join("\n");
+
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rescisao_${selectedEmp.nome_completo.replace(/\s/g, "_")}_${dataDemissao}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Relatório exportado!");
   };
 
   // Comparativo
@@ -226,11 +280,25 @@ export default function SimuladorRescisao() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Salário Base</Label>
-                <Input type="number" value={salarioBase} onChange={(e) => setSalarioBase(Number(e.target.value))} />
+                <Input
+                  value={salarioBaseInput}
+                  onChange={(e) => {
+                    setSalarioBaseInput(e.target.value);
+                    setSalarioBase(parseNumBR(e.target.value));
+                  }}
+                  placeholder="0,00"
+                />
               </div>
               <div>
                 <Label className="text-xs">Saldo FGTS</Label>
-                <Input type="number" value={saldoFgts} onChange={(e) => setSaldoFgts(Number(e.target.value))} />
+                <Input
+                  value={saldoFgtsInput}
+                  onChange={(e) => {
+                    setSaldoFgtsInput(e.target.value);
+                    setSaldoFgts(parseNumBR(e.target.value));
+                  }}
+                  placeholder="0,00"
+                />
               </div>
             </div>
 
@@ -403,11 +471,7 @@ export default function SimuladorRescisao() {
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-                  <Save className="h-4 w-4" />
-                  {saving ? "Salvando..." : "Salvar Simulação"}
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
                   <Download className="h-4 w-4" />
                   Exportar PDF
                 </Button>
