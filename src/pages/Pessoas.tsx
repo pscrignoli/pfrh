@@ -175,6 +175,20 @@ export default function Pessoas() {
             <SelectItem value="completo">Apenas completos</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={grauFilter ?? "all"} onValueChange={(v) => setGrauFilter(v === "all" ? null : v)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Formação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os níveis</SelectItem>
+            {Object.entries(grauLabels).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="icon" onClick={() => setShowFormacao((p) => !p)} title="Mostrar/ocultar coluna Formação">
+          <GraduationCap className={`h-4 w-4 ${showFormacao ? "text-primary" : ""}`} />
+        </Button>
       </div>
 
       {/* Table */}
