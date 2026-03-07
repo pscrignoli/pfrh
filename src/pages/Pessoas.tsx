@@ -247,6 +247,13 @@ export default function Pessoas() {
         onClose={() => setDetailEmployee(null)}
         onEdit={handleEdit}
       />
+
+      {/* Import Dialog */}
+      <EmployeeImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onComplete={refetch}
+      />
     </div>
   );
 }
