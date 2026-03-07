@@ -191,10 +191,25 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
             </CardContent>
           </Card>
 
-          <Button className="w-full" onClick={() => onEdit(employee)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Editar Colaborador
-          </Button>
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => onEdit(employee)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+            {employee.status === "ativo" && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  onClose();
+                  navigate(`/simulador-rescisao?employee=${employee.id}`);
+                }}
+              >
+                <Calculator className="h-4 w-4 mr-2" />
+                Simular Rescisão
+              </Button>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

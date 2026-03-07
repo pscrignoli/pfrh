@@ -69,7 +69,7 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha");
+  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha") || location.pathname === "/simulador-rescisao";
   const [folhaOpen, setFolhaOpen] = useState(folhaActive);
 
   return (
