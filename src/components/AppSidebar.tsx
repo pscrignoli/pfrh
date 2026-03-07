@@ -1,14 +1,18 @@
+import { useState } from "react";
 import {
   LayoutDashboard,
   Clock,
   Users,
   UserSearch,
-  DollarSign,
   Bot,
   Settings,
   LogOut,
   Shield,
   Cake,
+  FileSpreadsheet,
+  ChevronDown,
+  FileText,
+  BarChart3,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -25,6 +29,11 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard },
@@ -32,8 +41,12 @@ const mainItems = [
   { title: "Colaboradores", url: "/colaboradores", icon: Users },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
-  { title: "Fechamento da Folha", url: "/financeiro", icon: DollarSign },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
+];
+
+const folhaSubItems = [
+  { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText },
+  { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -51,6 +64,9 @@ export function AppSidebar() {
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha");
+  const [folhaOpen, setFolhaOpen] = useState(folhaActive);
 
   return (
     <Sidebar collapsible="icon">
@@ -85,6 +101,44 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Fechamento da Folha — collapsible */}
+              <SidebarMenuItem>
+                <Collapsible open={folhaOpen} onOpenChange={setFolhaOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip="Fechamento da Folha"
+                      isActive={folhaActive}
+                      className="justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        <span>Fechamento da Folha</span>
+                      </span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${folhaOpen ? "rotate-180" : ""}`} />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
+                      {folhaSubItems.map((sub) => (
+                        <SidebarMenuItem key={sub.url}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={location.pathname === sub.url}
+                            tooltip={sub.title}
+                            className="h-8 text-xs"
+                          >
+                            <NavLink to={sub.url}>
+                              <sub.icon className="h-3.5 w-3.5" />
+                              <span>{sub.title}</span>
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

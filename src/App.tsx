@@ -16,6 +16,7 @@ import Placeholder from "@/pages/Placeholder";
 import Presenca from "@/pages/Presenca";
 import Pessoas from "@/pages/Pessoas";
 import Financeiro from "@/pages/Financeiro";
+import CustoPessoal from "@/pages/CustoPessoal";
 import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
@@ -53,6 +54,7 @@ const App = () => (
                   <Route path="/aniversariantes" element={<Aniversariantes />} />
                   
                   <Route path="/financeiro" element={<Financeiro />} />
+                  <Route path="/folha/custo-pessoal" element={<CustoPessoal />} />
                   <Route path="/assistente" element={<Assistente />} />
                   <Route path="/configuracoes" element={<Configuracoes />} />
                   <Route path="/super-admin" element={<SuperAdmin />} />
