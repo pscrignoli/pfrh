@@ -3,6 +3,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import type { Employee } from "@/hooks/useEmployees";
 import { EmployeeFormDialog } from "@/components/pessoas/EmployeeFormDialog";
 import { EmployeeDetailSheet } from "@/components/pessoas/EmployeeDetailSheet";
+import { EmployeeImportDialog } from "@/components/pessoas/EmployeeImportDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
