@@ -161,17 +161,56 @@ export default function SimuladorRescisao() {
     setResultado(calcularRescisao(input));
   };
 
-  const handleSave = async () => {
-    if (!resultado) return;
-    setSaving(true);
-    try {
-      await salvarSimulacao(employeeId, tipoRescisao, dataDemissao, resultado);
-      toast.success("Simulação salva com sucesso!");
-    } catch (err: any) {
-      toast.error("Erro: " + err.message);
-    } finally {
-      setSaving(false);
-    }
+  const handleExportPDF = () => {
+    if (!resultado || !selectedEmp) return;
+    const lines = [
+      `SIMULAÇÃO DE RESCISÃO — ${selectedEmp.nome_completo}`,
+      `Data: ${format(new Date(), "dd/MM/yyyy")}`,
+      `Tipo: ${tipoRescisaoLabels[tipoRescisao]}`,
+      `Aviso Prévio: ${avisoPrevio}`,
+      `Salário Base: ${fmtBRL(salarioBase)}`,
+      `Admissão: ${dataAdmissao.split("-").reverse().join("/")}`,
+      `Demissão: ${dataDemissao.split("-").reverse().join("/")}`,
+      "",
+      "=== PROVENTOS ===",
+      `Saldo de Salário: ${fmtBRL(resultado.saldoSalario)}`,
+      resultado.avisoPrevioIndenizado > 0 ? `Aviso Prévio Indenizado (${resultado.diasAviso}d): ${fmtBRL(resultado.avisoPrevioIndenizado)}` : null,
+      `13º Proporcional: ${fmtBRL(resultado.decimoTerceiroProporcional)}`,
+      `Férias Proporcionais: ${fmtBRL(resultado.feriasProporcionais)}`,
+      `1/3 sobre Férias: ${fmtBRL(resultado.tercoFeriasProporcionais)}`,
+      resultado.feriasVencidas > 0 ? `Férias Vencidas: ${fmtBRL(resultado.feriasVencidas)}` : null,
+      resultado.tercoFeriasVencidas > 0 ? `1/3 sobre Férias Vencidas: ${fmtBRL(resultado.tercoFeriasVencidas)}` : null,
+      `TOTAL PROVENTOS: ${fmtBRL(resultado.totalProventos)}`,
+      "",
+      "=== DESCONTOS ===",
+      `INSS: ${fmtBRL(resultado.inssRescisao)}`,
+      `IRRF: ${fmtBRL(resultado.irrfRescisao)}`,
+      resultado.avisoPrevioDesconto > 0 ? `Aviso Prévio (desconto): ${fmtBRL(resultado.avisoPrevioDesconto)}` : null,
+      `TOTAL DESCONTOS: ${fmtBRL(resultado.totalDescontos)}`,
+      "",
+      `LÍQUIDO RESCISÃO: ${fmtBRL(resultado.liquidoRescisao)}`,
+      "",
+      "=== CUSTOS EMPRESA ===",
+      `Multa FGTS: ${fmtBRL(resultado.multaFgts)}`,
+      `INSS Patronal: ${fmtBRL(resultado.inssPatronal)}`,
+      `FGTS sobre Rescisão: ${fmtBRL(resultado.fgtsSobreRescisao)}`,
+      `CUSTO TOTAL EMPRESA: ${fmtBRL(resultado.custoTotalEmpresa)}`,
+      "",
+      "=== RESUMO COLABORADOR ===",
+      `Líquido Rescisão: ${fmtBRL(resultado.liquidoRescisao)}`,
+      `Saque FGTS: ${fmtBRL(resultado.saqueFgts)}`,
+      resultado.seguroDesempregoParcelas > 0 ? `Seguro Desemprego: ${resultado.seguroDesempregoParcelas}x ${fmtBRL(resultado.seguroDesempregoValor)}` : null,
+      `TOTAL RECEBIDO: ${fmtBRL(resultado.totalRecebido)}`,
+    ].filter(Boolean).join("\n");
+
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rescisao_${selectedEmp.nome_completo.replace(/\s/g, "_")}_${dataDemissao}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Relatório exportado!");
   };
 
   // Comparativo
