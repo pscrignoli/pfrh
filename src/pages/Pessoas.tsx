@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
-import { Plus, Search, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
 
 const statusColors: Record<string, string> = {
