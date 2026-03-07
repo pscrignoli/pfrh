@@ -80,30 +80,57 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
+  const getDefaults = (emp: Employee | null | undefined): FormValues => {
+    if (emp) {
+      return {
+        nome_completo: emp.nome_completo ?? "",
+        numero_cpf: emp.numero_cpf ?? "",
+        data_nascimento: emp.data_nascimento ?? "",
+        numero_rg: emp.numero_rg ?? "",
+        genero: emp.genero ?? "",
+        telefone: emp.telefone ?? "",
+        email_holerite: emp.email_holerite ?? "",
+        nome_contato_emergencia: emp.nome_contato_emergencia ?? "",
+        grau_parentesco: emp.grau_parentesco ?? "",
+        telefone_emergencia: emp.telefone_emergencia ?? "",
+        empresa: emp.empresa ?? "",
+        departamento: emp.departamento ?? "",
+        cargo: emp.cargo ?? "",
+        matricula_interna: emp.matricula_interna ?? "",
+        matricula_esocial: emp.matricula_esocial ?? "",
+        data_admissao: emp.data_admissao,
+        ctps: emp.ctps ?? "",
+        numero_pis_nit: emp.numero_pis_nit ?? "",
+        tipo_contrato: emp.tipo_contrato ?? "clt",
+        jornada_semanal: emp.jornada_semanal ? Number(emp.jornada_semanal) : 44,
+        status: emp.status ?? "ativo",
+        formacao_academica: emp.formacao_academica ?? "",
+        grau_escolaridade: emp.grau_escolaridade ?? "",
+        cursando: emp.cursando ?? false,
+      };
+    }
+    return {
+      nome_completo: "",
+      numero_cpf: "",
+      data_admissao: new Date().toISOString().split("T")[0],
+      tipo_contrato: "clt",
+      status: "ativo",
+      jornada_semanal: 44,
+      cursando: false,
+    };
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: employee
-      ? {
-          ...employee,
-          data_nascimento: employee.data_nascimento ?? "",
-          data_admissao: employee.data_admissao,
-          jornada_semanal: employee.jornada_semanal ? Number(employee.jornada_semanal) : 44,
-          email_holerite: employee.email_holerite ?? "",
-          formacao_academica: employee.formacao_academica ?? "",
-          grau_escolaridade: employee.grau_escolaridade ?? "",
-          cursando: employee.cursando ?? false,
-        }
-      : {
-          nome_completo: "",
-          numero_cpf: "",
-          data_admissao: new Date().toISOString().split("T")[0],
-          tipo_contrato: "clt",
-          status: "ativo",
-          jornada_semanal: 44,
-          cursando: false,
-        },
+    defaultValues: getDefaults(employee),
   });
 
+  useEffect(() => {
+    if (open) {
+      form.reset(getDefaults(employee));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, employee]);
   const onSubmit = async (values: FormValues) => {
     try {
       const payload = {
