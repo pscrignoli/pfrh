@@ -133,10 +133,11 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="pessoais" className="w-full">
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-4">
                 <TabsTrigger value="pessoais">Dados Pessoais</TabsTrigger>
-                <TabsTrigger value="contato">Contato / Emergência</TabsTrigger>
-                <TabsTrigger value="contrato">Contrato / Admissão</TabsTrigger>
+                <TabsTrigger value="contato">Contato</TabsTrigger>
+                <TabsTrigger value="contrato">Contrato</TabsTrigger>
+                <TabsTrigger value="formacao">Formação</TabsTrigger>
               </TabsList>
 
               {/* Tab 1 - Personal */}
