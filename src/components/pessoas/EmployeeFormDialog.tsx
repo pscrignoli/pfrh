@@ -54,6 +54,9 @@ const schema = z.object({
   tipo_contrato: z.string().default("clt"),
   jornada_semanal: z.coerce.number().optional().nullable(),
   status: z.string().default("ativo"),
+  formacao_academica: z.string().optional().nullable(),
+  grau_escolaridade: z.string().optional().nullable(),
+  cursando: z.boolean().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
