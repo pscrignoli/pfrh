@@ -42,6 +42,7 @@ const mainItems = [
   { title: "Colaboradores", url: "/colaboradores", icon: Users },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
+  { title: "Férias", url: "/ferias", icon: Palmtree },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
 ];
 
