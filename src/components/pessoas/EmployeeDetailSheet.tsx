@@ -53,6 +53,7 @@ interface Props {
 }
 
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
+  const navigate = useNavigate();
   if (!employee) return null;
 
   const ext = employee as any;
