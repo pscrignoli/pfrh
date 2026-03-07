@@ -14,6 +14,7 @@ import {
   FileText,
   BarChart3,
   Palmtree,
+  Calculator,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
