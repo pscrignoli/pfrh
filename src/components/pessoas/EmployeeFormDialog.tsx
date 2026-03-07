@@ -89,6 +89,9 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
           data_admissao: employee.data_admissao,
           jornada_semanal: employee.jornada_semanal ? Number(employee.jornada_semanal) : 44,
           email_holerite: employee.email_holerite ?? "",
+          formacao_academica: employee.formacao_academica ?? "",
+          grau_escolaridade: employee.grau_escolaridade ?? "",
+          cursando: employee.cursando ?? false,
         }
       : {
           nome_completo: "",
@@ -97,6 +100,7 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
           tipo_contrato: "clt",
           status: "ativo",
           jornada_semanal: 44,
+          cursando: false,
         },
   });
 
