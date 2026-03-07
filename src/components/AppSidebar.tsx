@@ -30,6 +30,7 @@ const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard },
   { title: "Presença e Jornada", url: "/presenca", icon: Clock },
   { title: "Colaboradores", url: "/colaboradores", icon: Users },
+  { title: "Aniversariantes", url: "/aniversariantes", icon: Cake },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
   { title: "Fechamento da Folha", url: "/financeiro", icon: DollarSign },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },

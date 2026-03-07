@@ -80,7 +80,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts */}
+      {/* Charts + Birthday Widget */}
       <div className="grid gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
@@ -95,7 +95,14 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-4">
+          <BirthdayWidget />
+        </div>
+      </div>
+
+      {/* Cost Distribution */}
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle className="text-base">Distribuição de Custos</CardTitle>
           </CardHeader>
