@@ -14,11 +14,23 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+
+const GRAU_OPTIONS = [
+  { value: "ensino_medio", label: "Ensino Médio" },
+  { value: "tecnico", label: "Técnico" },
+  { value: "superior", label: "Superior" },
+  { value: "pos_mba", label: "Pós/MBA" },
+  { value: "mestrado", label: "Mestrado" },
+  { value: "doutorado", label: "Doutorado" },
+  { value: "pos_doutorado", label: "Pós Doutorado" },
+];
 
 const schema = z.object({
   nome_completo: z.string().trim().min(1, "Nome é obrigatório").max(200),
