@@ -94,10 +94,16 @@ export default function Pessoas() {
             )}
           </p>
         </div>
-        <Button onClick={handleNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Colaborador
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Importar Colaboradores
+          </Button>
+          <Button onClick={handleNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Colaborador
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
