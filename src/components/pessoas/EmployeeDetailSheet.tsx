@@ -1,12 +1,18 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Employee } from "@/hooks/useEmployees";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator, Trash2 } from "lucide-react";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
@@ -50,10 +56,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onEdit: (emp: Employee) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
-export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
+export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
   if (!employee) return null;
 
   const ext = employee as any;
@@ -210,6 +218,41 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
               </Button>
             )}
           </div>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+                <Trash2 className="h-4 w-4" />
+                Excluir Colaborador
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir colaborador?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir <strong>{employee.nome_completo}</strong>? Esta ação é irreversível e removerá todos os dados associados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      await onDelete(employee.id);
+                      onClose();
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                >
+                  {deleting ? "Excluindo..." : "Excluir"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SheetContent>
     </Sheet>

@@ -75,7 +75,7 @@ export default function Pessoas() {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
 
-  const { employees, departamentos, loading, createEmployee, updateEmployee, refetch } = useEmployees({
+  const { employees, departamentos, loading, createEmployee, updateEmployee, deleteEmployee, refetch } = useEmployees({
     search,
     status: statusFilter,
     departamento: deptFilter,
@@ -305,6 +305,10 @@ export default function Pessoas() {
         open={!!detailEmployee}
         onClose={() => setDetailEmployee(null)}
         onEdit={handleEdit}
+        onDelete={async (id) => {
+          await deleteEmployee(id);
+          setDetailEmployee(null);
+        }}
       />
 
       {/* Import Dialog */}
