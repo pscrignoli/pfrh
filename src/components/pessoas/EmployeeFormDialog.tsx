@@ -330,6 +330,46 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
                   )} />
                 </div>
               </TabsContent>
+
+              {/* Tab 4 - Education */}
+              <TabsContent value="formacao" className="space-y-4 mt-4">
+                <FormField control={form.control} name="grau_escolaridade" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Grau de Escolaridade</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {GRAU_OPTIONS.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="formacao_academica" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Formação Acadêmica</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Ex: Bacharel em Administração / Pós em Gestão de Pessoas"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cursando" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Cursando atualmente</FormLabel>
+                  </FormItem>
+                )} />
+              </TabsContent>
             </Tabs>
 
             <div className="flex justify-end gap-3 pt-2">

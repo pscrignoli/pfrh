@@ -143,6 +143,38 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Formação Acadêmica
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {ext.grau_escolaridade ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className={`border-0 ${grauColors[ext.grau_escolaridade] ?? ""}`}>
+                    {grauLabels[ext.grau_escolaridade] ?? ext.grau_escolaridade}
+                  </Badge>
+                  {ext.cursando && (
+                    <Badge variant="secondary" className="border-0 bg-yellow-100 text-yellow-700">
+                      Cursando
+                    </Badge>
+                  )}
+                </div>
+              ) : null}
+              {ext.formacao_academica ? (
+                <div className="space-y-1">
+                  {String(ext.formacao_academica).split("/").map((part: string, i: number) => (
+                    <p key={i} className="text-sm">{part.trim()}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Não informada</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="border-dashed">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">

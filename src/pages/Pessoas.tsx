@@ -279,7 +279,7 @@ export default function Pessoas() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={showFormacao ? 8 : 7} className="text-center text-muted-foreground py-12">
                       Nenhum colaborador encontrado.
                     </TableCell>
                   </TableRow>
