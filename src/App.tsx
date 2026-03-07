@@ -18,6 +18,7 @@ import Pessoas from "@/pages/Pessoas";
 import Financeiro from "@/pages/Financeiro";
 import CustoPessoal from "@/pages/CustoPessoal";
 import Ferias from "@/pages/Ferias";
+import SimuladorRescisao from "@/pages/SimuladorRescisao";
 import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
@@ -57,6 +58,7 @@ const App = () => (
                   <Route path="/financeiro" element={<Financeiro />} />
                   <Route path="/folha/custo-pessoal" element={<CustoPessoal />} />
                   <Route path="/ferias" element={<Ferias />} />
+                  <Route path="/simulador-rescisao" element={<SimuladorRescisao />} />
                   <Route path="/assistente" element={<Assistente />} />
                   <Route path="/configuracoes" element={<Configuracoes />} />
                   <Route path="/super-admin" element={<SuperAdmin />} />

@@ -14,6 +14,7 @@ import {
   FileText,
   BarChart3,
   Palmtree,
+  Calculator,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -49,6 +50,7 @@ const mainItems = [
 const folhaSubItems = [
   { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText },
   { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3 },
+  { title: "Simulador Rescisão", url: "/simulador-rescisao", icon: Calculator },
 ];
 
 export function AppSidebar() {
@@ -67,7 +69,7 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha");
+  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha") || location.pathname === "/simulador-rescisao";
   const [folhaOpen, setFolhaOpen] = useState(folhaActive);
 
   return (

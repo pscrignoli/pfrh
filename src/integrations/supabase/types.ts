@@ -985,6 +985,57 @@ export type Database = {
           },
         ]
       }
+      rescisao_simulacoes: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          data_demissao: string
+          data_simulacao: string
+          employee_id: string
+          id: string
+          simulado_por: string | null
+          tipo_rescisao: string
+          valores_json: Json
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          data_demissao: string
+          data_simulacao?: string
+          employee_id: string
+          id?: string
+          simulado_por?: string | null
+          tipo_rescisao: string
+          valores_json?: Json
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          data_demissao?: string
+          data_simulacao?: string
+          employee_id?: string
+          id?: string
+          simulado_por?: string | null
+          tipo_rescisao?: string
+          valores_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescisao_simulacoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescisao_simulacoes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           id: string

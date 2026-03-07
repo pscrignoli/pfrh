@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { Employee } from "@/hooks/useEmployees";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -5,7 +6,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator } from "lucide-react";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
@@ -52,6 +53,7 @@ interface Props {
 }
 
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
+  const navigate = useNavigate();
   if (!employee) return null;
 
   const ext = employee as any;
@@ -189,10 +191,25 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
             </CardContent>
           </Card>
 
-          <Button className="w-full" onClick={() => onEdit(employee)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Editar Colaborador
-          </Button>
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => onEdit(employee)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+            {employee.status === "ativo" && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  onClose();
+                  navigate(`/simulador-rescisao?employee=${employee.id}`);
+                }}
+              >
+                <Calculator className="h-4 w-4 mr-2" />
+                Simular Rescisão
+              </Button>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
