@@ -53,7 +53,7 @@ export default function Pessoas() {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
 
-  const { employees, departamentos, loading, createEmployee, updateEmployee } = useEmployees({
+  const { employees, departamentos, loading, createEmployee, updateEmployee, refetch } = useEmployees({
     search,
     status: statusFilter,
     departamento: deptFilter,
