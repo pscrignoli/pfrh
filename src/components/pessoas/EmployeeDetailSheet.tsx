@@ -56,6 +56,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onEdit: (emp: Employee) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
