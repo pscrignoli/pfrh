@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2, RefreshCw, Sparkles } from "lucide-react";
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
