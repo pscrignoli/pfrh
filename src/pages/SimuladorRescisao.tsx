@@ -122,6 +122,7 @@ export default function SimuladorRescisao() {
     // Fetch FGTS
     const fgts = await fetchFgtsEstimado(id);
     setSaldoFgts(fgts);
+    setSaldoFgtsInput(formatInputBR(fgts));
   };
 
   // Recalc auto fields when dates change
