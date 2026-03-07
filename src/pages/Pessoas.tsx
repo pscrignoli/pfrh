@@ -18,8 +18,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
-import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet, GraduationCap } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
+
+const grauLabels: Record<string, string> = {
+  ensino_medio: "Ensino Médio",
+  tecnico: "Técnico",
+  superior: "Superior",
+  pos_mba: "Pós/MBA",
+  mestrado: "Mestrado",
+  doutorado: "Doutorado",
+  pos_doutorado: "Pós Doutorado",
+};
+
+const grauBadgeColors: Record<string, string> = {
+  ensino_medio: "bg-muted text-muted-foreground",
+  tecnico: "bg-cyan-100 text-cyan-700",
+  superior: "bg-green-100 text-green-700",
+  pos_mba: "bg-blue-100 text-blue-700",
+  mestrado: "bg-purple-100 text-purple-700",
+  doutorado: "bg-amber-100 text-amber-800",
+  pos_doutorado: "bg-amber-50 text-amber-900 border border-amber-300",
+};
 
 const statusColors: Record<string, string> = {
   ativo: "bg-success text-success-foreground",
