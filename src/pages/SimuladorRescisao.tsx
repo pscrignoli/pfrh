@@ -471,11 +471,7 @@ export default function SimuladorRescisao() {
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-                  <Save className="h-4 w-4" />
-                  {saving ? "Salvando..." : "Salvar Simulação"}
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
                   <Download className="h-4 w-4" />
                   Exportar PDF
                 </Button>
