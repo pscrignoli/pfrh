@@ -49,6 +49,7 @@ export default function Pessoas() {
   const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
 
