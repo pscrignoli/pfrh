@@ -5,7 +5,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap } from "lucide-react";
+
+const grauLabels: Record<string, string> = {
+  ensino_medio: "Ensino Médio",
+  tecnico: "Técnico",
+  superior: "Superior",
+  pos_mba: "Pós/MBA",
+  mestrado: "Mestrado",
+  doutorado: "Doutorado",
+  pos_doutorado: "Pós Doutorado",
+};
+
+const grauColors: Record<string, string> = {
+  ensino_medio: "bg-muted text-muted-foreground",
+  tecnico: "bg-cyan-100 text-cyan-700",
+  superior: "bg-green-100 text-green-700",
+  pos_mba: "bg-blue-100 text-blue-700",
+  mestrado: "bg-purple-100 text-purple-700",
+  doutorado: "bg-amber-100 text-amber-800",
+  pos_doutorado: "bg-amber-50 text-amber-900 border border-amber-300",
+};
 
 const statusColors: Record<string, string> = {
   ativo: "bg-success text-success-foreground",
@@ -120,6 +140,38 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) 
               <Field label="Nome" value={employee.nome_contato_emergencia} />
               <Field label="Parentesco" value={employee.grau_parentesco} />
               <Field label="Telefone" value={employee.telefone_emergencia} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Formação Acadêmica
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {ext.grau_escolaridade ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className={`border-0 ${grauColors[ext.grau_escolaridade] ?? ""}`}>
+                    {grauLabels[ext.grau_escolaridade] ?? ext.grau_escolaridade}
+                  </Badge>
+                  {ext.cursando && (
+                    <Badge variant="secondary" className="border-0 bg-yellow-100 text-yellow-700">
+                      Cursando
+                    </Badge>
+                  )}
+                </div>
+              ) : null}
+              {ext.formacao_academica ? (
+                <div className="space-y-1">
+                  {String(ext.formacao_academica).split("/").map((part: string, i: number) => (
+                    <p key={i} className="text-sm">{part.trim()}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Não informada</p>
+              )}
             </CardContent>
           </Card>
 

@@ -18,8 +18,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
-import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet, GraduationCap } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
+
+const grauLabels: Record<string, string> = {
+  ensino_medio: "Ensino Médio",
+  tecnico: "Técnico",
+  superior: "Superior",
+  pos_mba: "Pós/MBA",
+  mestrado: "Mestrado",
+  doutorado: "Doutorado",
+  pos_doutorado: "Pós Doutorado",
+};
+
+const grauBadgeColors: Record<string, string> = {
+  ensino_medio: "bg-muted text-muted-foreground",
+  tecnico: "bg-cyan-100 text-cyan-700",
+  superior: "bg-green-100 text-green-700",
+  pos_mba: "bg-blue-100 text-blue-700",
+  mestrado: "bg-purple-100 text-purple-700",
+  doutorado: "bg-amber-100 text-amber-800",
+  pos_doutorado: "bg-amber-50 text-amber-900 border border-amber-300",
+};
 
 const statusColors: Record<string, string> = {
   ativo: "bg-success text-success-foreground",
@@ -47,6 +67,8 @@ export default function Pessoas() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
+  const [grauFilter, setGrauFilter] = useState<string | null>(null);
+  const [showFormacao, setShowFormacao] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -59,13 +81,17 @@ export default function Pessoas() {
     departamento: deptFilter,
   });
 
-  // Client-side filter for cadastro_completo
-  const filteredEmployees = cadastroFilter === null
-    ? employees
-    : employees.filter((emp) => {
-        const isComplete = (emp as any).cadastro_completo === true;
-        return cadastroFilter === "completo" ? isComplete : !isComplete;
-      });
+  // Client-side filters
+  const filteredEmployees = employees.filter((emp) => {
+    if (cadastroFilter !== null) {
+      const isComplete = (emp as any).cadastro_completo === true;
+      if (cadastroFilter === "completo" ? !isComplete : isComplete) return false;
+    }
+    if (grauFilter !== null) {
+      if ((emp as any).grau_escolaridade !== grauFilter) return false;
+    }
+    return true;
+  });
 
   const incompleteCount = employees.filter((emp) => !(emp as any).cadastro_completo).length;
 
@@ -149,6 +175,20 @@ export default function Pessoas() {
             <SelectItem value="completo">Apenas completos</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={grauFilter ?? "all"} onValueChange={(v) => setGrauFilter(v === "all" ? null : v)}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Formação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os níveis</SelectItem>
+            {Object.entries(grauLabels).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="icon" onClick={() => setShowFormacao((p) => !p)} title="Mostrar/ocultar coluna Formação">
+          <GraduationCap className={`h-4 w-4 ${showFormacao ? "text-primary" : ""}`} />
+        </Button>
       </div>
 
       {/* Table */}
@@ -164,6 +204,7 @@ export default function Pessoas() {
                   <TableHead>Departamento</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Status</TableHead>
+                  {showFormacao && <TableHead>Formação</TableHead>}
                   <TableHead className="w-[100px]">Cadastro</TableHead>
                 </TableRow>
               </TableHeader>
@@ -194,6 +235,24 @@ export default function Pessoas() {
                             {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
                           </Badge>
                         </TableCell>
+                        {showFormacao && (
+                          <TableCell>
+                            {(emp as any).grau_escolaridade ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="secondary" className={`border-0 cursor-help ${grauBadgeColors[(emp as any).grau_escolaridade] ?? ""}`}>
+                                    {grauLabels[(emp as any).grau_escolaridade] ?? (emp as any).grau_escolaridade}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs">
+                                  <p className="text-xs">{(emp as any).formacao_academica || "Sem detalhes"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {isComplete ? (
                             <Badge variant="secondary" className="border-0 bg-success/10 text-success gap-1">
@@ -220,7 +279,7 @@ export default function Pessoas() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={showFormacao ? 8 : 7} className="text-center text-muted-foreground py-12">
                       Nenhum colaborador encontrado.
                     </TableCell>
                   </TableRow>

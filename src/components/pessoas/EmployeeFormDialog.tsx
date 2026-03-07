@@ -14,11 +14,23 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+
+const GRAU_OPTIONS = [
+  { value: "ensino_medio", label: "Ensino Médio" },
+  { value: "tecnico", label: "Técnico" },
+  { value: "superior", label: "Superior" },
+  { value: "pos_mba", label: "Pós/MBA" },
+  { value: "mestrado", label: "Mestrado" },
+  { value: "doutorado", label: "Doutorado" },
+  { value: "pos_doutorado", label: "Pós Doutorado" },
+];
 
 const schema = z.object({
   nome_completo: z.string().trim().min(1, "Nome é obrigatório").max(200),
@@ -42,6 +54,9 @@ const schema = z.object({
   tipo_contrato: z.string().default("clt"),
   jornada_semanal: z.coerce.number().optional().nullable(),
   status: z.string().default("ativo"),
+  formacao_academica: z.string().optional().nullable(),
+  grau_escolaridade: z.string().optional().nullable(),
+  cursando: z.boolean().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -74,6 +89,9 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
           data_admissao: employee.data_admissao,
           jornada_semanal: employee.jornada_semanal ? Number(employee.jornada_semanal) : 44,
           email_holerite: employee.email_holerite ?? "",
+          formacao_academica: employee.formacao_academica ?? "",
+          grau_escolaridade: employee.grau_escolaridade ?? "",
+          cursando: employee.cursando ?? false,
         }
       : {
           nome_completo: "",
@@ -82,6 +100,7 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
           tipo_contrato: "clt",
           status: "ativo",
           jornada_semanal: 44,
+          cursando: false,
         },
   });
 
@@ -118,10 +137,11 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="pessoais" className="w-full">
-              <TabsList className="w-full grid grid-cols-3">
+              <TabsList className="w-full grid grid-cols-4">
                 <TabsTrigger value="pessoais">Dados Pessoais</TabsTrigger>
-                <TabsTrigger value="contato">Contato / Emergência</TabsTrigger>
-                <TabsTrigger value="contrato">Contrato / Admissão</TabsTrigger>
+                <TabsTrigger value="contato">Contato</TabsTrigger>
+                <TabsTrigger value="contrato">Contrato</TabsTrigger>
+                <TabsTrigger value="formacao">Formação</TabsTrigger>
               </TabsList>
 
               {/* Tab 1 - Personal */}
@@ -313,6 +333,46 @@ export function EmployeeFormDialog({ open, onClose, employee, onSave, onUpdate }
                     </FormItem>
                   )} />
                 </div>
+              </TabsContent>
+
+              {/* Tab 4 - Education */}
+              <TabsContent value="formacao" className="space-y-4 mt-4">
+                <FormField control={form.control} name="grau_escolaridade" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Grau de Escolaridade</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {GRAU_OPTIONS.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="formacao_academica" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Formação Acadêmica</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Ex: Bacharel em Administração / Pós em Gestão de Pessoas"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cursando" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Cursando atualmente</FormLabel>
+                  </FormItem>
+                )} />
               </TabsContent>
             </Tabs>
 

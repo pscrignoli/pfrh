@@ -5,6 +5,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { PayrollEvolutionChart } from "@/components/dashboard/PayrollEvolutionChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
 import { BirthdayWidget } from "@/components/dashboard/BirthdayWidget";
+import { AcademicProfileWidget } from "@/components/dashboard/AcademicProfileWidget";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -97,6 +98,7 @@ export default function Dashboard() {
 
         <div className="lg:col-span-3 space-y-4">
           <BirthdayWidget />
+          <AcademicProfileWidget />
         </div>
       </div>
 
