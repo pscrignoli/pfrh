@@ -1,14 +1,18 @@
+import { useState } from "react";
 import {
   LayoutDashboard,
   Clock,
   Users,
   UserSearch,
-  DollarSign,
   Bot,
   Settings,
   LogOut,
   Shield,
   Cake,
+  FileSpreadsheet,
+  ChevronDown,
+  FileText,
+  BarChart3,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -25,6 +29,11 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard },
@@ -32,8 +41,12 @@ const mainItems = [
   { title: "Colaboradores", url: "/colaboradores", icon: Users },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
-  { title: "Fechamento da Folha", url: "/financeiro", icon: DollarSign },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
+];
+
+const folhaSubItems = [
+  { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText },
+  { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
