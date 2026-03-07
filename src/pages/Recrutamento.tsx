@@ -457,6 +457,8 @@ export default function Recrutamento() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <JobDescriptionGenerator open={generatorOpen} onClose={() => setGeneratorOpen(false)} />
     </div>
   );
 }
