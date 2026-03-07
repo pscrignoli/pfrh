@@ -236,6 +236,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           ctps: string | null
+          cursando: boolean | null
           data_admissao: string
           data_demissao: string | null
           data_nascimento: string | null
@@ -245,7 +246,9 @@ export type Database = {
           email_holerite: string | null
           empregare_pessoa_id: number | null
           empresa: string | null
+          formacao_academica: string | null
           genero: Database["public"]["Enums"]["gender_type"] | null
+          grau_escolaridade: string | null
           grau_parentesco: string | null
           id: string
           jornada_semanal: number | null
@@ -273,6 +276,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           ctps?: string | null
+          cursando?: boolean | null
           data_admissao: string
           data_demissao?: string | null
           data_nascimento?: string | null
@@ -282,7 +286,9 @@ export type Database = {
           email_holerite?: string | null
           empregare_pessoa_id?: number | null
           empresa?: string | null
+          formacao_academica?: string | null
           genero?: Database["public"]["Enums"]["gender_type"] | null
+          grau_escolaridade?: string | null
           grau_parentesco?: string | null
           id?: string
           jornada_semanal?: number | null
@@ -310,6 +316,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           ctps?: string | null
+          cursando?: boolean | null
           data_admissao?: string
           data_demissao?: string | null
           data_nascimento?: string | null
@@ -319,7 +326,9 @@ export type Database = {
           email_holerite?: string | null
           empregare_pessoa_id?: number | null
           empresa?: string | null
+          formacao_academica?: string | null
           genero?: Database["public"]["Enums"]["gender_type"] | null
+          grau_escolaridade?: string | null
           grau_parentesco?: string | null
           id?: string
           jornada_semanal?: number | null
