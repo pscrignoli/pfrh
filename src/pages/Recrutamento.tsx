@@ -161,6 +161,7 @@ export default function Recrutamento() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
 
   useEffect(() => {
     resetDialog();
