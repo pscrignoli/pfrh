@@ -109,7 +109,9 @@ export default function SimuladorRescisao() {
     const emp = employees.find((e) => e.id === id);
     if (!emp) return;
     setEmployeeId(id);
-    setSalarioBase(emp.salario_base ?? 0);
+    const sal = emp.salario_base ?? 0;
+    setSalarioBase(sal);
+    setSalarioBaseInput(formatInputBR(sal));
     setDataAdmissao(emp.data_admissao);
 
     const auto = calcAutoFields(emp.data_admissao, dataDemissao);
