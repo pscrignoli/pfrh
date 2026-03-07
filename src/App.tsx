@@ -18,6 +18,7 @@ import Pessoas from "@/pages/Pessoas";
 import Financeiro from "@/pages/Financeiro";
 import CustoPessoal from "@/pages/CustoPessoal";
 import Ferias from "@/pages/Ferias";
+import SimuladorRescisao from "@/pages/SimuladorRescisao";
 import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
