@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { Employee } from "@/hooks/useEmployees";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -5,7 +6,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator } from "lucide-react";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
