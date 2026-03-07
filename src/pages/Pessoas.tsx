@@ -235,6 +235,24 @@ export default function Pessoas() {
                             {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
                           </Badge>
                         </TableCell>
+                        {showFormacao && (
+                          <TableCell>
+                            {(emp as any).grau_escolaridade ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="secondary" className={`border-0 cursor-help ${grauBadgeColors[(emp as any).grau_escolaridade] ?? ""}`}>
+                                    {grauLabels[(emp as any).grau_escolaridade] ?? (emp as any).grau_escolaridade}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs">
+                                  <p className="text-xs">{(emp as any).formacao_academica || "Sem detalhes"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>
                           {isComplete ? (
                             <Badge variant="secondary" className="border-0 bg-success/10 text-success gap-1">
