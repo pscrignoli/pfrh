@@ -624,6 +624,87 @@ export type Database = {
           },
         ]
       }
+      ferias: {
+        Row: {
+          abono_pecuniario: boolean
+          adiantamento_13: boolean
+          company_id: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string | null
+          dias_abono: number
+          dias_gozo: number
+          employee_id: string
+          id: string
+          observacao: string | null
+          periodo_aquisitivo_fim: string
+          periodo_aquisitivo_inicio: string
+          status: string
+          updated_at: string
+          valor_bruto: number | null
+          valor_inss: number | null
+          valor_irrf: number | null
+          valor_liquido: number | null
+        }
+        Insert: {
+          abono_pecuniario?: boolean
+          adiantamento_13?: boolean
+          company_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          dias_abono?: number
+          dias_gozo?: number
+          employee_id: string
+          id?: string
+          observacao?: string | null
+          periodo_aquisitivo_fim: string
+          periodo_aquisitivo_inicio: string
+          status?: string
+          updated_at?: string
+          valor_bruto?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_liquido?: number | null
+        }
+        Update: {
+          abono_pecuniario?: boolean
+          adiantamento_13?: boolean
+          company_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          dias_abono?: number
+          dias_gozo?: number
+          employee_id?: string
+          id?: string
+          observacao?: string | null
+          periodo_aquisitivo_fim?: string
+          periodo_aquisitivo_inicio?: string
+          status?: string
+          updated_at?: string
+          valor_bruto?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_liquido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ferias_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ferias_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_logs: {
         Row: {
           company_id: string | null
