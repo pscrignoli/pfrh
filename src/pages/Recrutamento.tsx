@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2, RefreshCw, Sparkles } from "lucide-react";
 import { exportCandidatesExcel } from "@/utils/exportCandidatesExcel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import RecrutamentoStats from "@/components/recrutamento/RecrutamentoStats";
 import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
+import { JobDescriptionGenerator } from "@/components/recrutamento/JobDescriptionGenerator";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
 
 // ── Local vacancy components (kept from original) ──
@@ -160,6 +161,7 @@ export default function Recrutamento() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteTargetTitle, setDeleteTargetTitle] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
 
   useEffect(() => {
     resetDialog();
@@ -284,6 +286,9 @@ export default function Recrutamento() {
             className="transition-all duration-300 hover:border-primary/40">
             <RefreshCw className={cn("h-4 w-4 mr-1.5", syncing && "animate-spin")} />
             {syncing ? "Sincronizando..." : "Sincronizar"}
+          </Button>
+          <Button variant="outline" onClick={() => setGeneratorOpen(true)} className="gap-1.5">
+            <Sparkles className="h-4 w-4" /> Gerar com IA
           </Button>
           <Button onClick={() => setDialogOpen(true)} className="shadow-[0_0_15px_-5px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.5)] transition-shadow duration-300">
             <Plus className="h-4 w-4 mr-1.5" /> Nova Vaga
@@ -452,6 +457,8 @@ export default function Recrutamento() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <JobDescriptionGenerator open={generatorOpen} onClose={() => setGeneratorOpen(false)} />
     </div>
   );
 }

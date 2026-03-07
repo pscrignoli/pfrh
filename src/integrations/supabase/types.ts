@@ -1223,6 +1223,83 @@ export type Database = {
           },
         ]
       }
+      vaga_descricoes: {
+        Row: {
+          aprovada: boolean | null
+          beneficios: Json | null
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          departamento: string | null
+          descricao_html: string
+          descricao_ia_original: string | null
+          empregare_vaga_id: number | null
+          faixa_salarial_max: number | null
+          faixa_salarial_min: number | null
+          fonte: string | null
+          id: string
+          modalidade: string | null
+          nivel_hierarquico: string | null
+          nivel_ingles: string | null
+          normas_regulatorias: Json | null
+          requisitos_html: string | null
+          titulo_cargo: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprovada?: boolean | null
+          beneficios?: Json | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          departamento?: string | null
+          descricao_html: string
+          descricao_ia_original?: string | null
+          empregare_vaga_id?: number | null
+          faixa_salarial_max?: number | null
+          faixa_salarial_min?: number | null
+          fonte?: string | null
+          id?: string
+          modalidade?: string | null
+          nivel_hierarquico?: string | null
+          nivel_ingles?: string | null
+          normas_regulatorias?: Json | null
+          requisitos_html?: string | null
+          titulo_cargo: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprovada?: boolean | null
+          beneficios?: Json | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          departamento?: string | null
+          descricao_html?: string
+          descricao_ia_original?: string | null
+          empregare_vaga_id?: number | null
+          faixa_salarial_max?: number | null
+          faixa_salarial_min?: number | null
+          fonte?: string | null
+          id?: string
+          modalidade?: string | null
+          nivel_hierarquico?: string | null
+          nivel_ingles?: string | null
+          normas_regulatorias?: Json | null
+          requisitos_html?: string | null
+          titulo_cargo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vaga_descricoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
