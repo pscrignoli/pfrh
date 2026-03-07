@@ -13,6 +13,7 @@ import {
   ChevronDown,
   FileText,
   BarChart3,
+  Palmtree,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
