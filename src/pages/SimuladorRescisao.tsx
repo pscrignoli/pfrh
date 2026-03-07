@@ -42,6 +42,17 @@ const avisoOptions: Record<TipoRescisao, TipoAvisoPrevio[]> = {
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const fmtNum = (v: number) =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const parseNumBR = (s: string) => {
+  const cleaned = s.replace(/\./g, "").replace(",", ".");
+  return Number(cleaned) || 0;
+};
+
+const formatInputBR = (v: number) =>
+  v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
 function calcAutoFields(dataAdmissao: string, dataDemissao: string) {
   const adm = new Date(dataAdmissao + "T00:00:00");
   const dem = new Date(dataDemissao + "T00:00:00");
