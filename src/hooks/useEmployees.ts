@@ -89,5 +89,11 @@ export function useEmployees(filters: Filters) {
     await fetchEmployees();
   };
 
-  return { employees, departamentos, loading, createEmployee, updateEmployee, refetch: fetchEmployees };
+  const deleteEmployee = async (id: string) => {
+    const { error } = await supabase.from("employees").delete().eq("id", id);
+    if (error) throw error;
+    await fetchEmployees();
+  };
+
+  return { employees, departamentos, loading, createEmployee, updateEmployee, deleteEmployee, refetch: fetchEmployees };
 }

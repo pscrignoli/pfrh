@@ -59,8 +59,9 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
 }
 
-export function EmployeeDetailSheet({ employee, open, onClose, onEdit }: Props) {
+export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
   if (!employee) return null;
 
   const ext = employee as any;
