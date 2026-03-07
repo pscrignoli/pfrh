@@ -20,6 +20,7 @@ import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
+import Aniversariantes from "@/pages/Aniversariantes";
 
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,7 @@ const App = () => (
                   <Route path="/presenca" element={<Presenca />} />
                   <Route path="/colaboradores" element={<Pessoas />} />
                   <Route path="/recrutamento" element={<Recrutamento />} />
+                  <Route path="/aniversariantes" element={<Aniversariantes />} />
                   
                   <Route path="/financeiro" element={<Financeiro />} />
                   <Route path="/assistente" element={<Assistente />} />
