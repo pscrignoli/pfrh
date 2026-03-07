@@ -65,6 +65,9 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
+  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha");
+  const [folhaOpen, setFolhaOpen] = useState(folhaActive);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
@@ -98,6 +101,44 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Fechamento da Folha — collapsible */}
+              <SidebarMenuItem>
+                <Collapsible open={folhaOpen} onOpenChange={setFolhaOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip="Fechamento da Folha"
+                      isActive={folhaActive}
+                      className="justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        <span>Fechamento da Folha</span>
+                      </span>
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${folhaOpen ? "rotate-180" : ""}`} />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
+                      {folhaSubItems.map((sub) => (
+                        <SidebarMenuItem key={sub.url}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={location.pathname === sub.url}
+                            tooltip={sub.title}
+                            className="h-8 text-xs"
+                          >
+                            <NavLink to={sub.url}>
+                              <sub.icon className="h-3.5 w-3.5" />
+                              <span>{sub.title}</span>
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
