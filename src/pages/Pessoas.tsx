@@ -204,6 +204,7 @@ export default function Pessoas() {
                   <TableHead>Departamento</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Status</TableHead>
+                  {showFormacao && <TableHead>Formação</TableHead>}
                   <TableHead className="w-[100px]">Cadastro</TableHead>
                 </TableRow>
               </TableHeader>
