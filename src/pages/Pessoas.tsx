@@ -81,13 +81,17 @@ export default function Pessoas() {
     departamento: deptFilter,
   });
 
-  // Client-side filter for cadastro_completo
-  const filteredEmployees = cadastroFilter === null
-    ? employees
-    : employees.filter((emp) => {
-        const isComplete = (emp as any).cadastro_completo === true;
-        return cadastroFilter === "completo" ? isComplete : !isComplete;
-      });
+  // Client-side filters
+  const filteredEmployees = employees.filter((emp) => {
+    if (cadastroFilter !== null) {
+      const isComplete = (emp as any).cadastro_completo === true;
+      if (cadastroFilter === "completo" ? !isComplete : isComplete) return false;
+    }
+    if (grauFilter !== null) {
+      if ((emp as any).grau_escolaridade !== grauFilter) return false;
+    }
+    return true;
+  });
 
   const incompleteCount = employees.filter((emp) => !(emp as any).cadastro_completo).length;
 
