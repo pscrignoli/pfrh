@@ -49,6 +49,7 @@ const mainItems = [
 const folhaSubItems = [
   { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText },
   { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3 },
+  { title: "Simulador Rescisão", url: "/simulador-rescisao", icon: Calculator },
 ];
 
 export function AppSidebar() {
