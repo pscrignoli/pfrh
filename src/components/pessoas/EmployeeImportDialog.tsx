@@ -137,7 +137,7 @@ export function EmployeeImportDialog({ open, onClose, onComplete }: Props) {
           } else {
             const payload = buildInsertPayload(row.xlsxData, companyId);
             payload.cadastro_completo = isCadastroCompleto(payload);
-            const { error } = await supabase.from("employees").insert(payload);
+            const { error } = await supabase.from("employees").insert(payload as any);
             if (error) throw error;
             res.created++;
           }
