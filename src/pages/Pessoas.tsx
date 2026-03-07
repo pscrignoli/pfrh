@@ -305,6 +305,10 @@ export default function Pessoas() {
         open={!!detailEmployee}
         onClose={() => setDetailEmployee(null)}
         onEdit={handleEdit}
+        onDelete={async (id) => {
+          await deleteEmployee(id);
+          setDetailEmployee(null);
+        }}
       />
 
       {/* Import Dialog */}
