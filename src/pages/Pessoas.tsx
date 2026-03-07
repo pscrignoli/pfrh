@@ -67,6 +67,8 @@ export default function Pessoas() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
+  const [grauFilter, setGrauFilter] = useState<string | null>(null);
+  const [showFormacao, setShowFormacao] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
