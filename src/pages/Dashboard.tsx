@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { PayrollEvolutionChart } from "@/components/dashboard/PayrollEvolutionChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
+import { BirthdayWidget } from "@/components/dashboard/BirthdayWidget";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
