@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import RecrutamentoStats from "@/components/recrutamento/RecrutamentoStats";
 import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
+import { JobDescriptionGenerator } from "@/components/recrutamento/JobDescriptionGenerator";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
 
 // ── Local vacancy components (kept from original) ──
