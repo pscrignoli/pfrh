@@ -6,7 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
-import { Shield } from "lucide-react";
+import { Shield, Info } from "lucide-react";
+
+const MODULE_TOOLTIPS: Record<string, string> = {
+  salario_diretoria: "Controla a visualização de salários de CEO e Diretores",
+};
 
 interface RoleDef {
   id: string;
