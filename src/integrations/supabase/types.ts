@@ -1036,6 +1036,65 @@ export type Database = {
           },
         ]
       }
+      role_definitions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          id: string
+          is_system: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          id?: string
+          is_system?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_system?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          can_edit: boolean | null
+          can_view: boolean | null
+          id: string
+          module: string
+          role_id: string
+        }
+        Insert: {
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          id?: string
+          module: string
+          role_id: string
+        }
+        Update: {
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          id?: string
+          module?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "role_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           id: string
@@ -1112,6 +1171,54 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          is_active: boolean | null
+          role_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          role_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          role_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_profiles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "role_definitions"
             referencedColumns: ["id"]
           },
         ]
@@ -1309,6 +1416,7 @@ export type Database = {
         Args: { _vacancy_id: string }
         Returns: undefined
       }
+      get_user_role_name: { Args: { _user_id: string }; Returns: string }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -1352,6 +1460,14 @@ export type Database = {
       upsert_candidate_field_values: {
         Args: { _candidate_id: string; _values: Json }
         Returns: undefined
+      }
+      user_can_edit_module: {
+        Args: { _module: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_view_module: {
+        Args: { _module: string; _user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
