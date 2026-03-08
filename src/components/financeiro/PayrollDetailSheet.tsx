@@ -139,7 +139,7 @@ export function PayrollDetailSheet({ record, open, onClose }: Props) {
             <span>{currency(r.total_geral)}</span>
           </div>
         </div>
-
+        </>
         )}
       </SheetContent>
     </Sheet>

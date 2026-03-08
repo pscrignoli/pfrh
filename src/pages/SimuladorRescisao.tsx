@@ -281,6 +281,18 @@ export default function SimuladorRescisao() {
               </p>
             )}
 
+            {selectedEmp && isDiretor(selectedEmp) && !canViewSalarioDiretoria && (
+              <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
+                <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-warning">Simulação restrita</p>
+                  <p className="text-xs text-muted-foreground">
+                    Não é possível simular rescisão para este colaborador. Solicite acesso ao Admin.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Salário Base</Label>
