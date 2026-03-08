@@ -146,7 +146,8 @@ export default function SimuladorRescisao() {
     }
   }, [tipoRescisao]);
 
-  const selectedIsRestrito = selectedEmp ? isDiretor(selectedEmp) && !canViewSalarioDiretoria : false;
+  const selectedEmpForRestrito = employees.find((e) => e.id === employeeId);
+  const selectedIsRestrito = selectedEmpForRestrito ? isDiretor(selectedEmpForRestrito) && !canViewSalarioDiretoria : false;
 
   const handleCalc = () => {
     if (!employeeId) {
