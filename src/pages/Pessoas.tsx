@@ -64,7 +64,8 @@ function getMissingFields(emp: Employee): string[] {
 }
 
 export default function Pessoas() {
-  const [search, setSearch] = useState("");
+  const { canEdit } = usePermissions();
+  const canEditColabs = canEdit("colaboradores");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [cadastroFilter, setCadastroFilter] = useState<string | null>(null);
