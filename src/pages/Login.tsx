@@ -31,7 +31,7 @@ export default function Login() {
     setError(null);
     setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -46,6 +46,22 @@ export default function Login() {
         setError(authError.message);
       }
       return;
+    }
+
+    // Check if user is active
+    if (authData?.user) {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("is_active")
+        .eq("user_id", authData.user.id)
+        .maybeSingle();
+
+      if (profile && !profile.is_active) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("Conta desativada. Contate o administrador do sistema.");
+        return;
+      }
     }
     // Navigation handled by useEffect when session updates
   };
