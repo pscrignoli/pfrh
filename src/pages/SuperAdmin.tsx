@@ -58,23 +58,26 @@ export default function SuperAdmin() {
 }
 
 function UsersRolesPanel() {
-  const [userRoles, setUserRoles] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newRole, setNewRole] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
-  const fetchRoles = async () => {
+  const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) setUserRoles(data);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("list-users", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.data && !res.error) setUsers(res.data);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { fetchRoles(); }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const handleAddRole = async () => {
     if (!selectedUserId || !newRole) return;
@@ -86,17 +89,17 @@ function UsersRolesPanel() {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Role adicionado com sucesso" });
-      fetchRoles();
+      fetchUsers();
     }
   };
 
-  const handleDeleteRole = async (id: string) => {
-    const { error } = await supabase.from("user_roles").delete().eq("id", id);
+  const handleDeleteRole = async (roleId: string) => {
+    const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Role removido" });
-      fetchRoles();
+      fetchUsers();
     }
   };
 
@@ -111,18 +114,22 @@ function UsersRolesPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Gerenciamento de Roles</CardTitle>
-        <CardDescription>Visualize e gerencie todos os roles de usuários do sistema</CardDescription>
+        <CardDescription>Visualize e gerencie todos os usuários e seus roles</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="text-sm font-medium">User ID</label>
-            <input
-              className="w-full border rounded px-3 py-2 text-sm"
-              placeholder="UUID do usuário"
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-            />
+          <div className="w-64">
+            <label className="text-sm font-medium">Usuário</label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger><SelectValue placeholder="Selecionar usuário" /></SelectTrigger>
+              <SelectContent>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-48">
             <label className="text-sm font-medium">Role</label>
@@ -145,40 +152,48 @@ function UsersRolesPanel() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User ID</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Criado em</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Roles</TableHead>
                 <TableHead className="w-20">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {userRoles.map((ur) => (
-                <TableRow key={ur.id}>
-                  <TableCell className="font-mono text-xs">{ur.user_id}</TableCell>
+              {users.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">{u.name || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.email}</TableCell>
                   <TableCell>
-                    <Badge className={`border-0 ${roleColors[ur.role] ?? ""}`}>
-                      {ur.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {new Date(ur.created_at).toLocaleString("pt-BR")}
+                    <div className="flex flex-wrap gap-1">
+                      {u.roles.length === 0 && <span className="text-xs text-muted-foreground">Sem role</span>}
+                      {u.roles.map((r: any) => (
+                        <Badge key={r.id} className={`border-0 ${roleColors[r.role] ?? ""}`}>
+                          {r.role}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive text-xs"
-                      onClick={() => handleDeleteRole(ur.id)}
-                    >
-                      Remover
-                    </Button>
+                    <div className="flex flex-col gap-1">
+                      {u.roles.map((r: any) => (
+                        <Button
+                          key={r.id}
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive text-xs h-6 px-2"
+                          onClick={() => handleDeleteRole(r.id)}
+                        >
+                          × {r.role}
+                        </Button>
+                      ))}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
-              {userRoles.length === 0 && (
+              {users.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                    Nenhum role encontrado.
+                    Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
               )}
