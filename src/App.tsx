@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { CompanyGate } from "@/components/CompanyGate";
@@ -11,8 +11,8 @@ import { ModuleGuard } from "@/components/ModuleGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
 import ResetPassword from "@/pages/ResetPassword";
+import SetPassword from "@/pages/SetPassword";
 import Placeholder from "@/pages/Placeholder";
 import Presenca from "@/pages/Presenca";
 import Pessoas from "@/pages/Pessoas";
@@ -41,8 +41,9 @@ const App = () => (
           <CompanyProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+              <Route path="/signup" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/set-password" element={<SetPassword />} />
               <Route element={<PrivateRoute />}>
                 <Route
                   element={

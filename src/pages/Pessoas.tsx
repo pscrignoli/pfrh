@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet, GraduationCap } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
@@ -63,6 +64,8 @@ function getMissingFields(emp: Employee): string[] {
 }
 
 export default function Pessoas() {
+  const { canEdit } = usePermissions();
+  const canEditColabs = canEdit("colaboradores");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
@@ -120,16 +123,18 @@ export default function Pessoas() {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Importar Colaboradores
-          </Button>
-          <Button onClick={handleNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Colaborador
-          </Button>
-        </div>
+        {canEditColabs && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Importar Colaboradores
+            </Button>
+            <Button onClick={handleNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Colaborador
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}

@@ -24,6 +24,7 @@ import type { VacancyField } from "@/hooks/useVacancyFields";
 import { useVacancyFields } from "@/hooks/useVacancyFields";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 import RecrutamentoStats from "@/components/recrutamento/RecrutamentoStats";
 import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
@@ -137,6 +138,8 @@ export default function Recrutamento() {
   const { companyId } = useCompany();
   const { saveFields } = useVacancyFields(undefined);
   const { vagas: empregareVagas, loading: empLoading, lastSync, syncing, sync, stats } = useEmpregareVagas();
+  const { canEdit } = usePermissions();
+  const canEditRecrutamento = canEdit("recrutamento");
 
   // Tab
   const [tab, setTab] = useState("empregare");
@@ -287,12 +290,16 @@ export default function Recrutamento() {
             <RefreshCw className={cn("h-4 w-4 mr-1.5", syncing && "animate-spin")} />
             {syncing ? "Sincronizando..." : "Sincronizar"}
           </Button>
-          <Button variant="outline" onClick={() => setGeneratorOpen(true)} className="gap-1.5">
-            <Sparkles className="h-4 w-4" /> Gerar com IA
-          </Button>
-          <Button onClick={() => setDialogOpen(true)} className="shadow-[0_0_15px_-5px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.5)] transition-shadow duration-300">
-            <Plus className="h-4 w-4 mr-1.5" /> Nova Vaga
-          </Button>
+          {canEditRecrutamento && (
+            <>
+              <Button variant="outline" onClick={() => setGeneratorOpen(true)} className="gap-1.5">
+                <Sparkles className="h-4 w-4" /> Gerar com IA
+              </Button>
+              <Button onClick={() => setDialogOpen(true)} className="shadow-[0_0_15px_-5px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.5)] transition-shadow duration-300">
+                <Plus className="h-4 w-4 mr-1.5" /> Nova Vaga
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

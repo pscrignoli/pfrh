@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Send, Upload, GitCompareArrows, Lock, Unlock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -52,6 +53,9 @@ export default function Financeiro() {
   const [fechamentoOpen, setFechamentoOpen] = useState(false);
   const [transmitOpen, setTransmitOpen] = useState(false);
   const [calculando, setCalculando] = useState(false);
+
+  const { canEdit } = usePermissions();
+  const canEditFolha = canEdit("folha");
 
   const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
@@ -231,10 +235,12 @@ export default function Financeiro() {
             </Select>
           </div>
 
-          <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isFechado}>
-            <Upload className="h-4 w-4 mr-2" />
-            Importar
-          </Button>
+          {canEditFolha && (
+            <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isFechado}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar
+            </Button>
+          )}
 
           <Button
             variant="outline"
