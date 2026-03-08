@@ -107,15 +107,25 @@ export interface ParsedPayroll {
 
 // ── Helpers ──
 
-/** Parse "3.877,11" → 3877.11 */
+/** Parse "3.877,11" → 3877.11, handles negatives like "-1.234,56" or "(1.234,56)" */
 export function parseValorBR(str: string | undefined | null): number {
   if (!str) return 0;
   let clean = str.trim();
   if (!clean) return 0;
+  // Detect negative: leading minus or parenthesized value
+  let negative = false;
+  if (clean.startsWith("-")) {
+    negative = true;
+    clean = clean.substring(1).trim();
+  } else if (clean.startsWith("(") && clean.endsWith(")")) {
+    negative = true;
+    clean = clean.substring(1, clean.length - 1).trim();
+  }
   // Remove dots (thousands), replace comma with period
   clean = clean.replace(/\./g, "").replace(",", ".");
   const num = Number(clean);
-  return isNaN(num) ? 0 : num;
+  if (isNaN(num)) return 0;
+  return negative ? -num : num;
 }
 
 /** Parse "19/02/2019" → "2019-02-19" */
@@ -264,10 +274,17 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
   const funcNumMatch = funcLine.match(/Func:\s+(\d+)/);
   const numero = funcNumMatch ? Number(funcNumMatch[1]) : 0;
 
-  // Name: typically after the number, before "Adm"
+  // Name: typically after the number, before "Adm" or "Dem" or "Dep."
   const afterFunc = funcLine.substring((funcNumMatch?.index ?? 0) + (funcNumMatch?.[0]?.length ?? 0));
-  const nameMatch = afterFunc.match(/^\s+(.+?)\s{2,}Adm/);
-  const nome = nameMatch ? nameMatch[1].trim() : afterFunc.split(/\s{2,}/)[0]?.trim() ?? "";
+  const nameMatch = afterFunc.match(/^\s+(.+?)\s{2,}(?:Adm|Dem|Dep\.)/);
+  let nome = "";
+  if (nameMatch) {
+    nome = nameMatch[1].trim();
+  } else {
+    // Fallback: take everything before first double-space
+    const segments = afterFunc.trim().split(/\s{2,}/);
+    nome = segments[0]?.trim() ?? "";
+  }
 
   const admMatch = funcLine.match(/Adm\s+(\d{2}\/\d{2}\/\d{4})/);
   const data_admissao = parseDateBR(admMatch?.[1]);
@@ -307,18 +324,20 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
     const sindMatch = cargoLine.match(/Sind(?:icato)?[:\s]+(\d+)/i);
     sindicato_codigo = sindMatch ? sindMatch[1] : "";
 
-    // Situacao is usually at the end
-    const sitMatch = cargoLine.match(/(?:Sindicato.*?|CBO\s+\d+\s+\S+\s+\d+)\s+([\w\s]+?)\s*$/);
+    // Situacao: try to extract from end of line using broad character class (supports accented chars)
+    const sitMatch = cargoLine.match(/(?:Sindicato.*?|CBO\s+\d+\s+\S+\s+\d+)\s+([A-Za-zÀ-ÖØ-öø-ÿ\s.]+?)\s*$/);
     if (sitMatch) {
       situacao = sitMatch[1].trim();
     }
-    // Fallback: look for known situacao keywords
+    // Fallback: look for known situacao keywords (with accent-tolerant patterns)
     if (!situacao) {
       if (/Trabalhando/i.test(cargoLine)) situacao = "Trabalhando";
-      else if (/Demitido/i.test(cargoLine)) situacao = "Demitido";
-      else if (/Afastado/i.test(cargoLine)) situacao = "Afastado";
-      else if (/Ferias/i.test(cargoLine)) situacao = "Ferias";
-      else if (/Licenca/i.test(cargoLine)) situacao = "Licenca";
+      else if (/Demitid/i.test(cargoLine)) situacao = "Demitido";
+      else if (/Afastad/i.test(cargoLine)) situacao = "Afastado";
+      else if (/F[eé]rias/i.test(cargoLine)) situacao = "Ferias";
+      else if (/Licen[cç]a/i.test(cargoLine)) situacao = "Licença";
+      else if (/Experi[eê]ncia/i.test(cargoLine)) situacao = "Experiência";
+      else if (/Avis.*Pr[eé]v/i.test(cargoLine)) situacao = "Aviso Prévio";
     }
   }
 
@@ -517,7 +536,9 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
 
     // IRRF line with FGTS GFIP on the right side
     if (/^\s*IRRF\s/.test(line) && !/Resumo/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
+      // Extract IRRF values from the left portion (before any FGTS keyword)
+      const leftPart = line.replace(/FGTS.*$/i, "");
+      const vals = leftPart.match(/[\d.,]+/g);
       if (vals) {
         bases.irrf.normal = parseValorBR(vals[0]);
         bases.irrf.decimo_terceiro = parseValorBR(vals[1]);
@@ -532,15 +553,34 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
       }
     }
 
+    // Standalone FGTS GFIP line (not on same line as IRRF)
+    if (/^\s*FGTS\s+GFIP/i.test(line) && !/IRRF/i.test(line)) {
+      const gfipMatch = line.match(/FGTS\s+GFIP\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (gfipMatch) {
+        bases.fgts_gfip.base = parseValorBR(gfipMatch[1]);
+        bases.fgts_gfip.valor = parseValorBR(gfipMatch[2]);
+      }
+    }
+
     // INSS line (not empresa) with FGTS GRRF on the right side
     if (/^\s*INSS\s/i.test(line) && !/Empresa/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
+      const leftPart = line.replace(/FGTS.*$/i, "");
+      const vals = leftPart.match(/[\d.,]+/g);
       if (vals) {
         bases.inss.normal = parseValorBR(vals[0]);
         bases.inss.decimo_terceiro = parseValorBR(vals[1]);
         bases.inss.ferias = parseValorBR(vals[2]);
       }
       // FGTS GRRF on same line
+      const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (grrfMatch) {
+        bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
+        bases.fgts_grrf.valor = parseValorBR(grrfMatch[2]);
+      }
+    }
+
+    // Standalone FGTS GRRF line
+    if (/^\s*FGTS\s+GRRF/i.test(line) && !/INSS/i.test(line)) {
       const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
       if (grrfMatch) {
         bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
