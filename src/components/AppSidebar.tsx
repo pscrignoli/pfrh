@@ -40,12 +40,12 @@ import {
 
 const mainItems = [
   { title: "Dashboards", url: "/", icon: LayoutDashboard, module: "dashboard" },
-  { title: "Presença e Jornada", url: "/presenca", icon: Clock, module: "dashboard" },
+  { title: "Presença e Jornada", url: "/presenca", icon: Clock, module: "colaboradores" },
   { title: "Colaboradores", url: "/colaboradores", icon: Users, module: "colaboradores" },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake, module: "aniversariantes" },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch, module: "recrutamento" },
   { title: "Férias", url: "/ferias", icon: Palmtree, module: "ferias" },
-  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "dashboard" },
+  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "colaboradores" },
 ];
 
 const folhaSubItems = [

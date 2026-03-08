@@ -17,13 +17,19 @@ export default function SetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [roleName, setRoleName] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
+    let settled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (settled) return;
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        settled = true;
         setReady(true);
+        setChecking(false);
         if (session?.user) {
           setRoleName(session.user.user_metadata?.role || null);
           setUserName(session.user.user_metadata?.full_name || null);
@@ -31,13 +37,43 @@ export default function SetPassword() {
       }
     });
 
-    // Check hash
+    // Check current session - user may already be signed in via invite link
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (settled) return;
+      if (session?.user) {
+        settled = true;
+        setReady(true);
+        setChecking(false);
+        setRoleName(session.user.user_metadata?.role || null);
+        setUserName(session.user.user_metadata?.full_name || null);
+      }
+    });
+
+    // Check hash fragments
     const hash = window.location.hash;
-    if (hash.includes("type=invite") || hash.includes("type=recovery")) {
-      setReady(true);
+    if (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink")) {
+      // Wait a moment for Supabase to process the hash
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          setReady(true);
+          setChecking(false);
+        }
+      }, 2000);
+    } else {
+      // No relevant hash - give a brief window then show invalid
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          setChecking(false);
+        }
+      }, 3000);
     }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      settled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasMinLength = password.length >= 8;
@@ -73,6 +109,20 @@ export default function SetPassword() {
     toast({ title: `Bem-vindo, ${userName || ""}! Seu acesso está configurado.` });
     setTimeout(() => navigate("/", { replace: true }), 2000);
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-2">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <CardTitle className="text-xl">Verificando convite...</CardTitle>
+            <CardDescription>Aguarde enquanto validamos seu link.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (

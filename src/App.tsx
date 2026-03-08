@@ -53,7 +53,7 @@ const App = () => (
                   }
                 >
                   <Route path="/" element={<ModuleGuard module="dashboard"><Dashboard /></ModuleGuard>} />
-                  <Route path="/presenca" element={<ModuleGuard module="dashboard"><Presenca /></ModuleGuard>} />
+                  <Route path="/presenca" element={<ModuleGuard module="colaboradores"><Presenca /></ModuleGuard>} />
                   <Route path="/colaboradores" element={<ModuleGuard module="colaboradores"><Pessoas /></ModuleGuard>} />
                   <Route path="/recrutamento" element={<ModuleGuard module="recrutamento"><Recrutamento /></ModuleGuard>} />
                   <Route path="/aniversariantes" element={<ModuleGuard module="aniversariantes"><Aniversariantes /></ModuleGuard>} />
@@ -61,7 +61,7 @@ const App = () => (
                   <Route path="/folha/custo-pessoal" element={<ModuleGuard module="folha.custo"><CustoPessoal /></ModuleGuard>} />
                   <Route path="/ferias" element={<ModuleGuard module="ferias"><Ferias /></ModuleGuard>} />
                   <Route path="/simulador-rescisao" element={<ModuleGuard module="simulador"><SimuladorRescisao /></ModuleGuard>} />
-                  <Route path="/assistente" element={<ModuleGuard module="dashboard"><Assistente /></ModuleGuard>} />
+                  <Route path="/assistente" element={<ModuleGuard module="colaboradores"><Assistente /></ModuleGuard>} />
                   <Route path="/configuracoes" element={<ModuleGuard module="configuracoes"><Configuracoes /></ModuleGuard>} />
                   <Route path="/super-admin" element={<ModuleGuard module="configuracoes.acessos"><SuperAdmin /></ModuleGuard>} />
                   <Route path="/acesso-negado" element={<AccessDenied />} />
