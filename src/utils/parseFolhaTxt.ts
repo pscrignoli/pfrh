@@ -274,10 +274,17 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
   const funcNumMatch = funcLine.match(/Func:\s+(\d+)/);
   const numero = funcNumMatch ? Number(funcNumMatch[1]) : 0;
 
-  // Name: typically after the number, before "Adm"
+  // Name: typically after the number, before "Adm" or "Dem" or "Dep."
   const afterFunc = funcLine.substring((funcNumMatch?.index ?? 0) + (funcNumMatch?.[0]?.length ?? 0));
-  const nameMatch = afterFunc.match(/^\s+(.+?)\s{2,}Adm/);
-  const nome = nameMatch ? nameMatch[1].trim() : afterFunc.split(/\s{2,}/)[0]?.trim() ?? "";
+  const nameMatch = afterFunc.match(/^\s+(.+?)\s{2,}(?:Adm|Dem|Dep\.)/);
+  let nome = "";
+  if (nameMatch) {
+    nome = nameMatch[1].trim();
+  } else {
+    // Fallback: take everything before first double-space
+    const segments = afterFunc.trim().split(/\s{2,}/);
+    nome = segments[0]?.trim() ?? "";
+  }
 
   const admMatch = funcLine.match(/Adm\s+(\d{2}\/\d{2}\/\d{4})/);
   const data_admissao = parseDateBR(admMatch?.[1]);
