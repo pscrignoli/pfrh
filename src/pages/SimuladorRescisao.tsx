@@ -383,9 +383,9 @@ export default function SimuladorRescisao() {
               </div>
             </div>
 
-            <Button onClick={handleCalc} className="w-full gap-2">
+            <Button onClick={handleCalc} className="w-full gap-2" disabled={selectedIsRestrito}>
               <Calculator className="h-4 w-4" />
-              Calcular Rescisão
+              {selectedIsRestrito ? "Simulação Restrita" : "Calcular Rescisão"}
             </Button>
           </CardContent>
         </Card>
