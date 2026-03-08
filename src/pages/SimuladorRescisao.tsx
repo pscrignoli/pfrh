@@ -83,6 +83,8 @@ function calcAutoFields(dataAdmissao: string, dataDemissao: string) {
 export default function SimuladorRescisao() {
   const [searchParams] = useSearchParams();
   const preselectedId = searchParams.get("employee");
+  const { canView } = usePermissions();
+  const canViewSalarioDiretoria = canView("salario_diretoria");
 
   const { employees, historico, loading, salvarSimulacao, fetchFgtsEstimado } = useSimuladorRescisao();
 
