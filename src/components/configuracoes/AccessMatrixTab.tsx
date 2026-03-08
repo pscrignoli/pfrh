@@ -6,7 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
-import { Shield } from "lucide-react";
+import { Shield, Info } from "lucide-react";
+
+const MODULE_TOOLTIPS: Record<string, string> = {
+  salario_diretoria: "Controla a visualização de salários de CEO e Diretores",
+};
 
 interface RoleDef {
   id: string;
@@ -33,6 +37,7 @@ const MODULE_SECTIONS = [
     modules: [
       { key: "colaboradores", label: "Colaboradores" },
       { key: "colaboradores.formacao", label: "› Formação Acadêmica" },
+      { key: "salario_diretoria", label: "› Salário Diretoria" },
       { key: "aniversariantes", label: "Aniversariantes" },
     ],
   },
@@ -218,7 +223,19 @@ function SectionRows({
       </tr>
       {section.modules.map((mod) => (
         <tr key={mod.key} className="border-b hover:bg-muted/30 transition-colors">
-          <td className="p-3 font-medium whitespace-nowrap">{mod.label}</td>
+          <td className="p-3 font-medium whitespace-nowrap">
+            <span className="inline-flex items-center gap-1.5">
+              {mod.label}
+              {MODULE_TOOLTIPS[mod.key] && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>{MODULE_TOOLTIPS[mod.key]}</TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          </td>
           {sortedRoles.map((role) => {
             const isLocked = role.name === "super_admin";
             const perm = getPerm(role.id, mod.key);

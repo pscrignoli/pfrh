@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator, Trash2 } from "lucide-react";
+import { SalarioProtegido } from "@/components/SalarioProtegido";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
@@ -118,7 +119,14 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete 
               <Field label="Demissão" value={ext.data_demissao ? new Date(ext.data_demissao + "T00:00:00").toLocaleDateString("pt-BR") : null} />
               <Field label="Tipo Contrato" value={employee.tipo_contrato?.toUpperCase()} />
               <Field label="Jornada" value={employee.jornada_semanal ? `${employee.jornada_semanal}h/sem` : null} />
-              <Field label="Salário Base" value={ext.salario_base ? `R$ ${Number(ext.salario_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
+              <div>
+                <p className="text-xs text-muted-foreground">Salário Base</p>
+                <div className="text-sm font-medium">
+                  {ext.salario_base ? (
+                    <SalarioProtegido valor={Number(ext.salario_base)} employee={employee} />
+                  ) : "—"}
+                </div>
+              </div>
               <Field label="CBO" value={ext.cbo} />
               <Field label="Sindicato" value={ext.sindicato_codigo} />
               <Field label="Matrícula Interna" value={employee.matricula_interna} />

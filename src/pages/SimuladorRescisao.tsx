@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, Download, ArrowUpRight, ArrowDownRight, History } from "lucide-react";
+import { Calculator, Download, ArrowUpRight, ArrowDownRight, History, Lock } from "lucide-react";
 import { format, differenceInMonths, differenceInDays } from "date-fns";
+import { isDiretor } from "@/utils/isDiretor";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 import {
   useSimuladorRescisao,
@@ -81,6 +83,8 @@ function calcAutoFields(dataAdmissao: string, dataDemissao: string) {
 export default function SimuladorRescisao() {
   const [searchParams] = useSearchParams();
   const preselectedId = searchParams.get("employee");
+  const { canView } = usePermissions();
+  const canViewSalarioDiretoria = canView("salario_diretoria");
 
   const { employees, historico, loading, salvarSimulacao, fetchFgtsEstimado } = useSimuladorRescisao();
 
@@ -142,9 +146,16 @@ export default function SimuladorRescisao() {
     }
   }, [tipoRescisao]);
 
+  const selectedEmpForRestrito = employees.find((e) => e.id === employeeId);
+  const selectedIsRestrito = selectedEmpForRestrito ? isDiretor(selectedEmpForRestrito) && !canViewSalarioDiretoria : false;
+
   const handleCalc = () => {
     if (!employeeId) {
       toast.error("Selecione um colaborador");
+      return;
+    }
+    if (selectedIsRestrito) {
+      toast.error("Simulação restrita para este colaborador.");
       return;
     }
     const emp = employees.find((e) => e.id === employeeId);
@@ -277,6 +288,18 @@ export default function SimuladorRescisao() {
               </p>
             )}
 
+            {selectedEmp && isDiretor(selectedEmp) && !canViewSalarioDiretoria && (
+              <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 flex items-start gap-2">
+                <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-warning">Simulação restrita</p>
+                  <p className="text-xs text-muted-foreground">
+                    Não é possível simular rescisão para este colaborador. Solicite acesso ao Admin.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Salário Base</Label>
@@ -360,9 +383,9 @@ export default function SimuladorRescisao() {
               </div>
             </div>
 
-            <Button onClick={handleCalc} className="w-full gap-2">
+            <Button onClick={handleCalc} className="w-full gap-2" disabled={selectedIsRestrito}>
               <Calculator className="h-4 w-4" />
-              Calcular Rescisão
+              {selectedIsRestrito ? "Simulação Restrita" : "Calcular Rescisão"}
             </Button>
           </CardContent>
         </Card>

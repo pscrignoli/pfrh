@@ -22,6 +22,8 @@ import {
 import { Send, Upload, GitCompareArrows, Lock, Unlock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { isDiretor } from "@/utils/isDiretor";
+import { SalarioProtegido } from "@/components/SalarioProtegido";
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -54,8 +56,9 @@ export default function Financeiro() {
   const [transmitOpen, setTransmitOpen] = useState(false);
   const [calculando, setCalculando] = useState(false);
 
-  const { canEdit } = usePermissions();
+  const { canEdit, canView } = usePermissions();
   const canEditFolha = canEdit("folha");
+  const canViewSalarioDiretoria = canView("salario_diretoria");
 
   const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
@@ -309,15 +312,27 @@ export default function Financeiro() {
                   {records.map((r) => {
                     const provisoes = (Number(r.ferias) || 0) + (Number(r.terco_ferias) || 0) + (Number(r.decimo_terceiro) || 0);
                     const st = r.status ?? "aberto";
+                    const empObj = { cargo: r.cargo };
+                    const salarioOculto = isDiretor(empObj) && !canViewSalarioDiretoria;
                     return (
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedRecord(r)}>
                         <TableCell className="font-medium">{r.employee_name}</TableCell>
                         <TableCell className="text-xs">{r.centro_custo || r.codigo_centro_custo || "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{currency(r.salario_base)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{currency(r.total_folha)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{currency(r.encargos)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{currency(provisoes)}</TableCell>
-                        <TableCell className="text-right tabular-nums font-semibold">{currency(r.total_geral)}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {salarioOculto ? <SalarioProtegido valor={null} employee={empObj} /> : currency(r.salario_base)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {salarioOculto ? <SalarioProtegido valor={null} employee={empObj} /> : currency(r.total_folha)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {salarioOculto ? <SalarioProtegido valor={null} employee={empObj} /> : currency(r.encargos)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {salarioOculto ? <SalarioProtegido valor={null} employee={empObj} /> : currency(provisoes)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">
+                          {salarioOculto ? <SalarioProtegido valor={null} employee={empObj} /> : currency(r.total_geral)}
+                        </TableCell>
                         <TableCell>
                           <Badge className={`border-0 text-xs ${statusColors[st] ?? statusColors.aberto}`}>
                             {st.charAt(0).toUpperCase() + st.slice(1)}

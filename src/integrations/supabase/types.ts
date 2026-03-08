@@ -1482,6 +1482,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_salary_protected: {
+        Args: { _cargo: string; _user_id: string }
+        Returns: boolean
+      }
       save_vacancy_fields: {
         Args: { _fields: Json; _vacancy_id: string }
         Returns: undefined

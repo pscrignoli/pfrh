@@ -5,6 +5,8 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useSalarioRestrito } from "@/components/SalarioProtegido";
+import { Lock } from "lucide-react";
 
 function currency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -29,6 +31,7 @@ interface Props {
 export function PayrollDetailSheet({ record, open, onClose }: Props) {
   if (!record) return null;
   const r = record;
+  const restrito = useSalarioRestrito({ cargo: r.cargo });
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -40,6 +43,19 @@ export function PayrollDetailSheet({ record, open, onClose }: Props) {
           </p>
         </SheetHeader>
 
+        {restrito ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+            <Lock className="h-12 w-12 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium">Dados salariais restritos</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Os valores deste colaborador são visíveis apenas para perfis autorizados.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">Solicite acesso ao Admin na Matriz de Acessos.</p>
+            </div>
+          </div>
+        ) : (
+        <>
         <Accordion type="multiple" defaultValue={["vencimentos", "descontos", "provisoes", "beneficios"]} className="space-y-2">
           {/* Vencimentos */}
           <AccordionItem value="vencimentos">
@@ -123,6 +139,8 @@ export function PayrollDetailSheet({ record, open, onClose }: Props) {
             <span>{currency(r.total_geral)}</span>
           </div>
         </div>
+        </>
+        )}
       </SheetContent>
     </Sheet>
   );
