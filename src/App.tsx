@@ -53,7 +53,7 @@ const App = () => (
                   }
                 >
                   <Route path="/" element={<ModuleGuard module="dashboard"><Dashboard /></ModuleGuard>} />
-                  <Route path="/presenca" element={<ModuleGuard module="dashboard"><Presenca /></ModuleGuard>} />
+                  <Route path="/presenca" element={<ModuleGuard module="colaboradores"><Presenca /></ModuleGuard>} />
                   <Route path="/colaboradores" element={<ModuleGuard module="colaboradores"><Pessoas /></ModuleGuard>} />
                   <Route path="/recrutamento" element={<ModuleGuard module="recrutamento"><Recrutamento /></ModuleGuard>} />
                   <Route path="/aniversariantes" element={<ModuleGuard module="aniversariantes"><Aniversariantes /></ModuleGuard>} />
