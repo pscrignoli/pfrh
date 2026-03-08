@@ -5,6 +5,8 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useSalarioRestrito } from "@/components/SalarioProtegido";
+import { Lock } from "lucide-react";
 
 function currency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
