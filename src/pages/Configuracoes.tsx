@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,26 +13,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Constants } from "@/integrations/supabase/types";
-import { Settings, Shield, Plug, BookOpen, Upload, Trash2, Save, Loader2, Building2, Plus, Pencil } from "lucide-react";
+import { Settings, Plug, BookOpen, Upload, Trash2, Save, Loader2, Building2, Plus, Pencil, Shield, Users } from "lucide-react";
 import { useDepartments } from "@/hooks/useDepartments";
 import EmpregareTab from "@/components/configuracoes/EmpregareTab";
+import AccessMatrixTab from "@/components/configuracoes/AccessMatrixTab";
+import UserManagementTab from "@/components/configuracoes/UserManagementTab";
 
 // ── Types ──
-interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  created_at: string;
-  roles: { id: string; role: string }[];
-}
-
 interface DocEmbedding {
   id: string;
   source_document: string | null;
@@ -39,128 +30,8 @@ interface DocEmbedding {
   created_at: string;
 }
 
-// ── Access Tab ──
-function AccessTab() {
-  const [users, setUsers] = useState<AuthUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-users`,
-        {
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (!res.ok) throw new Error("Erro ao buscar usuários");
-      const data: AuthUser[] = await res.json();
-      setUsers(data);
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
-  const changeRole = async (userId: string, existingRoleId: string | null, newRole: string) => {
-    setSaving(userId);
-    try {
-      if (existingRoleId) {
-        await supabase.from("user_roles").update({ role: newRole as any }).eq("id", existingRoleId);
-      } else {
-        await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
-      }
-      toast({ title: "Papel atualizado com sucesso." });
-      await fetchUsers();
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  if (loading) return <Skeleton className="h-48 w-full" />;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          Gerenciamento de Acessos
-        </CardTitle>
-        <CardDescription>Gerencie os papéis de acesso dos usuários do sistema.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Papel Atual</TableHead>
-              <TableHead>Alterar Papel</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => {
-              const primaryRole = u.roles[0] ?? null;
-              return (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.name || "—"}</TableCell>
-                  <TableCell className="text-sm">{u.email}</TableCell>
-                  <TableCell>
-                    {u.roles.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles.map((r) => (
-                          <Badge key={r.id} variant="outline">{r.role}</Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <Badge variant="secondary">Sem papel</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={primaryRole?.role ?? ""}
-                      onValueChange={(v) => changeRole(u.id, primaryRole?.id ?? null, v)}
-                      disabled={saving === u.id}
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Selecionar papel" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Constants.public.Enums.app_role.map((r) => (
-                          <SelectItem key={r} value={r}>{r}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {users.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                  Nenhum usuário encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ── Integration Tab ──
-function IntegrationTab() {
+function IntegrationTab({ readOnly }: { readOnly?: boolean }) {
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -216,11 +87,14 @@ function IntegrationTab() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="flex-1"
+              disabled={readOnly}
             />
-            <Button onClick={save} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar
-            </Button>
+            {!readOnly && (
+              <Button onClick={save} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Salvar
+              </Button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Endpoint de destino para o envio da folha de pagamento mensal.
@@ -232,7 +106,7 @@ function IntegrationTab() {
 }
 
 // ── Knowledge Base Tab ──
-function KnowledgeBaseTab() {
+function KnowledgeBaseTab({ readOnly }: { readOnly?: boolean }) {
   const [docs, setDocs] = useState<DocEmbedding[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -313,42 +187,44 @@ function KnowledgeBaseTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            Base de Conhecimento (RAG)
-          </CardTitle>
-          <CardDescription>
-            Envie documentos (PDFs, TXTs) com políticas de RH e legislação trabalhista para alimentar o assistente de IA.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <label
-            className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-              dragOver ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-            }`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-          >
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">
-                {uploading ? "Enviando..." : "Clique ou arraste um arquivo aqui"}
-              </span>
-              <span className="text-xs">PDF, TXT, DOCX — Máx. 20MB</span>
-            </div>
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.txt,.docx,.doc"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-          </label>
-        </CardContent>
-      </Card>
+      {!readOnly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Base de Conhecimento (RAG)
+            </CardTitle>
+            <CardDescription>
+              Envie documentos (PDFs, TXTs) com políticas de RH e legislação trabalhista para alimentar o assistente de IA.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label
+              className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                dragOver ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+              }`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Upload className="h-8 w-8" />
+                <span className="text-sm font-medium">
+                  {uploading ? "Enviando..." : "Clique ou arraste um arquivo aqui"}
+                </span>
+                <span className="text-xs">PDF, TXT, DOCX — Máx. 20MB</span>
+              </div>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.txt,.docx,.doc"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+            </label>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
@@ -363,7 +239,7 @@ function KnowledgeBaseTab() {
                 <TableRow>
                   <TableHead>Documento</TableHead>
                   <TableHead>Data de Envio</TableHead>
-                  <TableHead />
+                  {!readOnly && <TableHead />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,16 +249,18 @@ function KnowledgeBaseTab() {
                     <TableCell className="text-xs">
                       {new Date(doc.created_at).toLocaleString("pt-BR")}
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(doc)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
+                    {!readOnly && (
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(doc)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {docs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={readOnly ? 2 : 3} className="text-center text-muted-foreground py-8">
                       Nenhum documento enviado ainda.
                     </TableCell>
                   </TableRow>
@@ -397,8 +275,8 @@ function KnowledgeBaseTab() {
 }
 
 // ── Departments Tab ──
-function DepartmentsTab() {
-  const { departments, loading, createDepartment, updateDepartment, deleteDepartment } = useDepartments();
+function DepartmentsTab({ readOnly }: { readOnly?: boolean }) {
+  const { departments, loading, createDepartment, updateDepartment } = useDepartments();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDept, setEditDept] = useState<{ id: string; name: string; code: string; status: string } | null>(null);
   const [name, setName] = useState("");
@@ -438,6 +316,7 @@ function DepartmentsTab() {
   };
 
   const toggleStatus = async (dept: any) => {
+    if (readOnly) return;
     try {
       await updateDepartment(dept.id, { status: dept.status === "active" ? "inactive" : "active" });
       toast({ title: `Departamento ${dept.status === "active" ? "desativado" : "ativado"}.` });
@@ -458,10 +337,12 @@ function DepartmentsTab() {
               </CardTitle>
               <CardDescription>Gerencie os departamentos disponíveis para os colaboradores.</CardDescription>
             </div>
-            <Button onClick={openNew} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Departamento
-            </Button>
+            {!readOnly && (
+              <Button onClick={openNew} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Departamento
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -474,7 +355,7 @@ function DepartmentsTab() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Código</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-32">Ações</TableHead>
+                  {!readOnly && <TableHead className="w-32">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -485,22 +366,24 @@ function DepartmentsTab() {
                     <TableCell>
                       <Badge
                         variant={dept.status === "active" ? "default" : "secondary"}
-                        className="cursor-pointer"
-                        onClick={() => toggleStatus(dept)}
+                        className={!readOnly ? "cursor-pointer" : ""}
+                        onClick={() => !readOnly && toggleStatus(dept)}
                       >
                         {dept.status === "active" ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    {!readOnly && (
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {departments.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={readOnly ? 3 : 4} className="text-center text-muted-foreground py-8">
                       Nenhum departamento cadastrado.
                     </TableCell>
                   </TableRow>
@@ -511,33 +394,44 @@ function DepartmentsTab() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editDept ? "Editar Departamento" : "Novo Departamento"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome *</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Recursos Humanos" />
+      {!readOnly && (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editDept ? "Editar Departamento" : "Novo Departamento"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nome *</label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Recursos Humanos" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Código (Centro de Custo)</label>
+                <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: CC-001" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSave}>{editDept ? "Salvar" : "Criar"}</Button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Código (Centro de Custo)</label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: CC-001" />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSave}>{editDept ? "Salvar" : "Criar"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
 
 // ── Main Page ──
 export default function Configuracoes() {
+  const { canView, canEdit, isAdmin } = usePermissions();
+
+  const showAcessos = canView("configuracoes.acessos");
+  const showUsuarios = canView("configuracoes.usuarios");
+  const showIntegracoes = canView("configuracoes.integracoes");
+  const isReadOnly = !canEdit("configuracoes");
+
+  const defaultTab = showAcessos ? "acessos" : showUsuarios ? "usuarios" : "departamentos";
+
   return (
     <div className="space-y-6">
       <div>
@@ -550,30 +444,56 @@ export default function Configuracoes() {
         </p>
       </div>
 
-      <Tabs defaultValue="acessos">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="flex-wrap">
-          <TabsTrigger value="acessos">Acessos</TabsTrigger>
+          {showAcessos && (
+            <TabsTrigger value="acessos">
+              <Shield className="h-4 w-4 mr-1" />
+              Matriz de Acessos
+            </TabsTrigger>
+          )}
+          {showUsuarios && (
+            <TabsTrigger value="usuarios">
+              <Users className="h-4 w-4 mr-1" />
+              Gestão de Usuários
+            </TabsTrigger>
+          )}
           <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
-          <TabsTrigger value="integracoes">Integrações</TabsTrigger>
-          <TabsTrigger value="conhecimento">Base de Conhecimento</TabsTrigger>
-          <TabsTrigger value="empregare">API Empregare</TabsTrigger>
+          {showIntegracoes && (
+            <>
+              <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+              <TabsTrigger value="conhecimento">Base de Conhecimento</TabsTrigger>
+              <TabsTrigger value="empregare">API Empregare</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
-        <TabsContent value="acessos" className="mt-4">
-          <AccessTab />
-        </TabsContent>
+        {showAcessos && (
+          <TabsContent value="acessos" className="mt-4">
+            <AccessMatrixTab />
+          </TabsContent>
+        )}
+        {showUsuarios && (
+          <TabsContent value="usuarios" className="mt-4">
+            <UserManagementTab />
+          </TabsContent>
+        )}
         <TabsContent value="departamentos" className="mt-4">
-          <DepartmentsTab />
+          <DepartmentsTab readOnly={isReadOnly} />
         </TabsContent>
-        <TabsContent value="integracoes" className="mt-4">
-          <IntegrationTab />
-        </TabsContent>
-        <TabsContent value="conhecimento" className="mt-4">
-          <KnowledgeBaseTab />
-        </TabsContent>
-        <TabsContent value="empregare" className="mt-4">
-          <EmpregareTab />
-        </TabsContent>
+        {showIntegracoes && (
+          <>
+            <TabsContent value="integracoes" className="mt-4">
+              <IntegrationTab readOnly={isReadOnly} />
+            </TabsContent>
+            <TabsContent value="conhecimento" className="mt-4">
+              <KnowledgeBaseTab readOnly={isReadOnly} />
+            </TabsContent>
+            <TabsContent value="empregare" className="mt-4">
+              <EmpregareTab />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

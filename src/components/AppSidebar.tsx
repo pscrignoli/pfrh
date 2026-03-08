@@ -19,6 +19,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Sidebar,
   SidebarContent,
@@ -38,28 +39,28 @@ import {
 } from "@/components/ui/collapsible";
 
 const mainItems = [
-  { title: "Dashboards", url: "/", icon: LayoutDashboard },
-  { title: "Presença e Jornada", url: "/presenca", icon: Clock },
-  { title: "Colaboradores", url: "/colaboradores", icon: Users },
-  { title: "Aniversariantes", url: "/aniversariantes", icon: Cake },
-  { title: "Recrutamento", url: "/recrutamento", icon: UserSearch },
-  { title: "Férias", url: "/ferias", icon: Palmtree },
-  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot },
+  { title: "Dashboards", url: "/", icon: LayoutDashboard, module: "dashboard" },
+  { title: "Presença e Jornada", url: "/presenca", icon: Clock, module: "dashboard" },
+  { title: "Colaboradores", url: "/colaboradores", icon: Users, module: "colaboradores" },
+  { title: "Aniversariantes", url: "/aniversariantes", icon: Cake, module: "aniversariantes" },
+  { title: "Recrutamento", url: "/recrutamento", icon: UserSearch, module: "recrutamento" },
+  { title: "Férias", url: "/ferias", icon: Palmtree, module: "ferias" },
+  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "dashboard" },
 ];
 
 const folhaSubItems = [
-  { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText },
-  { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3 },
-  { title: "Simulador Rescisão", url: "/simulador-rescisao", icon: Calculator },
+  { title: "Fechamentos Mensais", url: "/financeiro", icon: FileText, module: "folha" },
+  { title: "Custo de Pessoal", url: "/folha/custo-pessoal", icon: BarChart3, module: "folha.custo" },
+  { title: "Simulador Rescisão", url: "/simulador-rescisao", icon: Calculator, module: "simulador" },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut, roles } = useAuth();
+  const { signOut } = useAuth();
+  const { canView, isSuperAdmin, isAdmin } = usePermissions();
   const navigate = useNavigate();
-  const isSuperAdmin = roles.includes("super_admin");
 
   const handleSignOut = async () => {
     await signOut();
@@ -69,7 +70,15 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  const folhaActive = location.pathname === "/financeiro" || location.pathname.startsWith("/folha") || location.pathname === "/simulador-rescisao";
+  const visibleMainItems = mainItems.filter((item) => canView(item.module));
+  const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
+  const showFolha = visibleFolhaItems.length > 0;
+  const showConfig = canView("configuracoes");
+
+  const folhaActive =
+    location.pathname === "/financeiro" ||
+    location.pathname.startsWith("/folha") ||
+    location.pathname === "/simulador-rescisao";
   const [folhaOpen, setFolhaOpen] = useState(folhaActive);
 
   return (
@@ -91,7 +100,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => (
+              {visibleMainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -107,42 +116,46 @@ export function AppSidebar() {
               ))}
 
               {/* Fechamento da Folha — collapsible */}
-              <SidebarMenuItem>
-                <Collapsible open={folhaOpen} onOpenChange={setFolhaOpen}>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton
-                      tooltip="Fechamento da Folha"
-                      isActive={folhaActive}
-                      className="justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <FileSpreadsheet className="h-4 w-4" />
-                        <span>Fechamento da Folha</span>
-                      </span>
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${folhaOpen ? "rotate-180" : ""}`} />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
-                      {folhaSubItems.map((sub) => (
-                        <SidebarMenuItem key={sub.url}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={location.pathname === sub.url}
-                            tooltip={sub.title}
-                            className="h-8 text-xs"
-                          >
-                            <NavLink to={sub.url}>
-                              <sub.icon className="h-3.5 w-3.5" />
-                              <span>{sub.title}</span>
-                            </NavLink>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarMenuItem>
+              {showFolha && (
+                <SidebarMenuItem>
+                  <Collapsible open={folhaOpen} onOpenChange={setFolhaOpen}>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        tooltip="Fechamento da Folha"
+                        isActive={folhaActive}
+                        className="justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-4 w-4" />
+                          <span>Fechamento da Folha</span>
+                        </span>
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 transition-transform ${folhaOpen ? "rotate-180" : ""}`}
+                        />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
+                        {visibleFolhaItems.map((sub) => (
+                          <SidebarMenuItem key={sub.url}>
+                            <SidebarMenuButton
+                              asChild
+                              isActive={location.pathname === sub.url}
+                              tooltip={sub.title}
+                              className="h-8 text-xs"
+                            >
+                              <NavLink to={sub.url}>
+                                <sub.icon className="h-3.5 w-3.5" />
+                                <span>{sub.title}</span>
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -164,18 +177,20 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive("/configuracoes")}
-              tooltip="Configurações"
-            >
-              <NavLink to="/configuracoes">
-                <Settings className="h-4 w-4" />
-                <span>Configurações</span>
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {showConfig && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive("/configuracoes")}
+                tooltip="Configurações"
+              >
+                <NavLink to="/configuracoes">
+                  <Settings className="h-4 w-4" />
+                  <span>Configurações</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sair"

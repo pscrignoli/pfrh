@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify the caller is admin_rh or super_admin
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -36,15 +35,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller has admin_rh or super_admin role
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: callerRoles } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id);
 
-    const roles = (callerRoles ?? []).map((r: any) => r.role);
-    if (!roles.includes("admin_rh") && !roles.includes("super_admin")) {
+    // Check new role system first (user_profiles + role_definitions)
+    const { data: callerProfile } = await adminClient
+      .from("user_profiles")
+      .select("role_id, role_definitions(name)")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+
+    const callerRole = (callerProfile as any)?.role_definitions?.name;
+    let isAdmin = ["super_admin", "admin"].includes(callerRole);
+
+    // Fallback to old user_roles table
+    if (!isAdmin) {
+      const { data: oldRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id);
+      const oldRoleNames = (oldRoles ?? []).map((r: any) => r.role);
+      isAdmin = oldRoleNames.includes("admin_rh") || oldRoleNames.includes("super_admin");
+    }
+
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,16 +68,16 @@ Deno.serve(async (req) => {
     const { data: { users }, error: usersError } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
     if (usersError) throw usersError;
 
-    // Fetch all roles
-    const { data: allRoles } = await adminClient.from("user_roles").select("*");
+    // Fetch all old roles (backward compat)
+    const { data: allOldRoles } = await adminClient.from("user_roles").select("*");
 
-    // Build response combining users with their roles
+    // Build response
     const result = users.map((u: any) => ({
       id: u.id,
       email: u.email ?? "",
       name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? "",
       created_at: u.created_at,
-      roles: (allRoles ?? [])
+      roles: (allOldRoles ?? [])
         .filter((r: any) => r.user_id === u.id)
         .map((r: any) => ({ id: r.id, role: r.role })),
     }));
