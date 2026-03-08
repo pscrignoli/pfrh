@@ -146,9 +146,15 @@ export default function SimuladorRescisao() {
     }
   }, [tipoRescisao]);
 
+  const selectedIsRestrito = selectedEmp ? isDiretor(selectedEmp) && !canViewSalarioDiretoria : false;
+
   const handleCalc = () => {
     if (!employeeId) {
       toast.error("Selecione um colaborador");
+      return;
+    }
+    if (selectedIsRestrito) {
+      toast.error("Simulação restrita para este colaborador.");
       return;
     }
     const emp = employees.find((e) => e.id === employeeId);
