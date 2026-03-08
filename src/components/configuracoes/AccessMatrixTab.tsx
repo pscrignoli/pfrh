@@ -33,6 +33,7 @@ const MODULE_SECTIONS = [
     modules: [
       { key: "colaboradores", label: "Colaboradores" },
       { key: "colaboradores.formacao", label: "› Formação Acadêmica" },
+      { key: "salario_diretoria", label: "› Salário Diretoria" },
       { key: "aniversariantes", label: "Aniversariantes" },
     ],
   },
