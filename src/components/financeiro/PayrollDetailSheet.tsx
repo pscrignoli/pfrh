@@ -55,7 +55,7 @@ export function PayrollDetailSheet({ record, open, onClose }: Props) {
             </div>
           </div>
         ) : (
-
+        <>
         <Accordion type="multiple" defaultValue={["vencimentos", "descontos", "provisoes", "beneficios"]} className="space-y-2">
           {/* Vencimentos */}
           <AccordionItem value="vencimentos">
