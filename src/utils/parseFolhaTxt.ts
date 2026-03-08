@@ -529,7 +529,9 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
 
     // IRRF line with FGTS GFIP on the right side
     if (/^\s*IRRF\s/.test(line) && !/Resumo/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
+      // Extract IRRF values from the left portion (before any FGTS keyword)
+      const leftPart = line.replace(/FGTS.*$/i, "");
+      const vals = leftPart.match(/[\d.,]+/g);
       if (vals) {
         bases.irrf.normal = parseValorBR(vals[0]);
         bases.irrf.decimo_terceiro = parseValorBR(vals[1]);
@@ -544,15 +546,34 @@ function parseBases(lines: string[]): FuncionarioParsed["bases"] {
       }
     }
 
+    // Standalone FGTS GFIP line (not on same line as IRRF)
+    if (/^\s*FGTS\s+GFIP/i.test(line) && !/IRRF/i.test(line)) {
+      const gfipMatch = line.match(/FGTS\s+GFIP\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (gfipMatch) {
+        bases.fgts_gfip.base = parseValorBR(gfipMatch[1]);
+        bases.fgts_gfip.valor = parseValorBR(gfipMatch[2]);
+      }
+    }
+
     // INSS line (not empresa) with FGTS GRRF on the right side
     if (/^\s*INSS\s/i.test(line) && !/Empresa/i.test(line)) {
-      const vals = line.match(/[\d.,]+/g);
+      const leftPart = line.replace(/FGTS.*$/i, "");
+      const vals = leftPart.match(/[\d.,]+/g);
       if (vals) {
         bases.inss.normal = parseValorBR(vals[0]);
         bases.inss.decimo_terceiro = parseValorBR(vals[1]);
         bases.inss.ferias = parseValorBR(vals[2]);
       }
       // FGTS GRRF on same line
+      const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
+      if (grrfMatch) {
+        bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
+        bases.fgts_grrf.valor = parseValorBR(grrfMatch[2]);
+      }
+    }
+
+    // Standalone FGTS GRRF line
+    if (/^\s*FGTS\s+GRRF/i.test(line) && !/INSS/i.test(line)) {
       const grrfMatch = line.match(/FGTS\s+GRRF\s+([\d.,]+)\s+([\d.,]+)/i);
       if (grrfMatch) {
         bases.fgts_grrf.base = parseValorBR(grrfMatch[1]);
