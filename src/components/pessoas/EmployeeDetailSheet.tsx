@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator, Trash2 } from "lucide-react";
+import { SalarioProtegido } from "@/components/SalarioProtegido";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
