@@ -24,6 +24,7 @@ import type { VacancyField } from "@/hooks/useVacancyFields";
 import { useVacancyFields } from "@/hooks/useVacancyFields";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 import RecrutamentoStats from "@/components/recrutamento/RecrutamentoStats";
 import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
