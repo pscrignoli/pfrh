@@ -138,6 +138,8 @@ export default function Recrutamento() {
   const { companyId } = useCompany();
   const { saveFields } = useVacancyFields(undefined);
   const { vagas: empregareVagas, loading: empLoading, lastSync, syncing, sync, stats } = useEmpregareVagas();
+  const { canEdit } = usePermissions();
+  const canEditRecrutamento = canEdit("recrutamento");
 
   // Tab
   const [tab, setTab] = useState("empregare");
