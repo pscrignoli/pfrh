@@ -31,6 +31,7 @@ interface Props {
 export function PayrollDetailSheet({ record, open, onClose }: Props) {
   if (!record) return null;
   const r = record;
+  const restrito = useSalarioRestrito({ cargo: r.cargo });
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -41,6 +42,19 @@ export function PayrollDetailSheet({ record, open, onClose }: Props) {
             Competência: {String(r.mes).padStart(2, "0")}/{r.ano} · {r.cargo ?? "Sem cargo"}
           </p>
         </SheetHeader>
+
+        {restrito ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+            <Lock className="h-12 w-12 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium">Dados salariais restritos</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Os valores deste colaborador são visíveis apenas para perfis autorizados.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">Solicite acesso ao Admin na Matriz de Acessos.</p>
+            </div>
+          </div>
+        ) : (
 
         <Accordion type="multiple" defaultValue={["vencimentos", "descontos", "provisoes", "beneficios"]} className="space-y-2">
           {/* Vencimentos */}
