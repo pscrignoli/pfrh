@@ -56,8 +56,9 @@ export default function Financeiro() {
   const [transmitOpen, setTransmitOpen] = useState(false);
   const [calculando, setCalculando] = useState(false);
 
-  const { canEdit } = usePermissions();
+  const { canEdit, canView } = usePermissions();
   const canEditFolha = canEdit("folha");
+  const canViewSalarioDiretoria = canView("salario_diretoria");
 
   const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
