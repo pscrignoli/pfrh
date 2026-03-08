@@ -1175,6 +1175,63 @@ export type Database = {
           },
         ]
       }
+      user_invites: {
+        Row: {
+          accepted_at: string | null
+          company_id: string | null
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          full_name: string | null
+          id: string
+          invited_by: string
+          role_id: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          full_name?: string | null
+          id?: string
+          invited_by: string
+          role_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          full_name?: string | null
+          id?: string
+          invited_by?: string
+          role_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_invites_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "role_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           company_id: string | null
