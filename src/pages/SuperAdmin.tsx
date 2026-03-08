@@ -58,23 +58,26 @@ export default function SuperAdmin() {
 }
 
 function UsersRolesPanel() {
-  const [userRoles, setUserRoles] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newRole, setNewRole] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
-  const fetchRoles = async () => {
+  const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) setUserRoles(data);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("list-users", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.data && !res.error) setUsers(res.data);
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { fetchRoles(); }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const handleAddRole = async () => {
     if (!selectedUserId || !newRole) return;
