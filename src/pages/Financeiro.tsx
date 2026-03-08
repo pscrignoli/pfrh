@@ -22,6 +22,8 @@ import {
 import { Send, Upload, GitCompareArrows, Lock, Unlock, Calculator, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { isDiretor } from "@/utils/isDiretor";
+import { SalarioProtegido } from "@/components/SalarioProtegido";
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
