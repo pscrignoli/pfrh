@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, Download, ArrowUpRight, ArrowDownRight, History } from "lucide-react";
+import { Calculator, Download, ArrowUpRight, ArrowDownRight, History, Lock } from "lucide-react";
 import { format, differenceInMonths, differenceInDays } from "date-fns";
+import { isDiretor } from "@/utils/isDiretor";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 import {
   useSimuladorRescisao,
