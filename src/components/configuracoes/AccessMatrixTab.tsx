@@ -223,7 +223,19 @@ function SectionRows({
       </tr>
       {section.modules.map((mod) => (
         <tr key={mod.key} className="border-b hover:bg-muted/30 transition-colors">
-          <td className="p-3 font-medium whitespace-nowrap">{mod.label}</td>
+          <td className="p-3 font-medium whitespace-nowrap">
+            <span className="inline-flex items-center gap-1.5">
+              {mod.label}
+              {MODULE_TOOLTIPS[mod.key] && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>{MODULE_TOOLTIPS[mod.key]}</TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          </td>
           {sortedRoles.map((role) => {
             const isLocked = role.name === "super_admin";
             const perm = getPerm(role.id, mod.key);
