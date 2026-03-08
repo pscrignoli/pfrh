@@ -19,8 +19,7 @@ interface UserWithRoles {
 }
 
 export default function SuperAdmin() {
-  const { role, roles } = useAuth();
-  const isSuperAdmin = roles?.includes("super_admin");
+  const { isSuperAdmin } = usePermissions();
 
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
