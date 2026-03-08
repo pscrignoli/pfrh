@@ -317,18 +317,20 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
     const sindMatch = cargoLine.match(/Sind(?:icato)?[:\s]+(\d+)/i);
     sindicato_codigo = sindMatch ? sindMatch[1] : "";
 
-    // Situacao is usually at the end
-    const sitMatch = cargoLine.match(/(?:Sindicato.*?|CBO\s+\d+\s+\S+\s+\d+)\s+([\w\s]+?)\s*$/);
+    // Situacao: try to extract from end of line using broad character class (supports accented chars)
+    const sitMatch = cargoLine.match(/(?:Sindicato.*?|CBO\s+\d+\s+\S+\s+\d+)\s+([A-Za-zÀ-ÖØ-öø-ÿ\s.]+?)\s*$/);
     if (sitMatch) {
       situacao = sitMatch[1].trim();
     }
-    // Fallback: look for known situacao keywords
+    // Fallback: look for known situacao keywords (with accent-tolerant patterns)
     if (!situacao) {
       if (/Trabalhando/i.test(cargoLine)) situacao = "Trabalhando";
-      else if (/Demitido/i.test(cargoLine)) situacao = "Demitido";
-      else if (/Afastado/i.test(cargoLine)) situacao = "Afastado";
-      else if (/Ferias/i.test(cargoLine)) situacao = "Ferias";
-      else if (/Licenca/i.test(cargoLine)) situacao = "Licenca";
+      else if (/Demitid/i.test(cargoLine)) situacao = "Demitido";
+      else if (/Afastad/i.test(cargoLine)) situacao = "Afastado";
+      else if (/F[eé]rias/i.test(cargoLine)) situacao = "Ferias";
+      else if (/Licen[cç]a/i.test(cargoLine)) situacao = "Licença";
+      else if (/Experi[eê]ncia/i.test(cargoLine)) situacao = "Experiência";
+      else if (/Avis.*Pr[eé]v/i.test(cargoLine)) situacao = "Aviso Prévio";
     }
   }
 
