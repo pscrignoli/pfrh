@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Plus, Search, AlertTriangle, CheckCircle2, FileSpreadsheet, GraduationCap } from "lucide-react";
 import { Constants } from "@/integrations/supabase/types";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
