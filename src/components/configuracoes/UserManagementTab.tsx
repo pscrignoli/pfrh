@@ -453,6 +453,3 @@ export default function UserManagementTab() {
   );
 }
 
-// Need these imports for inline use
-import { X } from "lucide-react";
-import { Loader2 } from "lucide-react";

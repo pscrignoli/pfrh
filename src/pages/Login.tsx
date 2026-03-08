@@ -211,11 +211,8 @@ export default function Login() {
           </form>
         </CardContent>
         <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground">
-            Não tem conta?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
-              Criar conta
-            </Link>
+          <p className="text-xs text-muted-foreground">
+            Acesso restrito por convite | P&F Brasil
           </p>
         </CardFooter>
       </Card>
