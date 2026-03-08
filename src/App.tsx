@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { CompanyGate } from "@/components/CompanyGate";
 import { PrivateRoute } from "@/components/PrivateRoute";
+import { ModuleGuard } from "@/components/ModuleGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
@@ -24,6 +25,7 @@ import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
 import Aniversariantes from "@/pages/Aniversariantes";
+import AccessDenied from "@/pages/AccessDenied";
 
 import NotFound from "./pages/NotFound";
 
@@ -49,19 +51,19 @@ const App = () => (
                     </CompanyGate>
                   }
                 >
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/presenca" element={<Presenca />} />
-                  <Route path="/colaboradores" element={<Pessoas />} />
-                  <Route path="/recrutamento" element={<Recrutamento />} />
-                  <Route path="/aniversariantes" element={<Aniversariantes />} />
-                  
-                  <Route path="/financeiro" element={<Financeiro />} />
-                  <Route path="/folha/custo-pessoal" element={<CustoPessoal />} />
-                  <Route path="/ferias" element={<Ferias />} />
-                  <Route path="/simulador-rescisao" element={<SimuladorRescisao />} />
-                  <Route path="/assistente" element={<Assistente />} />
-                  <Route path="/configuracoes" element={<Configuracoes />} />
-                  <Route path="/super-admin" element={<SuperAdmin />} />
+                  <Route path="/" element={<ModuleGuard module="dashboard"><Dashboard /></ModuleGuard>} />
+                  <Route path="/presenca" element={<ModuleGuard module="dashboard"><Presenca /></ModuleGuard>} />
+                  <Route path="/colaboradores" element={<ModuleGuard module="colaboradores"><Pessoas /></ModuleGuard>} />
+                  <Route path="/recrutamento" element={<ModuleGuard module="recrutamento"><Recrutamento /></ModuleGuard>} />
+                  <Route path="/aniversariantes" element={<ModuleGuard module="aniversariantes"><Aniversariantes /></ModuleGuard>} />
+                  <Route path="/financeiro" element={<ModuleGuard module="folha"><Financeiro /></ModuleGuard>} />
+                  <Route path="/folha/custo-pessoal" element={<ModuleGuard module="folha.custo"><CustoPessoal /></ModuleGuard>} />
+                  <Route path="/ferias" element={<ModuleGuard module="ferias"><Ferias /></ModuleGuard>} />
+                  <Route path="/simulador-rescisao" element={<ModuleGuard module="simulador"><SimuladorRescisao /></ModuleGuard>} />
+                  <Route path="/assistente" element={<ModuleGuard module="dashboard"><Assistente /></ModuleGuard>} />
+                  <Route path="/configuracoes" element={<ModuleGuard module="configuracoes"><Configuracoes /></ModuleGuard>} />
+                  <Route path="/super-admin" element={<ModuleGuard module="configuracoes.acessos"><SuperAdmin /></ModuleGuard>} />
+                  <Route path="/acesso-negado" element={<AccessDenied />} />
                 </Route>
               </Route>
               <Route path="*" element={<NotFound />} />
