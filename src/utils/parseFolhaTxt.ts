@@ -107,15 +107,25 @@ export interface ParsedPayroll {
 
 // ── Helpers ──
 
-/** Parse "3.877,11" → 3877.11 */
+/** Parse "3.877,11" → 3877.11, handles negatives like "-1.234,56" or "(1.234,56)" */
 export function parseValorBR(str: string | undefined | null): number {
   if (!str) return 0;
   let clean = str.trim();
   if (!clean) return 0;
+  // Detect negative: leading minus or parenthesized value
+  let negative = false;
+  if (clean.startsWith("-")) {
+    negative = true;
+    clean = clean.substring(1).trim();
+  } else if (clean.startsWith("(") && clean.endsWith(")")) {
+    negative = true;
+    clean = clean.substring(1, clean.length - 1).trim();
+  }
   // Remove dots (thousands), replace comma with period
   clean = clean.replace(/\./g, "").replace(",", ".");
   const num = Number(clean);
-  return isNaN(num) ? 0 : num;
+  if (isNaN(num)) return 0;
+  return negative ? -num : num;
 }
 
 /** Parse "19/02/2019" → "2019-02-19" */
