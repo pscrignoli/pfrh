@@ -54,6 +54,9 @@ export default function Financeiro() {
   const [transmitOpen, setTransmitOpen] = useState(false);
   const [calculando, setCalculando] = useState(false);
 
+  const { canEdit } = usePermissions();
+  const canEditFolha = canEdit("folha");
+
   const { records, logs, loading, refetch } = useFinanceiroData(ano, mes);
 
   // Derived status for the month
