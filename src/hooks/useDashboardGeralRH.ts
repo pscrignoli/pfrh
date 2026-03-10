@@ -156,7 +156,7 @@ export function useDashboardGeralRH(
     // Fetch current + previous month payroll in one go — also fetch sparkline data (6 months back)
     const sparklineStart = new Date(ano, mes - 7, 1); // 6 months before
     let allPayrollQ = supabase.from("payroll_monthly_records")
-      .select("*, employees!inner(nome_completo, departamento, cargo)")
+      .select("*")
       .gte("ano", sparklineStart.getFullYear())
       .order("ano").order("mes");
     if (companyId) allPayrollQ = allPayrollQ.eq("company_id", companyId);
