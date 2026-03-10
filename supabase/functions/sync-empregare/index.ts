@@ -94,6 +94,74 @@ async function syncDepartments(bearer: string, format: string, empresaId: string
   return { synced };
 }
 
+// ── Helper: extract extra fields from listarBI item ──
+function extractExtraFields(v: any) {
+  const etapas = v.vagaEtapa ?? v.etapas ?? v.Etapas ?? [];
+  
+  // Total candidaturas from "Todos" etapa
+  let totalCandidaturas = 0;
+  for (const e of etapas) {
+    const nome = (e.nome ?? e.Nome ?? "").toLowerCase();
+    if (nome === "todos" || nome === "all") {
+      totalCandidaturas = Number(e.qntde ?? e.Qntde ?? e.qtd ?? 0) || 0;
+    }
+  }
+  
+  const totalContratados = Number(v.totalContratado ?? v.TotalContratado ?? 0) || 0;
+  
+  // Setor info
+  const setorArr = Array.isArray(v.setor) ? v.setor : (v.setor ? [v.setor] : []);
+  const firstSetor = setorArr[0] ?? {};
+  const filialObj = firstSetor.filial ?? {};
+  
+  // Parse meta_encerramento to date
+  let metaEncerramentoData = null;
+  const meta = v.metaEncerramento ?? v.MetaEncerramento ?? null;
+  if (meta) {
+    try {
+      const d = new Date(meta);
+      if (!isNaN(d.getTime())) metaEncerramentoData = d.toISOString().split("T")[0];
+    } catch {}
+  }
+  
+  // Dias andamento
+  let diasAndamento = 0;
+  const dataCadastro = v.dataCadastro ?? v.DataCadastro ?? null;
+  if (dataCadastro) {
+    try {
+      const d = new Date(dataCadastro);
+      diasAndamento = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    } catch {}
+  }
+
+  return {
+    total_candidaturas: totalCandidaturas,
+    total_contratados: totalContratados,
+    total_em_andamento: Math.max(0, totalCandidaturas - totalContratados),
+    total_reprovados: 0,
+    total_cancelados: 0,
+    dias_andamento: diasAndamento,
+    dias_congelados: 0,
+    meta_encerramento_data: metaEncerramentoData,
+    meta_encerramento_texto: meta ? String(meta).slice(0, 100) : null,
+    motivo_abertura: v.motivoAberturaDescricao ?? v.MotivoAberturaDescricao ?? v.motivoAbertura ?? v.MotivoAbertura ?? null,
+    motivo_cancelamento: v.motivoCancelamento ?? v.MotivoCancelamento ?? null,
+    nivel_hierarquico: v.nivelHierarquico ?? v.NivelHierarquico ?? null,
+    regime_contratacao: v.regimeContratacao ?? v.RegimeContratacao ?? v.tipoContrato ?? v.TipoContrato ?? null,
+    pcd: v.pcd ?? v.PCD ?? v.Pcd ?? false,
+    vaga_confidencial: v.vagaConfidencial ?? v.VagaConfidencial ?? false,
+    selecao_oculta: v.selecaoOculta ?? v.SelecaoOculta ?? false,
+    modalidade_trabalho: v.trabalhoRemoto ?? v.TrabalhoRemoto ?? v.modalidadeTrabalho ?? null,
+    data_encerramento: v.dataEncerramento ?? v.DataEncerramento ?? null,
+    data_cancelamento: v.dataCancelamento ?? v.DataCancelamento ?? null,
+    data_congelamento: v.dataCongelamento ?? v.DataCongelamento ?? null,
+    codigo_requisicao: v.requisicaoID ?? v.RequisicaoID ?? null,
+    setor: firstSetor.titulo ?? firstSetor.Titulo ?? firstSetor.nome ?? firstSetor.Nome ?? null,
+    filial: filialObj.titulo ?? filialObj.Titulo ?? filialObj.nome ?? filialObj.Nome ?? null,
+    unidade_negocio: v.unidadeNegocio ?? v.UnidadeNegocio ?? null,
+  };
+}
+
 // ── Helper: build vaga record from listarBI item ──
 function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorToDept: Record<number, string>) {
   const empId = v.ID ?? v.id;
@@ -112,6 +180,8 @@ function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorT
   const responsaveis = v.vagaGestor ?? v.vagaRequisitante ?? v.responsaveis ?? v.Responsaveis ?? [];
 
   const situacao = v.status ?? v.situacao ?? v.Situacao ?? null;
+
+  const extra = extractExtraFields(v);
 
   return {
     empregare_id: empId,
@@ -138,6 +208,7 @@ function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorT
     data_cadastro: v.dataCadastro ?? v.DataCadastro ?? null,
     data_sync: new Date().toISOString(),
     raw_json: JSON.stringify(v),
+    ...extra,
   };
 }
 
@@ -194,7 +265,6 @@ async function syncVagasPages(bearer: string, format: string, empresaId: string,
 async function enrichOpenVacancies(bearer: string, format: string, empresaId: string): Promise<{ enriched: number }> {
   const sb = getServiceClient();
 
-  // Get all open vacancies
   const { data: openVagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").eq("situacao", "Aberta");
   let enriched = 0;
 
@@ -207,7 +277,6 @@ async function enrichOpenVacancies(bearer: string, format: string, empresaId: st
       const vagaData = detalhes?.vaga ?? detalhes?.Vaga ?? detalhes;
       const etapas = vagaData?.etapas ?? vagaData?.Etapas ?? vagaData?.vagaEtapa ?? [];
 
-      // Update etapas with counts from detalhes
       if (etapas.length > 0) {
         await sb.from("empregare_vagas").update({
           etapas: JSON.stringify(etapas),
@@ -272,14 +341,12 @@ async function syncCandidatos(bearer: string, format: string, empresaId: string)
 
           await sb.from("empregare_candidatos").upsert(record as any, { onConflict: "empregare_pessoa_id,empregare_vaga_id" });
 
-          // Also create kanban card for this contratado
           const etapasVaga = await sb.from("empregare_vagas").select("etapas").eq("empregare_id", (vaga as any).empregare_id).maybeSingle();
           const etapasArr = etapasVaga?.data?.etapas ? (typeof etapasVaga.data.etapas === "string" ? JSON.parse(etapasVaga.data.etapas as string) : etapasVaga.data.etapas) : [];
           const contratadoEtapa = etapasArr.find((e: any) => (e.nome ?? e.Nome ?? "").toLowerCase().includes("contratad"));
           const etapaNome = contratadoEtapa?.nome ?? contratadoEtapa?.Nome ?? "Contratados";
           const etapaOrdem = contratadoEtapa?.ordem ?? contratadoEtapa?.Ordem ?? 99;
 
-          // Check if kanban card already exists
           const { data: existingCard } = await sb.from("empregare_kanban_cards")
             .select("id")
             .eq("empregare_vaga_id", (vaga as any).empregare_id)
@@ -353,13 +420,8 @@ Deno.serve(async (req) => {
     }
 
     if (step === "vagas" || step === "all") {
-      // Step 1: Sync open vacancies first (most important)
       results.vagasAbertas = await syncVagasPages(bearer, format, empresaId, "Aberta");
-
-      // Step 2: Sync ALL vacancies (all pages, no filter) for complete history
       results.vagasHistorico = await syncVagasPages(bearer, format, empresaId);
-
-      // Step 3: Enrich open vacancies with detailed etapa counts
       results.enriched = await enrichOpenVacancies(bearer, format, empresaId);
     }
 
@@ -367,7 +429,6 @@ Deno.serve(async (req) => {
       results.candidatos = await syncCandidatos(bearer, format, empresaId);
     }
 
-    // Save last sync timestamp
     const sb = getServiceClient();
     await sb.from("system_settings").upsert(
       { key: "empregare_last_sync", value: new Date().toISOString(), updated_at: new Date().toISOString() },

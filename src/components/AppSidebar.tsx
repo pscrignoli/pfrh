@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
-  Palmtree, Calculator, HeartPulse, Upload,
+  Palmtree, Calculator, HeartPulse, Upload, Briefcase, ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -22,7 +22,12 @@ const mainItems = [
   { title: "Presença e Jornada", url: "/presenca", icon: Clock, module: "colaboradores" },
   { title: "Colaboradores", url: "/colaboradores", icon: Users, module: "colaboradores" },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake, module: "aniversariantes" },
-  { title: "Recrutamento", url: "/recrutamento", icon: UserSearch, module: "recrutamento" },
+];
+
+const recrutamentoSubItems = [
+  { title: "Vagas", url: "/recrutamento", icon: Briefcase, module: "recrutamento" },
+  { title: "Dashboard Vagas", url: "/recrutamento/dashboard-vagas", icon: BarChart3, module: "recrutamento" },
+  { title: "Dashboard Requisições", url: "/recrutamento/dashboard-requisicoes", icon: ClipboardList, module: "recrutamento" },
 ];
 
 const saudeSubItems = [
@@ -58,12 +63,17 @@ export function AppSidebar() {
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
   const visibleMainItems = mainItems.filter((item) => canView(item.module));
+  const visibleRecrutamentoItems = recrutamentoSubItems.filter((item) => canView(item.module));
   const visibleSaudeItems = saudeSubItems.filter((item) => canView(item.module));
   const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
   const visibleBottomItems = bottomItems.filter((item) => canView(item.module));
+  const showRecrutamento = visibleRecrutamentoItems.length > 0;
   const showSaude = visibleSaudeItems.length > 0;
   const showFolha = visibleFolhaItems.length > 0;
   const showConfig = canView("configuracoes");
+
+  const recrutamentoActive = location.pathname.startsWith("/recrutamento");
+  const [recrutamentoOpen, setRecrutamentoOpen] = useState(recrutamentoActive);
 
   const saudeActive = location.pathname.startsWith("/saude");
   const [saudeOpen, setSaudeOpen] = useState(saudeActive);
@@ -138,7 +148,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {showSaude && renderCollapsible("Saúde", HeartPulse, saudeOpen, setSaudeOpen, saudeActive, visibleSaudeItems)}
+              {showRecrutamento && renderCollapsible("Recrutamento", UserSearch, recrutamentoOpen, setRecrutamentoOpen, recrutamentoActive, visibleRecrutamentoItems)}
               {showFolha && renderCollapsible("Fechamento da Folha", FileSpreadsheet, folhaOpen, setFolhaOpen, folhaActive, visibleFolhaItems)}
 
               {visibleBottomItems.map((item) => (
