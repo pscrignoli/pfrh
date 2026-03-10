@@ -15,6 +15,7 @@ import {
   BarChart3,
   Palmtree,
   Calculator,
+  Heart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -44,6 +45,7 @@ const mainItems = [
   { title: "Colaboradores", url: "/colaboradores", icon: Users, module: "colaboradores" },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake, module: "aniversariantes" },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch, module: "recrutamento" },
+  { title: "Saúde & Benefícios", url: "/saude", icon: Heart, module: "colaboradores" },
   { title: "Férias", url: "/ferias", icon: Palmtree, module: "ferias" },
   { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "colaboradores" },
 ];
