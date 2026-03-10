@@ -64,6 +64,21 @@ interface Props {
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
+  const [healthRecords, setHealthRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!employee?.id || !open) { setHealthRecords([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("health_records" as any)
+        .select("*")
+        .eq("employee_id", employee.id)
+        .order("competencia", { ascending: false })
+        .limit(20);
+      setHealthRecords((data as any) ?? []);
+    })();
+  }, [employee?.id, open]);
+
   if (!employee) return null;
 
   const ext = employee as any;
