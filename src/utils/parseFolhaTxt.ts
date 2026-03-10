@@ -700,14 +700,14 @@ export function mapParsedToPayrollFields(func: FuncionarioParsed): Record<string
     terco_ferias: sumCodes(678, 679),
     avos_ferias: 0,
 
-    // Encargos
+    // Encargos: inss fields store BASES, fgts stores actual values
     inss_20: func.bases.inss_empresa.normal,
     inss_13: func.bases.inss.decimo_terceiro,
     inss_ferias: func.bases.inss.ferias,
     fgts_8: func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
     fgts_13: 0,
     fgts_ferias: 0,
-    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
+    encargos: (func.bases.inss_empresa.normal * 0.288) + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
 
     // Benefícios
     vale_transporte: rubricaByCode.get(1816) ?? 0,

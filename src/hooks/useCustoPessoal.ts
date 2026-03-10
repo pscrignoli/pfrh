@@ -82,14 +82,17 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
 
         const salarios = sum(r => (r.salario ?? 0) + (r.he_total ?? 0) + (r.dsr_horas ?? 0) + (r.adicional_noturno ?? 0) + (r.insalubridade ?? 0) + (r.diferenca_salario ?? 0) + (r.bonus_gratificacao ?? 0) + (r.salario_gratificacao ?? 0));
         const fgts = sum(r => (r.fgts_8 ?? 0) + (r.fgts_13 ?? 0) + (r.fgts_ferias ?? 0));
-        const inss_empresa = sum(r => (r.inss_20 ?? 0) + (r.inss_13 ?? 0) + (r.inss_ferias ?? 0));
+        // IMPORTANT: inss_20/inss_ferias/inss_13 store BASES not actual values.
+        // Calculate actual INSS patronal contribution from bases * rate (~28.8%)
+        const INSS_RATE = 0.288;
+        const inss_empresa = sum(r => ((r.inss_20 ?? 0) + (r.inss_13 ?? 0) + (r.inss_ferias ?? 0)) * INSS_RATE);
         const plano_saude = sum(r => (r.convenio_medico ?? 0) + (r.plano_odontologico ?? 0) + (r.plano_odontologico_empresa ?? 0));
         const beneficios = sum(r => (r.beneficios ?? 0)) || (plano_saude + sum(r => (r.vale_transporte ?? 0) + (r.vr_alimentacao ?? 0) + (r.auxilio_alimentacao ?? 0) + (r.ajuda_de_custo ?? 0) + (r.vr_auto ?? 0)));
         const provisao_ferias = sum(r => (r.ferias ?? 0) + (r.terco_ferias ?? 0) + (r.avos_ferias ?? 0));
         const provisao_13 = sum(r => (r.decimo_terceiro ?? 0) + (r.ferias_13 ?? 0));
         const horas_extras = sum(r => (r.he_total ?? 0));
-        const encargos = sum(r => (r.encargos ?? 0)) || (fgts + inss_empresa);
-        const total = sum(r => (r.total_geral ?? 0)) || (salarios + encargos + beneficios);
+        const encargos = fgts + inss_empresa;
+        const total = salarios + encargos + beneficios;
 
         months.push({
           ano, mes,

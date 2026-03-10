@@ -107,12 +107,13 @@ function buildPayrollFields(func: FuncionarioParsed): Record<string, unknown> {
     ferias: rubricaVal(func, 658, 659, 660),
     terco_ferias: rubricaVal(func, 678, 679),
 
-    // Encargos (from bases)
+    // Encargos: inss fields store BASES (for reference), fgts stores actual values
+    // The `encargos` aggregate estimates the actual INSS patronal contribution (~28.8% of base)
     inss_20: func.bases.inss_empresa.normal,
     inss_13: func.bases.inss.decimo_terceiro,
     inss_ferias: func.bases.inss.ferias,
     fgts_8: func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
-    encargos: func.bases.inss_empresa.normal + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
+    encargos: (func.bases.inss_empresa.normal * 0.288) + func.bases.fgts_gfip.valor + func.bases.fgts_grrf.valor,
 
     // Descontos
     desconto_vale_transporte: rubricaVal(func, 1816),

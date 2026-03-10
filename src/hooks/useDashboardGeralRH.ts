@@ -244,23 +244,38 @@ export function useDashboardGeralRH(
     const folhaDelta = prevFolha > 0 ? ((folhaBruta - prevFolha) / prevFolha) * 100 : 0;
 
     // ─── ENCARGOS ───
-    // Use individual fields directly; avoid using aggregated `encargos` field to prevent double counting
+    // IMPORTANT: inss_20/inss_ferias/inss_13 store BASES (salary amounts), not actual contributions.
+    // fgts_8 stores the actual FGTS value. The pre-calculated `encargos` field = inss_base + fgts_value.
+    // Use the pre-calculated `encargos` field for consistency with Custo Pessoal dashboard.
+    // For a more accurate calculation, we derive INSS patronal from bases * rate.
+    const INSS_PATRONAL_RATE = 0.288; // 20% patronal + ~5.8% terceiros + ~3% RAT/FAP (approximation)
     const calcEncargos = (records: typeof pr) =>
-      records.reduce((s, r) =>
-        s + (Number(r.inss_20) || 0) + (Number(r.fgts_8) || 0)
-        + (Number(r.fgts_ferias) || 0) + (Number(r.fgts_13) || 0)
-        + (Number(r.inss_ferias) || 0) + (Number(r.inss_13) || 0),
-      0);
+      records.reduce((s, r) => {
+        const inssBase = (Number(r.inss_20) || 0);
+        const inssBaseFerias = (Number(r.inss_ferias) || 0);
+        const inssBase13 = (Number(r.inss_13) || 0);
+        const inssPatronal = (inssBase + inssBaseFerias + inssBase13) * INSS_PATRONAL_RATE;
+        const fgts = (Number(r.fgts_8) || 0) + (Number(r.fgts_ferias) || 0) + (Number(r.fgts_13) || 0);
+        return s + inssPatronal + fgts;
+      }, 0);
 
     const encargos = calcEncargos(pr);
     const encargosPercentFolha = folhaBruta > 0 ? (encargos / folhaBruta) * 100 : 0;
+
+    // ─── BENEFÍCIOS (da folha) ───
+    const beneficiosFolha = pr.reduce((s, r) =>
+      s + (Number(r.convenio_medico) || 0) + (Number(r.plano_odontologico) || 0)
+      + (Number(r.plano_odontologico_empresa) || 0) + (Number(r.vale_transporte) || 0)
+      + (Number(r.vr_alimentacao) || 0) + (Number(r.auxilio_alimentacao) || 0)
+      + (Number(r.ajuda_de_custo) || 0) + (Number(r.vr_auto) || 0),
+    0);
 
     // ─── SAÚDE ───
     const healthInv = hlRes.data ?? [];
     const saudeTotal = healthInv.reduce((s, r) => s + (Number(r.valor_cobrado) || Number(r.valor_fatura) || 0), 0);
     const saudeVidas = healthInv.reduce((s, r) => s + (Number(r.total_vidas) || 0), 0);
 
-    const custoTotal = folhaBruta + encargos + saudeTotal;
+    const custoTotal = folhaBruta + encargos + beneficiosFolha + saudeTotal;
     const custoPerCapita = headcount > 0 ? custoTotal / headcount : 0;
 
     // ─── SPARKLINE (from already-fetched data, no extra queries) ───
