@@ -39,15 +39,13 @@ function calcAge(birthDate: string, refDate: Date = new Date()): number {
 }
 
 function isWithinNextDays(dateStr: string, days: number, today: Date): boolean {
-  const d = new Date(dateStr);
-  // Create this year's occurrence
-  const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+  const p = parseDateParts(dateStr);
+  const thisYear = new Date(today.getFullYear(), p.month - 1, p.day);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const diff = (thisYear.getTime() - todayStart.getTime()) / 86400000;
   if (diff >= 0 && diff <= days) return true;
-  // Handle year boundary
   if (diff < 0) {
-    const nextYear = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+    const nextYear = new Date(today.getFullYear() + 1, p.month - 1, p.day);
     const diff2 = (nextYear.getTime() - todayStart.getTime()) / 86400000;
     return diff2 >= 0 && diff2 <= days;
   }
@@ -55,12 +53,12 @@ function isWithinNextDays(dateStr: string, days: number, today: Date): boolean {
 }
 
 function getDaysUntil(dateStr: string, today: Date): number {
-  const d = new Date(dateStr);
-  const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+  const p = parseDateParts(dateStr);
+  const thisYear = new Date(today.getFullYear(), p.month - 1, p.day);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   let diff = (thisYear.getTime() - todayStart.getTime()) / 86400000;
   if (diff < 0) {
-    const nextYear = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+    const nextYear = new Date(today.getFullYear() + 1, p.month - 1, p.day);
     diff = (nextYear.getTime() - todayStart.getTime()) / 86400000;
   }
   return Math.round(diff);
