@@ -149,6 +149,16 @@ export default function Saude() {
         </div>
       </div>
 
+      <Tabs defaultValue="dashboard" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="conferencia" className="gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5" /> Conferência
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6 mt-0">
+
       {/* 10. Alerts */}
       {alerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
