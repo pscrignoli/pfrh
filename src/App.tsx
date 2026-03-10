@@ -25,6 +25,7 @@ import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
 import Aniversariantes from "@/pages/Aniversariantes";
+import Saude from "@/pages/Saude";
 import AccessDenied from "@/pages/AccessDenied";
 
 import NotFound from "./pages/NotFound";
