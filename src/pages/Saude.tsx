@@ -497,6 +497,12 @@ export default function Saude() {
           </Accordion>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="conferencia" className="mt-0">
+          <ConferenciaFaturaFolha />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
