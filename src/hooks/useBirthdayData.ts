@@ -85,12 +85,15 @@ export function useBirthdayData() {
       setEmployees([]);
     } else {
       const today = new Date();
-      const mapped: BirthdayEmployee[] = (data ?? []).map((e: any) => ({
-        ...e,
-        dia: new Date(e.data_nascimento).getDate(),
-        mes: new Date(e.data_nascimento).getMonth() + 1,
-        idade: calcAge(e.data_nascimento, today),
-      }));
+      const mapped: BirthdayEmployee[] = (data ?? []).map((e: any) => {
+        const p = parseDateParts(e.data_nascimento);
+        return {
+          ...e,
+          dia: p.day,
+          mes: p.month,
+          idade: calcAge(e.data_nascimento, today),
+        };
+      });
       setEmployees(mapped);
     }
     setLoading(false);
