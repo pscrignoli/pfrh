@@ -148,7 +148,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {showSaude && renderCollapsible("Saúde", HeartPulse, saudeOpen, setSaudeOpen, saudeActive, visibleSaudeItems)}
+              {showRecrutamento && renderCollapsible("Recrutamento", UserSearch, recrutamentoOpen, setRecrutamentoOpen, recrutamentoActive, visibleRecrutamentoItems)}
               {showFolha && renderCollapsible("Fechamento da Folha", FileSpreadsheet, folhaOpen, setFolhaOpen, folhaActive, visibleFolhaItems)}
 
               {visibleBottomItems.map((item) => (
