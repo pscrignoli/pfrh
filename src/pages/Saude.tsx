@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   HeartPulse, DollarSign, Building2, Users, TrendingUp, TrendingDown,
-  AlertTriangle, Info, AlertCircle, Download,
+  AlertTriangle, Info, AlertCircle, Download, ShieldCheck,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -19,6 +20,7 @@ import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { SalarioProtegido } from "@/components/SalarioProtegido";
 import { useSalarioRestrito } from "@/components/SalarioProtegido";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ConferenciaFaturaFolha } from "@/components/saude/ConferenciaFaturaFolha";
 import * as XLSX from "xlsx";
 
 const COLORS = {
@@ -146,6 +148,16 @@ export default function Saude() {
           </Button>
         </div>
       </div>
+
+      <Tabs defaultValue="dashboard" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="conferencia" className="gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5" /> Conferência
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6 mt-0">
 
       {/* 10. Alerts */}
       {alerts.length > 0 && (
@@ -485,6 +497,12 @@ export default function Saude() {
           </Accordion>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="conferencia" className="mt-0">
+          <ConferenciaFaturaFolha />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
