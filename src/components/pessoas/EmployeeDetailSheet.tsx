@@ -209,7 +209,61 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete 
             </CardContent>
           </Card>
 
-          <Card className="border-dashed">
+          {/* Health Plan Section */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <HeartPulse className="h-4 w-4" />
+                Plano de Saúde
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {healthRecords.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">Sem registros de plano de saúde</p>
+              ) : (() => {
+                const latest = healthRecords[0]?.competencia;
+                const latestRecs = healthRecords.filter((r: any) => r.competencia === latest);
+                const titular = latestRecs.find((r: any) => r.parentesco === "titular");
+                const deps = latestRecs.filter((r: any) => r.parentesco !== "titular");
+                const custoTotal = latestRecs.reduce((s: number, r: any) => s + (r.valor_total || r.mensalidade || 0), 0);
+                const plano = titular?.descricao_plano || titular?.codigo_plano || latestRecs[0]?.fonte;
+                const fonte = latestRecs[0]?.fonte;
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {fonte === "bradesco" ? "Bradesco Saúde" : "Unimed"}
+                      </Badge>
+                      {plano && <span className="text-xs text-muted-foreground">{plano}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Custo Mensal</p>
+                        <p className="font-medium">
+                          {custoTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Vidas</p>
+                        <p className="font-medium">{latestRecs.length} ({deps.length} dep.)</p>
+                      </div>
+                    </div>
+                    {deps.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Dependentes:</p>
+                        {deps.map((d: any, i: number) => (
+                          <p key={i} className="text-xs">
+                            {d.nome_beneficiario} <span className="text-muted-foreground">({d.parentesco})</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
