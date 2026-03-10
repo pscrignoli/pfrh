@@ -250,7 +250,7 @@ export default function Aniversariantes() {
           </CardHeader>
           <CardContent className="space-y-1">
             {workAnniversaries.length > 0 ? workAnniversaries.map(emp => {
-              const admDay = new Date(emp.data_admissao).getDate();
+              const admDay = Number(emp.data_admissao.split("T")[0].split("-")[2]);
               return (
                 <div key={emp.id} className={`flex items-center gap-2 py-1.5 px-2 rounded-md ${emp.is_marco ? "bg-warning/5" : "hover:bg-muted/50"}`}>
                   <Award className={`h-3.5 w-3.5 shrink-0 ${emp.is_marco ? "text-warning" : "text-muted-foreground"}`} />

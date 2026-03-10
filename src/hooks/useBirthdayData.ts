@@ -22,29 +22,30 @@ export interface WorkAnniversaryEmployee extends BirthdayEmployee {
 
 const MARCOS = [1, 3, 5, 10, 15, 20, 25, 30];
 
+/** Parse "YYYY-MM-DD" without timezone shift */
+function parseDateParts(dateStr: string): { year: number; month: number; day: number } {
+  const [y, m, d] = dateStr.split("T")[0].split("-").map(Number);
+  return { year: y, month: m, day: d };
+}
+
 function calcAge(birthDate: string, refDate: Date = new Date()): number {
-  const b = new Date(birthDate);
-  let age = refDate.getFullYear() - b.getFullYear();
-  const m = refDate.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && refDate.getDate() < b.getDate())) age--;
+  const b = parseDateParts(birthDate);
+  const refY = refDate.getFullYear();
+  const refM = refDate.getMonth() + 1;
+  const refD = refDate.getDate();
+  let age = refY - b.year;
+  if (refM < b.month || (refM === b.month && refD < b.day)) age--;
   return age;
 }
 
-function getDayOfYear(d: Date): number {
-  const start = new Date(d.getFullYear(), 0, 0);
-  return Math.floor((d.getTime() - start.getTime()) / 86400000);
-}
-
 function isWithinNextDays(dateStr: string, days: number, today: Date): boolean {
-  const d = new Date(dateStr);
-  // Create this year's occurrence
-  const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+  const p = parseDateParts(dateStr);
+  const thisYear = new Date(today.getFullYear(), p.month - 1, p.day);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const diff = (thisYear.getTime() - todayStart.getTime()) / 86400000;
   if (diff >= 0 && diff <= days) return true;
-  // Handle year boundary
   if (diff < 0) {
-    const nextYear = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+    const nextYear = new Date(today.getFullYear() + 1, p.month - 1, p.day);
     const diff2 = (nextYear.getTime() - todayStart.getTime()) / 86400000;
     return diff2 >= 0 && diff2 <= days;
   }
@@ -52,12 +53,12 @@ function isWithinNextDays(dateStr: string, days: number, today: Date): boolean {
 }
 
 function getDaysUntil(dateStr: string, today: Date): number {
-  const d = new Date(dateStr);
-  const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+  const p = parseDateParts(dateStr);
+  const thisYear = new Date(today.getFullYear(), p.month - 1, p.day);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   let diff = (thisYear.getTime() - todayStart.getTime()) / 86400000;
   if (diff < 0) {
-    const nextYear = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+    const nextYear = new Date(today.getFullYear() + 1, p.month - 1, p.day);
     diff = (nextYear.getTime() - todayStart.getTime()) / 86400000;
   }
   return Math.round(diff);
@@ -84,12 +85,15 @@ export function useBirthdayData() {
       setEmployees([]);
     } else {
       const today = new Date();
-      const mapped: BirthdayEmployee[] = (data ?? []).map((e: any) => ({
-        ...e,
-        dia: new Date(e.data_nascimento).getDate(),
-        mes: new Date(e.data_nascimento).getMonth() + 1,
-        idade: calcAge(e.data_nascimento, today),
-      }));
+      const mapped: BirthdayEmployee[] = (data ?? []).map((e: any) => {
+        const p = parseDateParts(e.data_nascimento);
+        return {
+          ...e,
+          dia: p.day,
+          mes: p.month,
+          idade: calcAge(e.data_nascimento, today),
+        };
+      });
       setEmployees(mapped);
     }
     setLoading(false);
@@ -125,33 +129,30 @@ export function useBirthdayData() {
   const workAnniversaries: WorkAnniversaryEmployee[] = employees
     .filter(e => {
       if (!e.data_admissao) return false;
-      const admDate = new Date(e.data_admissao);
-      return admDate.getMonth() + 1 === todayMonth;
+      return parseDateParts(e.data_admissao).month === todayMonth;
     })
     .map(e => {
-      const admDate = new Date(e.data_admissao);
-      const anos = today.getFullYear() - admDate.getFullYear();
+      const adm = parseDateParts(e.data_admissao);
+      const anos = today.getFullYear() - adm.year;
       return {
         ...e,
         anos_empresa: anos,
         is_marco: MARCOS.includes(anos),
       };
     })
-    .sort((a, b) => new Date(a.data_admissao).getDate() - new Date(b.data_admissao).getDate());
+    .sort((a, b) => parseDateParts(a.data_admissao).day - parseDateParts(b.data_admissao).day);
 
   // Next 7 days work anniversaries
   const workNext7Days: WorkAnniversaryEmployee[] = employees
     .filter(e => e.data_admissao && isWithinNextDays(e.data_admissao, 7, today))
     .map(e => {
-      const admDate = new Date(e.data_admissao);
-      const anos = today.getFullYear() - admDate.getFullYear();
+      const adm = parseDateParts(e.data_admissao);
+      const anos = today.getFullYear() - adm.year;
       // If the anniversary hasn't happened yet this year, it's still the previous count
-      const thisYearAnniv = new Date(today.getFullYear(), admDate.getMonth(), admDate.getDate());
-      const finalAnos = thisYearAnniv <= today ? anos : anos;
       return {
         ...e,
-        anos_empresa: finalAnos,
-        is_marco: MARCOS.includes(finalAnos),
+        anos_empresa: anos,
+        is_marco: MARCOS.includes(anos),
       };
     })
     .sort((a, b) => getDaysUntil(a.data_admissao, today) - getDaysUntil(b.data_admissao, today));
