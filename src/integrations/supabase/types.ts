@@ -705,6 +705,240 @@ export type Database = {
           },
         ]
       }
+      health_invoices: {
+        Row: {
+          arquivo_nome: string | null
+          company_id: string | null
+          competencia: string
+          data_importacao: string | null
+          fonte: string | null
+          health_plan_id: string | null
+          id: string
+          total_coparticipacao: number | null
+          total_dependentes: number | null
+          total_parte_colaborador: number | null
+          total_parte_empresa: number | null
+          total_titulares: number | null
+          total_vidas: number | null
+          valor_cobrado: number | null
+          valor_fatura: number | null
+          valor_iof: number | null
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          company_id?: string | null
+          competencia: string
+          data_importacao?: string | null
+          fonte?: string | null
+          health_plan_id?: string | null
+          id?: string
+          total_coparticipacao?: number | null
+          total_dependentes?: number | null
+          total_parte_colaborador?: number | null
+          total_parte_empresa?: number | null
+          total_titulares?: number | null
+          total_vidas?: number | null
+          valor_cobrado?: number | null
+          valor_fatura?: number | null
+          valor_iof?: number | null
+        }
+        Update: {
+          arquivo_nome?: string | null
+          company_id?: string | null
+          competencia?: string
+          data_importacao?: string | null
+          fonte?: string | null
+          health_plan_id?: string | null
+          id?: string
+          total_coparticipacao?: number | null
+          total_dependentes?: number | null
+          total_parte_colaborador?: number | null
+          total_parte_empresa?: number | null
+          total_titulares?: number | null
+          total_vidas?: number | null
+          valor_cobrado?: number | null
+          valor_fatura?: number | null
+          valor_iof?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "health_invoices_health_plan_id_fkey"
+            columns: ["health_plan_id"]
+            isOneToOne: false
+            referencedRelation: "health_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_plans: {
+        Row: {
+          ativo: boolean | null
+          cnpj_fornecedor: string | null
+          company_id: string | null
+          created_at: string | null
+          fornecedor: string | null
+          id: string
+          nome: string
+          numero_apolice: string | null
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          cnpj_fornecedor?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          fornecedor?: string | null
+          id?: string
+          nome: string
+          numero_apolice?: string | null
+          tipo: string
+        }
+        Update: {
+          ativo?: boolean | null
+          cnpj_fornecedor?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          fornecedor?: string | null
+          id?: string
+          nome?: string
+          numero_apolice?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_records: {
+        Row: {
+          carteirinha: string | null
+          codigo_plano: string | null
+          company_id: string | null
+          competencia: string
+          coparticipacao: number | null
+          cpf_beneficiario: string | null
+          data_importacao: string | null
+          data_inicio: string | null
+          data_nascimento: string | null
+          descricao_plano: string | null
+          employee_id: string | null
+          fonte: string | null
+          health_plan_id: string | null
+          id: string
+          idade: number | null
+          lancamento_manual: number | null
+          mensalidade: number | null
+          nome_beneficiario: string
+          outros: number | null
+          parentesco: string | null
+          parte_colaborador: number | null
+          parte_empresa: number | null
+          sexo: string | null
+          taxa_cartao: number | null
+          taxa_inscricao: number | null
+          tipo_cobertura: string | null
+          titular_cpf: string | null
+          titular_nome: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          carteirinha?: string | null
+          codigo_plano?: string | null
+          company_id?: string | null
+          competencia: string
+          coparticipacao?: number | null
+          cpf_beneficiario?: string | null
+          data_importacao?: string | null
+          data_inicio?: string | null
+          data_nascimento?: string | null
+          descricao_plano?: string | null
+          employee_id?: string | null
+          fonte?: string | null
+          health_plan_id?: string | null
+          id?: string
+          idade?: number | null
+          lancamento_manual?: number | null
+          mensalidade?: number | null
+          nome_beneficiario: string
+          outros?: number | null
+          parentesco?: string | null
+          parte_colaborador?: number | null
+          parte_empresa?: number | null
+          sexo?: string | null
+          taxa_cartao?: number | null
+          taxa_inscricao?: number | null
+          tipo_cobertura?: string | null
+          titular_cpf?: string | null
+          titular_nome?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          carteirinha?: string | null
+          codigo_plano?: string | null
+          company_id?: string | null
+          competencia?: string
+          coparticipacao?: number | null
+          cpf_beneficiario?: string | null
+          data_importacao?: string | null
+          data_inicio?: string | null
+          data_nascimento?: string | null
+          descricao_plano?: string | null
+          employee_id?: string | null
+          fonte?: string | null
+          health_plan_id?: string | null
+          id?: string
+          idade?: number | null
+          lancamento_manual?: number | null
+          mensalidade?: number | null
+          nome_beneficiario?: string
+          outros?: number | null
+          parentesco?: string | null
+          parte_colaborador?: number | null
+          parte_empresa?: number | null
+          sexo?: string | null
+          taxa_cartao?: number | null
+          taxa_inscricao?: number | null
+          tipo_cobertura?: string | null
+          titular_cpf?: string | null
+          titular_nome?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "health_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "health_records_health_plan_id_fkey"
+            columns: ["health_plan_id"]
+            isOneToOne: false
+            referencedRelation: "health_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_logs: {
         Row: {
           company_id: string | null
