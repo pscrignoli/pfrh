@@ -146,8 +146,8 @@ export function useBirthdayData() {
   const workNext7Days: WorkAnniversaryEmployee[] = employees
     .filter(e => e.data_admissao && isWithinNextDays(e.data_admissao, 7, today))
     .map(e => {
-      const admDate = new Date(e.data_admissao);
-      const anos = today.getFullYear() - admDate.getFullYear();
+      const adm = parseDateParts(e.data_admissao);
+      const anos = today.getFullYear() - adm.year;
       // If the anniversary hasn't happened yet this year, it's still the previous count
       return {
         ...e,
