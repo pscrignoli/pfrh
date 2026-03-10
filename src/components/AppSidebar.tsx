@@ -1,42 +1,20 @@
 import { useState } from "react";
 import {
-  LayoutDashboard,
-  Clock,
-  Users,
-  UserSearch,
-  Bot,
-  Settings,
-  LogOut,
-  Shield,
-  Cake,
-  FileSpreadsheet,
-  ChevronDown,
-  FileText,
-  BarChart3,
-  Palmtree,
-  Calculator,
-  Heart,
+  LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
+  Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
+  Palmtree, Calculator, HeartPulse, Upload,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader,
+  SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
 const mainItems = [
@@ -45,9 +23,11 @@ const mainItems = [
   { title: "Colaboradores", url: "/colaboradores", icon: Users, module: "colaboradores" },
   { title: "Aniversariantes", url: "/aniversariantes", icon: Cake, module: "aniversariantes" },
   { title: "Recrutamento", url: "/recrutamento", icon: UserSearch, module: "recrutamento" },
-  { title: "Saúde & Benefícios", url: "/saude", icon: Heart, module: "colaboradores" },
-  { title: "Férias", url: "/ferias", icon: Palmtree, module: "ferias" },
-  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "colaboradores" },
+];
+
+const saudeSubItems = [
+  { title: "Dashboard", url: "/saude", icon: BarChart3, module: "saude" },
+  { title: "Importar Fatura", url: "/saude/importar", icon: Upload, module: "saude" },
 ];
 
 const folhaSubItems = [
@@ -56,12 +36,17 @@ const folhaSubItems = [
   { title: "Simulador Rescisão", url: "/simulador-rescisao", icon: Calculator, module: "simulador" },
 ];
 
+const bottomItems = [
+  { title: "Férias", url: "/ferias", icon: Palmtree, module: "ferias" },
+  { title: "Assistente de RH (IA)", url: "/assistente", icon: Bot, module: "colaboradores" },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut } = useAuth();
-  const { canView, isSuperAdmin, isAdmin } = usePermissions();
+  const { canView, isSuperAdmin } = usePermissions();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -73,15 +58,57 @@ export function AppSidebar() {
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
   const visibleMainItems = mainItems.filter((item) => canView(item.module));
+  const visibleSaudeItems = saudeSubItems.filter((item) => canView(item.module));
   const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
+  const visibleBottomItems = bottomItems.filter((item) => canView(item.module));
+  const showSaude = visibleSaudeItems.length > 0;
   const showFolha = visibleFolhaItems.length > 0;
   const showConfig = canView("configuracoes");
+
+  const saudeActive = location.pathname.startsWith("/saude");
+  const [saudeOpen, setSaudeOpen] = useState(saudeActive);
 
   const folhaActive =
     location.pathname === "/financeiro" ||
     location.pathname.startsWith("/folha") ||
     location.pathname === "/simulador-rescisao";
   const [folhaOpen, setFolhaOpen] = useState(folhaActive);
+
+  const renderCollapsible = (
+    label: string, icon: React.ElementType, isOpen: boolean, setOpen: (v: boolean) => void,
+    active: boolean, items: typeof folhaSubItems
+  ) => {
+    const Icon = icon;
+    return (
+      <SidebarMenuItem>
+        <Collapsible open={isOpen} onOpenChange={setOpen}>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton tooltip={label} isActive={active} className="justify-between">
+              <span className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
+              {items.map((sub) => (
+                <SidebarMenuItem key={sub.url}>
+                  <SidebarMenuButton asChild isActive={location.pathname === sub.url} tooltip={sub.title} className="h-8 text-xs">
+                    <NavLink to={sub.url}>
+                      <sub.icon className="h-3.5 w-3.5" />
+                      <span>{sub.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -91,9 +118,7 @@ export function AppSidebar() {
             RH
           </div>
           {!collapsed && (
-            <span className="font-semibold text-sm text-sidebar-foreground truncate">
-              People Analytics
-            </span>
+            <span className="font-semibold text-sm text-sidebar-foreground truncate">People Analytics</span>
           )}
         </div>
       </SidebarHeader>
@@ -104,11 +129,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {visibleMainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <NavLink to={item.url} end={item.url === "/"}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -117,47 +138,19 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Fechamento da Folha — collapsible */}
-              {showFolha && (
-                <SidebarMenuItem>
-                  <Collapsible open={folhaOpen} onOpenChange={setFolhaOpen}>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip="Fechamento da Folha"
-                        isActive={folhaActive}
-                        className="justify-between"
-                      >
-                        <span className="flex items-center gap-2">
-                          <FileSpreadsheet className="h-4 w-4" />
-                          <span>Fechamento da Folha</span>
-                        </span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 transition-transform ${folhaOpen ? "rotate-180" : ""}`}
-                        />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenu className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-2">
-                        {visibleFolhaItems.map((sub) => (
-                          <SidebarMenuItem key={sub.url}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={location.pathname === sub.url}
-                              tooltip={sub.title}
-                              className="h-8 text-xs"
-                            >
-                              <NavLink to={sub.url}>
-                                <sub.icon className="h-3.5 w-3.5" />
-                                <span>{sub.title}</span>
-                              </NavLink>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        ))}
-                      </SidebarMenu>
-                    </CollapsibleContent>
-                  </Collapsible>
+              {showSaude && renderCollapsible("Saúde", HeartPulse, saudeOpen, setSaudeOpen, saudeActive, visibleSaudeItems)}
+              {showFolha && renderCollapsible("Fechamento da Folha", FileSpreadsheet, folhaOpen, setFolhaOpen, folhaActive, visibleFolhaItems)}
+
+              {visibleBottomItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                    <NavLink to={item.url} end={item.url === "/"}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
-              )}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -167,40 +160,21 @@ export function AppSidebar() {
         <SidebarMenu>
           {isSuperAdmin && (
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/super-admin")}
-                tooltip="Super Admin"
-              >
-                <NavLink to="/super-admin">
-                  <Shield className="h-4 w-4" />
-                  <span>Super Admin</span>
-                </NavLink>
+              <SidebarMenuButton asChild isActive={isActive("/super-admin")} tooltip="Super Admin">
+                <NavLink to="/super-admin"><Shield className="h-4 w-4" /><span>Super Admin</span></NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
           {showConfig && (
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive("/configuracoes")}
-                tooltip="Configurações"
-              >
-                <NavLink to="/configuracoes">
-                  <Settings className="h-4 w-4" />
-                  <span>Configurações</span>
-                </NavLink>
+              <SidebarMenuButton asChild isActive={isActive("/configuracoes")} tooltip="Configurações">
+                <NavLink to="/configuracoes"><Settings className="h-4 w-4" /><span>Configurações</span></NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
           <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Sair"
-              onClick={handleSignOut}
-              className="text-destructive hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Sair</span>
+            <SidebarMenuButton tooltip="Sair" onClick={handleSignOut} className="text-destructive hover:text-destructive">
+              <LogOut className="h-4 w-4" /><span>Sair</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
