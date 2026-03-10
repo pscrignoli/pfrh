@@ -264,6 +264,7 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete 
             </CardContent>
           </Card>
 
+          <Card className="border-dashed">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
