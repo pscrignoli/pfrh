@@ -212,13 +212,12 @@ export function useDashboardGeralRH(
     const prevHeadcount = headcount - admittedThisMonth.length + demittedThisMonth.length;
     const headcountDelta = headcount - prevHeadcount;
 
-    // ─── PAYROLL: filter by department via employees.departamento ───
-    // Build employee->dept map from joined data
+    // ─── PAYROLL: filter by department via employees list ───
+    // Build employee->dept map from employees data
     const empDeptMap = new Map<string, string>();
-    for (const r of allPayrollRaw) {
-      const empData = (r as any).employees;
-      if (empData?.departamento) {
-        empDeptMap.set(r.employee_id, empData.departamento);
+    for (const e of allEmployees) {
+      if (e.departamento) {
+        empDeptMap.set(e.id, e.departamento);
       }
     }
 
