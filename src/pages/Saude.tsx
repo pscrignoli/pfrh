@@ -22,16 +22,6 @@ import { useSalarioRestrito } from "@/components/SalarioProtegido";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConferenciaFaturaFolha } from "@/components/saude/ConferenciaFaturaFolha";
 import * as XLSX from "xlsx";
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip as RTooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line,
-} from "recharts";
-import { useHealthDashboard } from "@/hooks/useHealthDashboard";
-import { SalarioProtegido } from "@/components/SalarioProtegido";
-import { useSalarioRestrito } from "@/components/SalarioProtegido";
-import { usePermissions } from "@/hooks/usePermissions";
-import * as XLSX from "xlsx";
 
 const COLORS = {
   unimedMedico: "hsl(217, 70%, 50%)",
