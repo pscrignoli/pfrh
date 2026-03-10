@@ -149,8 +149,6 @@ export function useBirthdayData() {
       const admDate = new Date(e.data_admissao);
       const anos = today.getFullYear() - admDate.getFullYear();
       // If the anniversary hasn't happened yet this year, it's still the previous count
-      const thisYearAnniv = new Date(today.getFullYear(), admDate.getMonth(), admDate.getDate());
-      const finalAnos = thisYearAnniv <= today ? anos : anos;
       return {
         ...e,
         anos_empresa: finalAnos,
