@@ -136,6 +136,7 @@ export function useDashboardGeralRH(
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const mes = comp.mes;
