@@ -22,17 +22,20 @@ export interface WorkAnniversaryEmployee extends BirthdayEmployee {
 
 const MARCOS = [1, 3, 5, 10, 15, 20, 25, 30];
 
-function calcAge(birthDate: string, refDate: Date = new Date()): number {
-  const b = new Date(birthDate);
-  let age = refDate.getFullYear() - b.getFullYear();
-  const m = refDate.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && refDate.getDate() < b.getDate())) age--;
-  return age;
+/** Parse "YYYY-MM-DD" without timezone shift */
+function parseDateParts(dateStr: string): { year: number; month: number; day: number } {
+  const [y, m, d] = dateStr.split("T")[0].split("-").map(Number);
+  return { year: y, month: m, day: d };
 }
 
-function getDayOfYear(d: Date): number {
-  const start = new Date(d.getFullYear(), 0, 0);
-  return Math.floor((d.getTime() - start.getTime()) / 86400000);
+function calcAge(birthDate: string, refDate: Date = new Date()): number {
+  const b = parseDateParts(birthDate);
+  const refY = refDate.getFullYear();
+  const refM = refDate.getMonth() + 1;
+  const refD = refDate.getDate();
+  let age = refY - b.year;
+  if (refM < b.month || (refM === b.month && refD < b.day)) age--;
+  return age;
 }
 
 function isWithinNextDays(dateStr: string, days: number, today: Date): boolean {
