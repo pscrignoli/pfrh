@@ -579,6 +579,10 @@ export function useDashboardGeralRH(
       vagasAbertas, vagasEncerradas, contratados, tempoMedioPreenchimento, vagasMetaUltrapassada,
     });
     setLoading(false);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setLoading(false);
+    }
   }, [companyId, comp.mes, comp.ano, dept, selectedCompetencia]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
