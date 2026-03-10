@@ -136,6 +136,7 @@ export function useDashboardGeralRH(
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const mes = comp.mes;
@@ -155,9 +156,10 @@ export function useDashboardGeralRH(
     // Fetch current + previous month payroll in one go — also fetch sparkline data (6 months back)
     const sparklineStart = new Date(ano, mes - 7, 1); // 6 months before
     let allPayrollQ = supabase.from("payroll_monthly_records")
-      .select("*, employees!inner(nome_completo, departamento, cargo)")
+      .select("*")
       .gte("ano", sparklineStart.getFullYear())
-      .order("ano").order("mes");
+      .order("ano").order("mes")
+      .limit(5000);
     if (companyId) allPayrollQ = allPayrollQ.eq("company_id", companyId);
 
     let hlQ = supabase.from("health_invoices").select("valor_fatura, valor_cobrado, total_vidas").eq("competencia", `${ano}-${String(mes).padStart(2, "0")}-01`);
@@ -211,13 +213,12 @@ export function useDashboardGeralRH(
     const prevHeadcount = headcount - admittedThisMonth.length + demittedThisMonth.length;
     const headcountDelta = headcount - prevHeadcount;
 
-    // ─── PAYROLL: filter by department via employees.departamento ───
-    // Build employee->dept map from joined data
+    // ─── PAYROLL: filter by department via employees list ───
+    // Build employee->dept map from employees data
     const empDeptMap = new Map<string, string>();
-    for (const r of allPayrollRaw) {
-      const empData = (r as any).employees;
-      if (empData?.departamento) {
-        empDeptMap.set(r.employee_id, empData.departamento);
+    for (const e of allEmployees) {
+      if (e.departamento) {
+        empDeptMap.set(e.id, e.departamento);
       }
     }
 
@@ -578,6 +579,10 @@ export function useDashboardGeralRH(
       vagasAbertas, vagasEncerradas, contratados, tempoMedioPreenchimento, vagasMetaUltrapassada,
     });
     setLoading(false);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setLoading(false);
+    }
   }, [companyId, comp.mes, comp.ano, dept, selectedCompetencia]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
