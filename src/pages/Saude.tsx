@@ -6,10 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   HeartPulse, DollarSign, Building2, Users, TrendingUp, TrendingDown,
-  AlertTriangle, Info, AlertCircle, Download,
+  AlertTriangle, Info, AlertCircle, Download, ShieldCheck,
 } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line,
+} from "recharts";
+import { useHealthDashboard } from "@/hooks/useHealthDashboard";
+import { SalarioProtegido } from "@/components/SalarioProtegido";
+import { useSalarioRestrito } from "@/components/SalarioProtegido";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ConferenciaFaturaFolha } from "@/components/saude/ConferenciaFaturaFolha";
+import * as XLSX from "xlsx";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend, ResponsiveContainer,
