@@ -1,0 +1,25 @@
+
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS total_candidaturas INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS total_reprovados INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS total_cancelados INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS total_em_andamento INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS total_contratados INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS dias_andamento INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS dias_congelados INTEGER DEFAULT 0;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS meta_encerramento_data DATE;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS meta_encerramento_texto VARCHAR(100);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS motivo_abertura VARCHAR(100);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS motivo_cancelamento VARCHAR(200);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS nivel_hierarquico VARCHAR(100);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS regime_contratacao VARCHAR(100);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS pcd BOOLEAN DEFAULT false;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS vaga_confidencial BOOLEAN DEFAULT false;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS selecao_oculta BOOLEAN DEFAULT false;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS modalidade_trabalho VARCHAR(50);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS data_encerramento DATE;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS data_cancelamento DATE;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS data_congelamento DATE;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS codigo_requisicao INTEGER;
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS setor VARCHAR(200);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS filial VARCHAR(100);
+ALTER TABLE empregare_vagas ADD COLUMN IF NOT EXISTS unidade_negocio VARCHAR(200);

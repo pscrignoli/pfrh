@@ -529,83 +529,155 @@ export type Database = {
         Row: {
           beneficios: Json | null
           cidade: string | null
+          codigo_requisicao: number | null
           company_id: string | null
           data_cadastro: string | null
+          data_cancelamento: string | null
+          data_congelamento: string | null
+          data_encerramento: string | null
           data_sync: string | null
           department_id: string | null
           descricao: string | null
+          dias_andamento: number | null
+          dias_congelados: number | null
           empregare_id: number
           estado: string | null
           etapas: Json | null
+          filial: string | null
           horario: string | null
           id: string
           meta_encerramento: string | null
+          meta_encerramento_data: string | null
+          meta_encerramento_texto: string | null
+          modalidade_trabalho: string | null
+          motivo_abertura: string | null
+          motivo_cancelamento: string | null
+          nivel_hierarquico: string | null
+          pcd: boolean | null
           raw_json: Json | null
+          regime_contratacao: string | null
           requisicao_id: number | null
           requisitos: string | null
           responsaveis: Json | null
           salario_combinar: boolean | null
           salario_max: number | null
           salario_min: number | null
+          selecao_oculta: boolean | null
+          setor: string | null
           situacao: string | null
           tipo_recrutamento: string | null
           titulo: string | null
+          total_cancelados: number | null
+          total_candidaturas: number | null
+          total_contratados: number | null
+          total_em_andamento: number | null
+          total_reprovados: number | null
           total_vagas: number | null
           trabalho_remoto: string | null
+          unidade_negocio: string | null
+          vaga_confidencial: boolean | null
         }
         Insert: {
           beneficios?: Json | null
           cidade?: string | null
+          codigo_requisicao?: number | null
           company_id?: string | null
           data_cadastro?: string | null
+          data_cancelamento?: string | null
+          data_congelamento?: string | null
+          data_encerramento?: string | null
           data_sync?: string | null
           department_id?: string | null
           descricao?: string | null
+          dias_andamento?: number | null
+          dias_congelados?: number | null
           empregare_id: number
           estado?: string | null
           etapas?: Json | null
+          filial?: string | null
           horario?: string | null
           id?: string
           meta_encerramento?: string | null
+          meta_encerramento_data?: string | null
+          meta_encerramento_texto?: string | null
+          modalidade_trabalho?: string | null
+          motivo_abertura?: string | null
+          motivo_cancelamento?: string | null
+          nivel_hierarquico?: string | null
+          pcd?: boolean | null
           raw_json?: Json | null
+          regime_contratacao?: string | null
           requisicao_id?: number | null
           requisitos?: string | null
           responsaveis?: Json | null
           salario_combinar?: boolean | null
           salario_max?: number | null
           salario_min?: number | null
+          selecao_oculta?: boolean | null
+          setor?: string | null
           situacao?: string | null
           tipo_recrutamento?: string | null
           titulo?: string | null
+          total_cancelados?: number | null
+          total_candidaturas?: number | null
+          total_contratados?: number | null
+          total_em_andamento?: number | null
+          total_reprovados?: number | null
           total_vagas?: number | null
           trabalho_remoto?: string | null
+          unidade_negocio?: string | null
+          vaga_confidencial?: boolean | null
         }
         Update: {
           beneficios?: Json | null
           cidade?: string | null
+          codigo_requisicao?: number | null
           company_id?: string | null
           data_cadastro?: string | null
+          data_cancelamento?: string | null
+          data_congelamento?: string | null
+          data_encerramento?: string | null
           data_sync?: string | null
           department_id?: string | null
           descricao?: string | null
+          dias_andamento?: number | null
+          dias_congelados?: number | null
           empregare_id?: number
           estado?: string | null
           etapas?: Json | null
+          filial?: string | null
           horario?: string | null
           id?: string
           meta_encerramento?: string | null
+          meta_encerramento_data?: string | null
+          meta_encerramento_texto?: string | null
+          modalidade_trabalho?: string | null
+          motivo_abertura?: string | null
+          motivo_cancelamento?: string | null
+          nivel_hierarquico?: string | null
+          pcd?: boolean | null
           raw_json?: Json | null
+          regime_contratacao?: string | null
           requisicao_id?: number | null
           requisitos?: string | null
           responsaveis?: Json | null
           salario_combinar?: boolean | null
           salario_max?: number | null
           salario_min?: number | null
+          selecao_oculta?: boolean | null
+          setor?: string | null
           situacao?: string | null
           tipo_recrutamento?: string | null
           titulo?: string | null
+          total_cancelados?: number | null
+          total_candidaturas?: number | null
+          total_contratados?: number | null
+          total_em_andamento?: number | null
+          total_reprovados?: number | null
           total_vagas?: number | null
           trabalho_remoto?: string | null
+          unidade_negocio?: string | null
+          vaga_confidencial?: boolean | null
         }
         Relationships: [
           {
