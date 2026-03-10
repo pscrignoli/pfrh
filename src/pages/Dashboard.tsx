@@ -503,13 +503,21 @@ function KPICard({ title, value, delta, deltaPct, deltaLabel, subtitle, icon, on
         <p className="text-xl font-bold tabular-nums">{value}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
-          {d != null && d !== 0 && (
-            <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${d > 0 && !isPercent ? "text-green-600" : d > 0 && isPercent ? "text-destructive" : d < 0 ? "text-green-600" : ""}`}>
-              {d > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              {d > 0 ? "+" : ""}{isPercent ? `${d}%` : d}
-              {deltaLabel && <span className="text-muted-foreground font-normal ml-0.5">{deltaLabel}</span>}
-            </span>
-          )}
+          {d != null && d !== 0 && (() => {
+            // For headcount (delta, not %): positive=green (hired), negative=red (lost)
+            // For costs (deltaPct, %): positive=red (cost up), negative=green (cost down)
+            const isPositive = d > 0;
+            const colorClass = isPercent
+              ? (isPositive ? "text-destructive" : "text-green-600")
+              : (isPositive ? "text-green-600" : "text-destructive");
+            return (
+              <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${colorClass}`}>
+                {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {isPositive ? "+" : ""}{isPercent ? `${d}%` : d}
+                {deltaLabel && <span className="text-muted-foreground font-normal ml-0.5">{deltaLabel}</span>}
+              </span>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
