@@ -151,8 +151,8 @@ export function useBirthdayData() {
       // If the anniversary hasn't happened yet this year, it's still the previous count
       return {
         ...e,
-        anos_empresa: finalAnos,
-        is_marco: MARCOS.includes(finalAnos),
+        anos_empresa: anos,
+        is_marco: MARCOS.includes(anos),
       };
     })
     .sort((a, b) => getDaysUntil(a.data_admissao, today) - getDaysUntil(b.data_admissao, today));
