@@ -158,7 +158,8 @@ export function useDashboardGeralRH(
     let allPayrollQ = supabase.from("payroll_monthly_records")
       .select("*")
       .gte("ano", sparklineStart.getFullYear())
-      .order("ano").order("mes");
+      .order("ano").order("mes")
+      .limit(5000);
     if (companyId) allPayrollQ = allPayrollQ.eq("company_id", companyId);
 
     let hlQ = supabase.from("health_invoices").select("valor_fatura, valor_cobrado, total_vidas").eq("competencia", `${ano}-${String(mes).padStart(2, "0")}-01`);
