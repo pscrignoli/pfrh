@@ -24,6 +24,8 @@ import Assistente from "@/pages/Assistente";
 import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
+import RecrutamentoDashboardVagas from "@/pages/RecrutamentoDashboardVagas";
+import RecrutamentoDashboardRequisicoes from "@/pages/RecrutamentoDashboardRequisicoes";
 import Aniversariantes from "@/pages/Aniversariantes";
 import Saude from "@/pages/Saude";
 import SaudeImportar from "@/pages/SaudeImportar";
