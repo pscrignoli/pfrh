@@ -129,19 +129,18 @@ export function useBirthdayData() {
   const workAnniversaries: WorkAnniversaryEmployee[] = employees
     .filter(e => {
       if (!e.data_admissao) return false;
-      const admDate = new Date(e.data_admissao);
-      return admDate.getMonth() + 1 === todayMonth;
+      return parseDateParts(e.data_admissao).month === todayMonth;
     })
     .map(e => {
-      const admDate = new Date(e.data_admissao);
-      const anos = today.getFullYear() - admDate.getFullYear();
+      const adm = parseDateParts(e.data_admissao);
+      const anos = today.getFullYear() - adm.year;
       return {
         ...e,
         anos_empresa: anos,
         is_marco: MARCOS.includes(anos),
       };
     })
-    .sort((a, b) => new Date(a.data_admissao).getDate() - new Date(b.data_admissao).getDate());
+    .sort((a, b) => parseDateParts(a.data_admissao).day - parseDateParts(b.data_admissao).day);
 
   // Next 7 days work anniversaries
   const workNext7Days: WorkAnniversaryEmployee[] = employees
