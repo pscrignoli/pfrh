@@ -63,12 +63,17 @@ export function AppSidebar() {
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
   const visibleMainItems = mainItems.filter((item) => canView(item.module));
+  const visibleRecrutamentoItems = recrutamentoSubItems.filter((item) => canView(item.module));
   const visibleSaudeItems = saudeSubItems.filter((item) => canView(item.module));
   const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
   const visibleBottomItems = bottomItems.filter((item) => canView(item.module));
+  const showRecrutamento = visibleRecrutamentoItems.length > 0;
   const showSaude = visibleSaudeItems.length > 0;
   const showFolha = visibleFolhaItems.length > 0;
   const showConfig = canView("configuracoes");
+
+  const recrutamentoActive = location.pathname.startsWith("/recrutamento");
+  const [recrutamentoOpen, setRecrutamentoOpen] = useState(recrutamentoActive);
 
   const saudeActive = location.pathname.startsWith("/saude");
   const [saudeOpen, setSaudeOpen] = useState(saudeActive);
