@@ -52,6 +52,7 @@ const MODULE_SECTIONS = [
   {
     label: "Gestão",
     modules: [
+      { key: "saude", label: "Saúde & Benefícios" },
       { key: "ferias", label: "Férias" },
       { key: "simulador", label: "Simulador de Rescisão" },
     ],

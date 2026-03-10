@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Employee } from "@/hooks/useEmployees";
 import {
@@ -12,8 +12,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator, Trash2 } from "lucide-react";
+import { Pencil, FolderOpen, CheckCircle2, AlertTriangle, GraduationCap, Calculator, Trash2, HeartPulse } from "lucide-react";
 import { SalarioProtegido } from "@/components/SalarioProtegido";
+import { supabase } from "@/integrations/supabase/client";
 
 const grauLabels: Record<string, string> = {
   ensino_medio: "Ensino Médio",
@@ -63,6 +64,21 @@ interface Props {
 export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
+  const [healthRecords, setHealthRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!employee?.id || !open) { setHealthRecords([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("health_records" as any)
+        .select("*")
+        .eq("employee_id", employee.id)
+        .order("competencia", { ascending: false })
+        .limit(20);
+      setHealthRecords((data as any) ?? []);
+    })();
+  }, [employee?.id, open]);
+
   if (!employee) return null;
 
   const ext = employee as any;
@@ -190,6 +206,61 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete 
               ) : (
                 <p className="text-sm text-muted-foreground italic">Não informada</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Health Plan Section */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <HeartPulse className="h-4 w-4" />
+                Plano de Saúde
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {healthRecords.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">Sem registros de plano de saúde</p>
+              ) : (() => {
+                const latest = healthRecords[0]?.competencia;
+                const latestRecs = healthRecords.filter((r: any) => r.competencia === latest);
+                const titular = latestRecs.find((r: any) => r.parentesco === "titular");
+                const deps = latestRecs.filter((r: any) => r.parentesco !== "titular");
+                const custoTotal = latestRecs.reduce((s: number, r: any) => s + (r.valor_total || r.mensalidade || 0), 0);
+                const plano = titular?.descricao_plano || titular?.codigo_plano || latestRecs[0]?.fonte;
+                const fonte = latestRecs[0]?.fonte;
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {fonte === "bradesco" ? "Bradesco Saúde" : "Unimed"}
+                      </Badge>
+                      {plano && <span className="text-xs text-muted-foreground">{plano}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Custo Mensal</p>
+                        <p className="font-medium">
+                          {custoTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Vidas</p>
+                        <p className="font-medium">{latestRecs.length} ({deps.length} dep.)</p>
+                      </div>
+                    </div>
+                    {deps.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Dependentes:</p>
+                        {deps.map((d: any, i: number) => (
+                          <p key={i} className="text-xs">
+                            {d.nome_beneficiario} <span className="text-muted-foreground">({d.parentesco})</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 
