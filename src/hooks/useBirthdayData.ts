@@ -140,6 +140,7 @@ export function useBirthdayData() {
         is_marco: MARCOS.includes(anos),
       };
     })
+    .filter(e => e.anos_empresa >= 1)
     .sort((a, b) => parseDateParts(a.data_admissao).day - parseDateParts(b.data_admissao).day);
 
   // Next 7 days work anniversaries
