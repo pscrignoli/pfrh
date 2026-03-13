@@ -252,13 +252,13 @@ export default function Aniversariantes() {
             {workAnniversaries.length > 0 ? workAnniversaries.map(emp => {
               const admDay = Number(emp.data_admissao.split("T")[0].split("-")[2]);
               return (
-                <div key={emp.id} className={`flex items-center gap-2 py-1.5 px-2 rounded-md ${emp.is_marco ? "bg-warning/5" : "hover:bg-muted/50"}`}>
-                  <Award className={`h-3.5 w-3.5 shrink-0 ${emp.is_marco ? "text-warning" : "text-muted-foreground"}`} />
+                <div key={emp.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50">
+                  <Award className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="text-[10px] text-muted-foreground w-10 shrink-0">{String(admDay).padStart(2, "0")}/{String(todayMonth).padStart(2, "0")}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs truncate">{emp.nome_completo}</p>
                   </div>
-                  <Badge variant="secondary" className={`text-[10px] border-0 shrink-0 ${emp.is_marco ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}`}>
+                  <Badge variant="secondary" className="text-[10px] border-0 shrink-0 bg-muted text-muted-foreground">
                     {emp.anos_empresa}a
                   </Badge>
                 </div>
