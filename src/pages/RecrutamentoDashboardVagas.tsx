@@ -19,9 +19,10 @@ import { useCompany } from "@/contexts/CompanyContext";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
 import * as XLSX from "xlsx";
+import PeriodFilter, { usePeriodFilter, filterVagasByPeriod } from "@/components/recrutamento/PeriodFilter";
 
 const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--chart-4))"];
-const FUNNEL_COLORS = ["hsl(var(--primary))", "hsl(var(--warning))", "hsl(var(--success))"];
+const FUNNEL_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-4))", "hsl(var(--warning))", "hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--destructive))"];
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   aberta: { label: "Aberta", cls: "bg-success/10 text-success border-success/20" },
   encerrada: { label: "Encerrada", cls: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
