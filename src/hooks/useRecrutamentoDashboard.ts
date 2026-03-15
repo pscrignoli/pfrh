@@ -115,7 +115,13 @@ export function useRecrutamentoDashboard(vagas: EmpregareVaga[], filters: Recrut
       }
 
       const dc = safeDate(v.data_cadastro);
-      const diasAndamento = (v as any).dias_andamento || (dc ? differenceInDays(new Date(), dc) : 0);
+      const dataEnc = safeDate((v as any).data_encerramento);
+      const sitLower = (v.situacao ?? "").toLowerCase();
+      // For encerradas: use dias_andamento or diff between cadastro and encerramento
+      // For abertas: diff between cadastro and now
+      const diasAndamento = (v as any).dias_andamento
+        || (sitLower === "encerrada" && dc && dataEnc ? differenceInDays(dataEnc, dc) : null)
+        || (dc ? differenceInDays(new Date(), dc) : 0);
       
       const metaStr = (v as any).meta_encerramento_data || v.meta_encerramento;
       const metaDate = safeDate(metaStr);
