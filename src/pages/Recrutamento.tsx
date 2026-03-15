@@ -307,7 +307,7 @@ export default function Recrutamento() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Recrutamento</h1>
           <div className="flex items-center gap-3">
-            <RecrutamentoStats {...stats} />
+            <RecrutamentoStats {...filteredStats} />
             {lastSync && (
               <span className="text-[10px] text-muted-foreground/60 ml-2">
                 Sync: {new Date(lastSync).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
@@ -334,12 +334,15 @@ export default function Recrutamento() {
         </div>
       </div>
 
+      {/* Period Filter */}
+      <PeriodFilter preset={preset} setPreset={setPreset} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo} />
+
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted/50 backdrop-blur-sm">
           <TabsTrigger value="empregare" className="data-[state=active]:shadow-sm transition-all duration-200">
             Empregare
-            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{empregareVagas.length}</Badge>
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{filteredEmpregareVagas.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="local" className="data-[state=active]:shadow-sm transition-all duration-200">
             Vagas Internas
