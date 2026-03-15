@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
-  Palmtree, Calculator, HeartPulse, Upload, Briefcase, ClipboardList,
+  Palmtree, Calculator, HeartPulse, Upload, Briefcase,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
