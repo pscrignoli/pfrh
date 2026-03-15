@@ -82,6 +82,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Accept invite through backend (called from SetPassword page)
+    if (action === "accept") {
+      const acceptEmail = body?.email;
+      if (!acceptEmail) {
+        return new Response(JSON.stringify({ error: "Email é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await adminClient
+        .from("user_invites")
+        .update({ status: "accepted", accepted_at: new Date().toISOString() })
+        .eq("email", acceptEmail)
+        .eq("status", "pending");
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const email = String(body?.email ?? "").trim().toLowerCase();
     const full_name = String(body?.full_name ?? "").trim();
     const role_name = String(body?.role_name ?? "").trim();
