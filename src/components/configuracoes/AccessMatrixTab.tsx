@@ -133,32 +133,34 @@ export default function AccessMatrixTab() {
     );
 
     try {
-      const perm = getPerm(roleId, module);
-      if (perm) {
-        const { error } = await (supabase as any)
-          .from("role_permissions")
-          .update(updates)
-          .eq("id", perm.id);
-        if (error) {
-          console.error("Erro ao salvar permissão (update):", error);
-          toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-          fetchData();
-        }
-      } else {
-        // Record doesn't exist yet — insert it
-        const newRow = { role_id: roleId, module, can_view: false, can_edit: false, ...updates };
-        const { data: inserted, error } = await (supabase as any)
-          .from("role_permissions")
-          .insert(newRow)
-          .select()
-          .single();
-        if (error) {
-          console.error("Erro ao salvar permissão (insert):", error);
-          toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-          fetchData();
-        } else if (inserted) {
-          setPermissions((prev) => [...prev, inserted]);
-        }
+      const payload = {
+        role_id: roleId,
+        module,
+        can_view: false,
+        can_edit: false,
+        ...updates,
+      };
+
+      const { data: savedPerm, error } = await (supabase as any)
+        .from("role_permissions")
+        .upsert(payload, { onConflict: "role_id,module" })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Erro ao salvar permissão (upsert):", error);
+        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+        fetchData();
+      } else if (savedPerm) {
+        setPermissions((prev) => {
+          const idx = prev.findIndex(
+            (p) => p.role_id === savedPerm.role_id && p.module === savedPerm.module
+          );
+          if (idx === -1) return [...prev, savedPerm];
+          const next = [...prev];
+          next[idx] = savedPerm;
+          return next;
+        });
       }
     } catch (err: any) {
       console.error("Erro de rede ao salvar permissão:", err);
