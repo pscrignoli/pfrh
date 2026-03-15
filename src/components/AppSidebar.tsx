@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
-  Palmtree, Calculator, HeartPulse, Upload, Briefcase, ClipboardList,
+  Palmtree, Calculator, HeartPulse, Upload, Briefcase,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -27,7 +27,6 @@ const mainItems = [
 const recrutamentoSubItems = [
   { title: "Vagas", url: "/recrutamento", icon: Briefcase, module: "recrutamento" },
   { title: "Dashboard Vagas", url: "/recrutamento/dashboard-vagas", icon: BarChart3, module: "recrutamento" },
-  { title: "Dashboard Requisições", url: "/recrutamento/dashboard-requisicoes", icon: ClipboardList, module: "recrutamento" },
 ];
 
 const saudeSubItems = [

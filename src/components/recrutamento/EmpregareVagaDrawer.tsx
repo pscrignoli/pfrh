@@ -256,12 +256,10 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
                       Meta: {format(metaEncerramento, "dd/MM/yyyy")}
                     </span>
                   )}
-                  {vaga.total_vagas > 1 && (
-                    <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5 text-primary/60" />
-                      {vaga.total_vagas} posições
+                      {vaga.total_vagas ?? 1} {(vaga.total_vagas ?? 1) === 1 ? "posição" : "posições"}
                     </span>
-                  )}
                 </div>
 
                 {/* Responsáveis */}

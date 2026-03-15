@@ -25,7 +25,7 @@ import Configuracoes from "@/pages/Configuracoes";
 import SuperAdmin from "@/pages/SuperAdmin";
 import Recrutamento from "@/pages/Recrutamento";
 import RecrutamentoDashboardVagas from "@/pages/RecrutamentoDashboardVagas";
-import RecrutamentoDashboardRequisicoes from "@/pages/RecrutamentoDashboardRequisicoes";
+
 import Aniversariantes from "@/pages/Aniversariantes";
 import Saude from "@/pages/Saude";
 import SaudeImportar from "@/pages/SaudeImportar";
@@ -61,7 +61,7 @@ const App = () => (
                   <Route path="/colaboradores" element={<ModuleGuard module="colaboradores"><Pessoas /></ModuleGuard>} />
                   <Route path="/recrutamento" element={<ModuleGuard module="recrutamento"><Recrutamento /></ModuleGuard>} />
                   <Route path="/recrutamento/dashboard-vagas" element={<ModuleGuard module="recrutamento"><RecrutamentoDashboardVagas /></ModuleGuard>} />
-                  <Route path="/recrutamento/dashboard-requisicoes" element={<ModuleGuard module="recrutamento"><RecrutamentoDashboardRequisicoes /></ModuleGuard>} />
+                  
                   <Route path="/aniversariantes" element={<ModuleGuard module="aniversariantes"><Aniversariantes /></ModuleGuard>} />
                   <Route path="/financeiro" element={<ModuleGuard module="folha"><Financeiro /></ModuleGuard>} />
                   <Route path="/folha/custo-pessoal" element={<ModuleGuard module="folha.custo"><CustoPessoal /></ModuleGuard>} />

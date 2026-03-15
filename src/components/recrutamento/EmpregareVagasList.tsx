@@ -121,12 +121,10 @@ export default function EmpregareVagasList({ vagas, onSelect }: Props) {
                         {v.cidade}{v.estado ? ` - ${v.estado}` : ""}
                       </span>
                     )}
-                    {v.total_vagas > 1 && (
-                      <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {v.total_vagas} posições
+                        {v.total_vagas ?? 1} {(v.total_vagas ?? 1) === 1 ? "posição" : "posições"}
                       </span>
-                    )}
                     {totalCandidatos > 0 && (
                       <span className="flex items-center gap-1 text-primary/70 font-medium">
                         {totalCandidatos} candidatos
