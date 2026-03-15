@@ -132,30 +132,38 @@ export default function AccessMatrixTab() {
       )
     );
 
-    const perm = getPerm(roleId, module);
-    if (perm) {
-      const { error } = await (supabase as any)
-        .from("role_permissions")
-        .update(updates)
-        .eq("id", perm.id);
-      if (error) {
-        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-        fetchData();
+    try {
+      const perm = getPerm(roleId, module);
+      if (perm) {
+        const { error } = await (supabase as any)
+          .from("role_permissions")
+          .update(updates)
+          .eq("id", perm.id);
+        if (error) {
+          console.error("Erro ao salvar permissão (update):", error);
+          toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+          fetchData();
+        }
+      } else {
+        // Record doesn't exist yet — insert it
+        const newRow = { role_id: roleId, module, can_view: false, can_edit: false, ...updates };
+        const { data: inserted, error } = await (supabase as any)
+          .from("role_permissions")
+          .insert(newRow)
+          .select()
+          .single();
+        if (error) {
+          console.error("Erro ao salvar permissão (insert):", error);
+          toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+          fetchData();
+        } else if (inserted) {
+          setPermissions((prev) => [...prev, inserted]);
+        }
       }
-    } else {
-      // Record doesn't exist yet — insert it
-      const newRow = { role_id: roleId, module, can_view: false, can_edit: false, ...updates };
-      const { data: inserted, error } = await (supabase as any)
-        .from("role_permissions")
-        .insert(newRow)
-        .select()
-        .single();
-      if (error) {
-        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-        fetchData();
-      } else if (inserted) {
-        setPermissions((prev) => [...prev, inserted]);
-      }
+    } catch (err: any) {
+      console.error("Erro de rede ao salvar permissão:", err);
+      toast({ title: "Erro ao salvar", description: "Falha de rede. Tente novamente.", variant: "destructive" });
+      fetchData();
     }
   };
 
