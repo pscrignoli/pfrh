@@ -1782,6 +1782,7 @@ export type Database = {
         Args: { _vacancy_id: string }
         Returns: undefined
       }
+      get_user_role_id: { Args: { _user_id: string }; Returns: string }
       get_user_role_name: { Args: { _user_id: string }; Returns: string }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
