@@ -161,21 +161,21 @@ export default function RecrutamentoDashboardVagas() {
       </div>
 
       {/* Funnel */}
-      {funnel[0].value > 0 && (
+      {funnel.length > 0 && funnel[0].value > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Funil Agregado</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-end gap-2 justify-center py-4">
+            <div className="flex items-end gap-2 justify-center py-4 overflow-x-auto">
               {funnel.map((f, i) => {
                 const maxVal = Math.max(...funnel.map(x => x.value), 1);
                 const h = Math.max((f.value / maxVal) * 180, 30);
                 const prevVal = i > 0 ? funnel[i - 1].value : 0;
                 const conv = prevVal > 0 ? ((f.value / prevVal) * 100).toFixed(1) : null;
                 return (
-                  <div key={f.name} className="flex flex-col items-center gap-1 flex-1 max-w-[200px]">
+                  <div key={f.name} className="flex flex-col items-center gap-1 flex-1 min-w-[80px] max-w-[160px]">
                     <span className="text-lg font-bold tabular-nums">{f.value}</span>
-                    <div className="w-full rounded-t-lg transition-all duration-700" style={{ height: h, backgroundColor: FUNNEL_COLORS[i] }} />
-                    <span className="text-xs font-medium">{f.name}</span>
+                    <div className="w-full rounded-t-lg transition-all duration-700" style={{ height: h, backgroundColor: FUNNEL_COLORS[i % FUNNEL_COLORS.length] }} />
+                    <span className="text-xs font-medium text-center">{f.name}</span>
                     {conv && <span className="text-[10px] text-muted-foreground">{conv}% conv.</span>}
                   </div>
                 );
