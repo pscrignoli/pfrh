@@ -30,6 +30,7 @@ import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
 import { JobDescriptionGenerator } from "@/components/recrutamento/JobDescriptionGenerator";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
+import PeriodFilter, { usePeriodFilter, filterVagasByPeriod } from "@/components/recrutamento/PeriodFilter";
 
 // ── Local vacancy components (kept from original) ──
 
