@@ -142,6 +142,36 @@ export default function Recrutamento() {
   const { canEdit } = usePermissions();
   const canEditRecrutamento = canEdit("recrutamento");
 
+  // Period filter
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = usePeriodFilter("3m");
+  const filteredEmpregareVagas = useMemo(() => filterVagasByPeriod(empregareVagas, range), [empregareVagas, range]);
+
+  // Recalculate stats based on filtered vagas
+  const filteredStats = useMemo(() => {
+    const vNoPeriodo = filteredEmpregareVagas;
+    const abertas = vNoPeriodo.filter(v => (v.situacao ?? "").toLowerCase() === "aberta");
+    return {
+      total: vNoPeriodo.length,
+      posicoes: abertas.reduce((s, v) => s + (Number(v.total_vagas) || 0), 0),
+      candidatosEmProcesso: vNoPeriodo.reduce((s, v) => {
+        const etapas = v.etapas || [];
+        for (const e of etapas) {
+          const nome = (e.nome ?? e.Nome ?? "").toLowerCase();
+          if (nome === "todos" || nome === "all") return s + (Number(e.qntde ?? e.Qntde ?? e.qtd ?? 0) || 0);
+        }
+        return s;
+      }, 0),
+      contratados: vNoPeriodo.reduce((s, v) => {
+        const etapas = v.etapas || [];
+        for (const e of etapas) {
+          const nome = (e.nome ?? e.Nome ?? e.titulo ?? "").toLowerCase();
+          if (nome.includes("contratad")) return s + (Number(e.qntde ?? e.Qntde ?? e.qtd ?? e.totalCandidatos ?? 0) || 0);
+        }
+        return s;
+      }, 0),
+    };
+  }, [filteredEmpregareVagas]);
+
   // Tab
   const [tab, setTab] = useState("empregare");
 
