@@ -1490,6 +1490,7 @@ export type Database = {
           expires_at: string | null
           full_name: string | null
           id: string
+          invite_link: string | null
           invited_by: string
           role_id: string | null
           status: string | null
@@ -1503,6 +1504,7 @@ export type Database = {
           expires_at?: string | null
           full_name?: string | null
           id?: string
+          invite_link?: string | null
           invited_by: string
           role_id?: string | null
           status?: string | null
@@ -1516,6 +1518,7 @@ export type Database = {
           expires_at?: string | null
           full_name?: string | null
           id?: string
+          invite_link?: string | null
           invited_by?: string
           role_id?: string | null
           status?: string | null

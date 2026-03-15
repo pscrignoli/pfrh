@@ -97,24 +97,29 @@ Deno.serve(async (req) => {
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || supabaseUrl;
     const siteUrl = origin.replace(/\/+$/, "");
 
-    // Invite user via Supabase Auth
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name, role: role_name, company_id, invited_by: caller.id },
-      redirectTo: `${siteUrl}/set-password`,
+    // Generate invite link (no email sent by Supabase)
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email: email,
+      options: {
+        data: { full_name, role: role_name, company_id, invited_by: caller.id },
+        redirectTo: `${siteUrl}/set-password`,
+      },
     });
 
-    if (inviteError) {
-      console.error("invite-user invite error:", inviteError);
-      return new Response(JSON.stringify({ error: "Erro ao enviar convite. Tente novamente." }), {
+    if (linkError) {
+      console.error("invite-user generateLink error:", linkError);
+      return new Response(JSON.stringify({ error: "Erro ao gerar convite. Tente novamente." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const newUserId = inviteData.user?.id;
+    const inviteLink = linkData?.properties?.action_link;
+    const newUserId = linkData?.user?.id;
 
-    // Create invite record
-    await adminClient.from("user_invites").insert({
+    // Create invite record with link
+    const { data: inviteRecord } = await adminClient.from("user_invites").insert({
       email,
       full_name,
       role_id: roleData.id,
@@ -122,7 +127,8 @@ Deno.serve(async (req) => {
       invited_by: caller.id,
       user_id: newUserId,
       status: "pending",
-    });
+      invite_link: inviteLink,
+    }).select("id").single();
 
     // Pre-create user_profiles
     if (newUserId) {
@@ -135,7 +141,12 @@ Deno.serve(async (req) => {
       }, { onConflict: "user_id" });
     }
 
-    return new Response(JSON.stringify({ success: true, user_id: newUserId }), {
+    return new Response(JSON.stringify({
+      success: true,
+      user_id: newUserId,
+      invite_id: inviteRecord?.id,
+      invite_link: inviteLink,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {

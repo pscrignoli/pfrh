@@ -1,0 +1,1 @@
+ALTER TABLE public.user_invites ADD COLUMN IF NOT EXISTS invite_link TEXT;
