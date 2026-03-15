@@ -95,13 +95,21 @@ export default function SetPassword() {
       return;
     }
 
-    // Mark invite as accepted
+    // Mark invite as accepted via edge function (avoids CORS PATCH issue)
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
-      await (supabase as any).from("user_invites")
-        .update({ status: "accepted", accepted_at: new Date().toISOString() })
-        .eq("email", user.email)
-        .eq("status", "pending");
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        await supabase.functions.invoke("invite-user", {
+          headers: { Authorization: `Bearer ${currentSession?.access_token}` },
+          body: {
+            action: "accept",
+            email: user.email,
+          },
+        });
+      } catch {
+        // Non-critical: invite status update failed but password was set successfully
+      }
     }
 
     setSuccess(true);
