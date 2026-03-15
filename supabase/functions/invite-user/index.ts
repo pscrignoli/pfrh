@@ -23,11 +23,11 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller } } = await callerClient.auth.getUser();
+
     if (!caller) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
@@ -37,7 +37,6 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Check caller role
     const { data: callerProfile } = await adminClient
       .from("user_profiles")
       .select("role_id, role_definitions(name)")
@@ -52,16 +51,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, full_name, role_name, company_id } = await req.json();
+    const body = await req.json();
+    const action = body?.action;
+
+    // Revoke invite through backend to avoid direct PATCH calls from frontend
+    if (action === "revoke") {
+      const inviteId = body?.invite_id;
+      if (!inviteId) {
+        return new Response(JSON.stringify({ error: "ID do convite é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: revokeError } = await adminClient
+        .from("user_invites")
+        .update({ status: "revoked" })
+        .eq("id", inviteId)
+        .in("status", ["pending", "expired"]);
+
+      if (revokeError) {
+        return new Response(JSON.stringify({ error: "Não foi possível revogar o convite" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const email = String(body?.email ?? "").trim().toLowerCase();
+    const full_name = String(body?.full_name ?? "").trim();
+    const role_name = String(body?.role_name ?? "").trim();
+    const company_id = body?.company_id ?? null;
 
     if (!email || !full_name || !role_name) {
-      return new Response(JSON.stringify({ error: "Email, nome e role são obrigatórios" }), {
+      return new Response(JSON.stringify({ error: "Email, nome e perfil são obrigatórios" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Admin cannot invite super_admin
     if (role_name === "super_admin" && callerRole !== "super_admin") {
       return new Response(JSON.stringify({ error: "Apenas SuperAdmin pode convidar SuperAdmins" }), {
         status: 403,
@@ -69,19 +101,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if email already exists and has confirmed (active user)
     const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-    const existing = existingUsers?.find((u: any) => u.email === email);
-    
-    // If user exists AND has confirmed their email, they are an active user - block
-    if (existing && existing.email_confirmed_at) {
+    const existing = existingUsers?.find((u: any) => (u.email ?? "").toLowerCase() === email);
+
+    if (existing?.email_confirmed_at) {
       return new Response(JSON.stringify({ error: "Este e-mail já está cadastrado e ativo no sistema" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get role UUID
     const { data: roleData } = await adminClient
       .from("role_definitions")
       .select("id")
@@ -89,25 +118,44 @@ Deno.serve(async (req) => {
       .single();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Role não encontrado" }), {
+      return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Determine site URL for redirect
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || supabaseUrl;
     const siteUrl = origin.replace(/\/+$/, "");
 
-    // Generate invite link (no email sent by Supabase)
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    let linkData: any = null;
+    let linkError: any = null;
+
+    // First attempt: invite link
+    const inviteAttempt = await adminClient.auth.admin.generateLink({
       type: "invite",
-      email: email,
+      email,
       options: {
         data: { full_name, role: role_name, company_id, invited_by: caller.id },
         redirectTo: `${siteUrl}/set-password`,
       },
     });
+
+    linkData = inviteAttempt.data;
+    linkError = inviteAttempt.error;
+
+    // Fallback for pending/unconfirmed existing accounts
+    if (linkError && existing && !existing.email_confirmed_at) {
+      const recoveryAttempt = await adminClient.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: {
+          data: { full_name, role: role_name, company_id, invited_by: caller.id },
+          redirectTo: `${siteUrl}/set-password`,
+        },
+      });
+      linkData = recoveryAttempt.data;
+      linkError = recoveryAttempt.error;
+    }
 
     if (linkError) {
       console.error("invite-user generateLink error:", linkError);
@@ -118,58 +166,68 @@ Deno.serve(async (req) => {
     }
 
     const inviteLink = linkData?.properties?.action_link;
-    const newUserId = linkData?.user?.id;
+    const newUserId = linkData?.user?.id ?? existing?.id ?? null;
 
-    // Upsert invite record (update if same email exists with pending status)
-    const { data: existingInvite } = await adminClient
+    const { data: latestInvite } = await adminClient
       .from("user_invites")
-      .select("id")
+      .select("id, status")
       .eq("email", email)
-      .eq("status", "pending")
+      .neq("status", "accepted")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let inviteId: string | null = null;
 
-    if (existingInvite) {
-      // Update existing pending invite with new link
+    if (latestInvite) {
       const { data: updated } = await adminClient
         .from("user_invites")
         .update({
-          invite_link: inviteLink,
           full_name,
           role_id: roleData.id,
           company_id: company_id || null,
           user_id: newUserId,
+          status: "pending",
+          invite_link: inviteLink,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         })
-        .eq("id", existingInvite.id)
+        .eq("id", latestInvite.id)
         .select("id")
         .single();
-      inviteId = updated?.id || existingInvite.id;
+
+      inviteId = updated?.id ?? latestInvite.id;
     } else {
-      // Create new invite record
-      const { data: inviteRecord } = await adminClient.from("user_invites").insert({
-        email,
-        full_name,
-        role_id: roleData.id,
-        company_id: company_id || null,
-        invited_by: caller.id,
-        user_id: newUserId,
-        status: "pending",
-        invite_link: inviteLink,
-      }).select("id").single();
-      inviteId = inviteRecord?.id;
+      const { data: created } = await adminClient
+        .from("user_invites")
+        .insert({
+          email,
+          full_name,
+          role_id: roleData.id,
+          company_id: company_id || null,
+          invited_by: caller.id,
+          user_id: newUserId,
+          status: "pending",
+          invite_link: inviteLink,
+        })
+        .select("id")
+        .single();
+
+      inviteId = created?.id ?? null;
     }
 
-    // Pre-create user_profiles
     if (newUserId) {
-      await adminClient.from("user_profiles").upsert({
-        user_id: newUserId,
-        full_name,
-        role_id: roleData.id,
-        company_id: company_id || null,
-        is_active: true,
-      }, { onConflict: "user_id" });
+      await adminClient
+        .from("user_profiles")
+        .upsert(
+          {
+            user_id: newUserId,
+            full_name,
+            role_id: roleData.id,
+            company_id: company_id || null,
+            is_active: true,
+          },
+          { onConflict: "user_id" },
+        );
     }
 
     return new Response(JSON.stringify({
@@ -180,7 +238,7 @@ Deno.serve(async (req) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
+  } catch (e) {
     console.error("invite-user error:", e);
     return new Response(JSON.stringify({ error: "Erro interno ao processar convite." }), {
       status: 500,
