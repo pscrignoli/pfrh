@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Users, UserPlus, Mail, RotateCw, X, Loader2 } from "lucide-react";
+import { Users, UserPlus, Link2, RotateCw, X, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +50,7 @@ interface InviteRow {
   status: string;
   created_at: string;
   expires_at: string;
+  invite_link: string | null;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -83,7 +84,8 @@ export default function UserManagementTab() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role_name: "", company_id: "" });
-  const { isSuperAdmin, userProfile } = usePermissions();
+  const [inviteResult, setInviteResult] = useState<{ link: string; name: string; email: string; role: string } | null>(null);
+  const { isSuperAdmin } = usePermissions();
   const { user } = useAuth();
   const { companies } = useCompany();
 
@@ -122,7 +124,6 @@ export default function UserManagementTab() {
 
       setUsers(merged);
 
-      // Map invites with inviter name
       const inviteRows: InviteRow[] = (invitesRes.data ?? []).map((inv: any) => {
         const inviter = authUsers.find((u: any) => u.id === inv.invited_by);
         return {
@@ -134,6 +135,7 @@ export default function UserManagementTab() {
           status: inv.status,
           created_at: inv.created_at,
           expires_at: inv.expires_at,
+          invite_link: inv.invite_link ?? null,
         };
       });
       setInvites(inviteRows);
@@ -190,7 +192,7 @@ export default function UserManagementTab() {
     setSaving(null);
   };
 
-  const handleInvite = async () => {
+  const handleGenerateInvite = async () => {
     if (!inviteForm.email || !inviteForm.full_name || !inviteForm.role_name) {
       toast({ title: "Preencha todos os campos obrigatórios.", variant: "destructive" });
       return;
@@ -208,11 +210,16 @@ export default function UserManagementTab() {
         },
       });
       if (res.error || res.data?.error) {
-        throw new Error(res.data?.error || res.error?.message || "Erro ao enviar convite");
+        throw new Error(res.data?.error || res.error?.message || "Erro ao gerar convite");
       }
-      toast({ title: `Convite enviado para ${inviteForm.email}` });
-      setInviteOpen(false);
-      setInviteForm({ email: "", full_name: "", role_name: "", company_id: "" });
+      const roleDisplay = roles.find(r => r.name === inviteForm.role_name)?.display_name || inviteForm.role_name;
+      setInviteResult({
+        link: res.data.invite_link,
+        name: inviteForm.full_name,
+        email: inviteForm.email,
+        role: roleDisplay,
+      });
+      toast({ title: `Convite gerado para ${inviteForm.email}` });
       await fetchData();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
@@ -220,10 +227,19 @@ export default function UserManagementTab() {
     setInviteLoading(false);
   };
 
-  const handleResendInvite = async (inv: InviteRow) => {
+  const handleCopyLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Link copiado!" });
+    } catch {
+      toast({ title: "Erro ao copiar link", variant: "destructive" });
+    }
+  };
+
+  const handleRegenerateLink = async (inv: InviteRow) => {
+    setSaving(inv.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      // Find role name from display
       const role = roles.find(r => r.display_name === inv.role_display);
       const res = await supabase.functions.invoke("invite-user", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
@@ -234,15 +250,17 @@ export default function UserManagementTab() {
         },
       });
       if (res.error || res.data?.error) {
-        // If already exists, it's fine - just resend
-        toast({ title: "Convite reenviado", description: `Novo convite enviado para ${inv.email}` });
-      } else {
-        toast({ title: `Convite reenviado para ${inv.email}` });
+        throw new Error(res.data?.error || res.error?.message || "Erro ao regenerar convite");
+      }
+      if (res.data?.invite_link) {
+        await handleCopyLink(res.data.invite_link);
+        toast({ title: "Novo link gerado e copiado!" });
       }
       await fetchData();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
+    setSaving(null);
   };
 
   const handleRevokeInvite = async (inv: InviteRow) => {
@@ -255,13 +273,17 @@ export default function UserManagementTab() {
     }
   };
 
+  const closeInviteModal = () => {
+    setInviteOpen(false);
+    setInviteResult(null);
+    setInviteForm({ email: "", full_name: "", role_name: "", company_id: "" });
+  };
+
   if (loading) return <Skeleton className="h-96 w-full" />;
 
   const assignableRoles = isSuperAdmin
     ? roles
     : roles.filter((r) => r.name !== "super_admin");
-
-  const callerName = userProfile?.full_name || user?.email || "";
 
   return (
     <Card>
@@ -367,13 +389,23 @@ export default function UserManagementTab() {
                     <TableCell>
                       {inv.status === "pending" && (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => handleResendInvite(inv)} title="Reenviar">
+                          {inv.invite_link && (
+                            <Button size="sm" variant="ghost" onClick={() => handleCopyLink(inv.invite_link!)} title="Copiar link">
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => handleRegenerateLink(inv)} disabled={saving === inv.id} title="Regenerar link">
                             <RotateCw className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRevokeInvite(inv)} title="Revogar">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
+                      )}
+                      {inv.status === "expired" && (
+                        <Button size="sm" variant="ghost" onClick={() => handleRegenerateLink(inv)} disabled={saving === inv.id} title="Regenerar">
+                          <RotateCw className="h-4 w-4" />
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
@@ -390,66 +422,92 @@ export default function UserManagementTab() {
       </CardContent>
 
       {/* Invite Modal */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <Dialog open={inviteOpen} onOpenChange={(open) => { if (!open) closeInviteModal(); }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" /> Convidar Usuário
-            </DialogTitle>
-            <DialogDescription>Envie um convite por e-mail para um novo usuário.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>E-mail *</Label>
-              <Input type="email" placeholder="usuario@empresa.com" value={inviteForm.email} onChange={(e) => setInviteForm(f => ({ ...f, email: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Nome completo *</Label>
-              <Input placeholder="Nome do colaborador" value={inviteForm.full_name} onChange={(e) => setInviteForm(f => ({ ...f, full_name: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Perfil de acesso *</Label>
-              <Select value={inviteForm.role_name} onValueChange={(v) => setInviteForm(f => ({ ...f, role_name: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecionar perfil" /></SelectTrigger>
-                <SelectContent>
-                  {assignableRoles.map((r) => (
-                    <SelectItem key={r.id} value={r.name}>{r.display_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Select value={inviteForm.company_id} onValueChange={(v) => setInviteForm(f => ({ ...f, company_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Todas as empresas" /></SelectTrigger>
-                <SelectContent>
-                  {(companies ?? []).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Preview */}
-            {inviteForm.email && inviteForm.full_name && inviteForm.role_name && (
-              <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
-                <p className="text-muted-foreground text-xs font-medium">PREVIEW DO CONVITE</p>
-                <p>Olá <strong>{inviteForm.full_name}</strong>,</p>
-                <p>Você foi convidado por <strong>{callerName}</strong> para acessar o sistema de Gestão de RH como <strong>{roles.find(r => r.name === inviteForm.role_name)?.display_name}</strong>.</p>
-                <p className="text-muted-foreground">O convidado receberá um e-mail com link para criar sua senha. O convite expira em 7 dias.</p>
+          {!inviteResult ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Link2 className="h-5 w-5" /> Convidar Usuário
+                </DialogTitle>
+                <DialogDescription>Gere um link de convite para um novo usuário.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>E-mail *</Label>
+                  <Input type="email" placeholder="usuario@empresa.com" value={inviteForm.email} onChange={(e) => setInviteForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nome completo *</Label>
+                  <Input placeholder="Nome do colaborador" value={inviteForm.full_name} onChange={(e) => setInviteForm(f => ({ ...f, full_name: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Perfil de acesso *</Label>
+                  <Select value={inviteForm.role_name} onValueChange={(v) => setInviteForm(f => ({ ...f, role_name: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar perfil" /></SelectTrigger>
+                    <SelectContent>
+                      {assignableRoles.map((r) => (
+                        <SelectItem key={r.id} value={r.name}>{r.display_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Empresa</Label>
+                  <Select value={inviteForm.company_id} onValueChange={(v) => setInviteForm(f => ({ ...f, company_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Todas as empresas" /></SelectTrigger>
+                    <SelectContent>
+                      {(companies ?? []).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancelar</Button>
-            <Button onClick={handleInvite} disabled={inviteLoading} className="gap-2">
-              {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-              Enviar Convite
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeInviteModal}>Cancelar</Button>
+                <Button onClick={handleGenerateInvite} disabled={inviteLoading} className="gap-2">
+                  {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                  Gerar Link de Convite
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                  <CheckCircle2 className="h-5 w-5" /> Convite gerado com sucesso!
+                </DialogTitle>
+                <DialogDescription>Envie este link para o convidado por WhatsApp, email ou outro meio.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-muted-foreground">Convite para:</span> <strong>{inviteResult.name}</strong></p>
+                  <p><span className="text-muted-foreground">Email:</span> {inviteResult.email}</p>
+                  <p><span className="text-muted-foreground">Perfil:</span> {inviteResult.role}</p>
+                  <p><span className="text-muted-foreground">Expira em:</span> 7 dias</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Link de acesso:</Label>
+                  <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3">
+                    <code className="flex-1 text-xs break-all select-all">{inviteResult.link}</code>
+                    <Button size="sm" variant="ghost" onClick={() => handleCopyLink(inviteResult.link)} title="Copiar">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => handleCopyLink(inviteResult.link)} className="gap-2">
+                  <Copy className="h-4 w-4" /> Copiar Link
+                </Button>
+                <Button onClick={closeInviteModal}>Fechar</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </Card>
   );
 }
-
