@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Plus, Briefcase, MapPin, Users, Download, Pencil, CalendarIcon, Trash2, RefreshCw, Sparkles } from "lucide-react";
@@ -30,6 +30,7 @@ import EmpregareVagasList from "@/components/recrutamento/EmpregareVagasList";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
 import { JobDescriptionGenerator } from "@/components/recrutamento/JobDescriptionGenerator";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
+import PeriodFilter, { usePeriodFilter, filterVagasByPeriod } from "@/components/recrutamento/PeriodFilter";
 
 // ── Local vacancy components (kept from original) ──
 
@@ -140,6 +141,36 @@ export default function Recrutamento() {
   const { vagas: empregareVagas, loading: empLoading, lastSync, syncing, sync, stats } = useEmpregareVagas();
   const { canEdit } = usePermissions();
   const canEditRecrutamento = canEdit("recrutamento");
+
+  // Period filter
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = usePeriodFilter("3m");
+  const filteredEmpregareVagas = useMemo(() => filterVagasByPeriod(empregareVagas, range), [empregareVagas, range]);
+
+  // Recalculate stats based on filtered vagas
+  const filteredStats = useMemo(() => {
+    const vNoPeriodo = filteredEmpregareVagas;
+    const abertas = vNoPeriodo.filter(v => (v.situacao ?? "").toLowerCase() === "aberta");
+    return {
+      total: vNoPeriodo.length,
+      posicoes: abertas.reduce((s, v) => s + (Number(v.total_vagas) || 0), 0),
+      candidatosEmProcesso: vNoPeriodo.reduce((s, v) => {
+        const etapas = v.etapas || [];
+        for (const e of etapas) {
+          const nome = (e.nome ?? e.Nome ?? "").toLowerCase();
+          if (nome === "todos" || nome === "all") return s + (Number(e.qntde ?? e.Qntde ?? e.qtd ?? 0) || 0);
+        }
+        return s;
+      }, 0),
+      contratados: vNoPeriodo.reduce((s, v) => {
+        const etapas = v.etapas || [];
+        for (const e of etapas) {
+          const nome = (e.nome ?? e.Nome ?? e.titulo ?? "").toLowerCase();
+          if (nome.includes("contratad")) return s + (Number(e.qntde ?? e.Qntde ?? e.qtd ?? e.totalCandidatos ?? 0) || 0);
+        }
+        return s;
+      }, 0),
+    };
+  }, [filteredEmpregareVagas]);
 
   // Tab
   const [tab, setTab] = useState("empregare");
@@ -276,7 +307,7 @@ export default function Recrutamento() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Recrutamento</h1>
           <div className="flex items-center gap-3">
-            <RecrutamentoStats {...stats} />
+            <RecrutamentoStats {...filteredStats} />
             {lastSync && (
               <span className="text-[10px] text-muted-foreground/60 ml-2">
                 Sync: {new Date(lastSync).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
@@ -303,12 +334,15 @@ export default function Recrutamento() {
         </div>
       </div>
 
+      {/* Period Filter */}
+      <PeriodFilter preset={preset} setPreset={setPreset} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo} />
+
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted/50 backdrop-blur-sm">
           <TabsTrigger value="empregare" className="data-[state=active]:shadow-sm transition-all duration-200">
             Empregare
-            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{empregareVagas.length}</Badge>
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{filteredEmpregareVagas.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="local" className="data-[state=active]:shadow-sm transition-all duration-200">
             Vagas Internas
@@ -330,7 +364,7 @@ export default function Recrutamento() {
             </div>
           ) : (
             <EmpregareVagasList
-              vagas={empregareVagas}
+              vagas={filteredEmpregareVagas}
               onSelect={(v) => {
                 setSelectedVaga(v);
                 setDrawerOpen(true);

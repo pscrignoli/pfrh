@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, subDays } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { Briefcase, CheckCircle2, XCircle, TrendingUp, AlertTriangle, Download, Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +19,10 @@ import { useCompany } from "@/contexts/CompanyContext";
 import EmpregareVagaDrawer from "@/components/recrutamento/EmpregareVagaDrawer";
 import type { EmpregareVaga } from "@/hooks/useEmpregareVagas";
 import * as XLSX from "xlsx";
+import PeriodFilter, { usePeriodFilter, filterVagasByPeriod } from "@/components/recrutamento/PeriodFilter";
 
 const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--warning))", "hsl(var(--success))", "hsl(var(--destructive))", "hsl(var(--accent))", "hsl(var(--chart-4))"];
-const FUNNEL_COLORS = ["hsl(var(--primary))", "hsl(var(--warning))", "hsl(var(--success))"];
+const FUNNEL_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-4))", "hsl(var(--warning))", "hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--destructive))"];
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   aberta: { label: "Aberta", cls: "bg-success/10 text-success border-success/20" },
   encerrada: { label: "Encerrada", cls: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
@@ -35,12 +36,11 @@ export default function RecrutamentoDashboardVagas() {
   const { companyId } = useCompany();
   const { vagas, loading } = useEmpregareVagas();
 
-  const [filters, setFilters] = useState<RecrutamentoFilters>({
-    dateFrom: subDays(new Date(), 365),
-    dateTo: new Date(),
-    status: "todas",
-    companyId: companyId,
-  });
+  // Period filter
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = usePeriodFilter("3m");
+  const filteredByPeriod = useMemo(() => filterVagasByPeriod(vagas, range), [vagas, range]);
+
+  const [statusFilter, setStatusFilter] = useState("todas");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string>("dataCadastro");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -49,9 +49,14 @@ export default function RecrutamentoDashboardVagas() {
   const [drawerVaga, setDrawerVaga] = useState<EmpregareVaga | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Update companyId filter when context changes
-  const effectiveFilters = useMemo(() => ({ ...filters, companyId }), [filters, companyId]);
-  const { rows, summary, distributions, funnel } = useRecrutamentoDashboard(vagas, effectiveFilters);
+  const filters = useMemo((): RecrutamentoFilters => ({
+    dateFrom: null, // already filtered by period
+    dateTo: null,
+    status: statusFilter,
+    companyId,
+  }), [statusFilter, companyId]);
+
+  const { rows, summary, distributions, funnel } = useRecrutamentoDashboard(filteredByPeriod, filters);
 
   // Search + sort
   const sorted = useMemo(() => {
@@ -118,7 +123,8 @@ export default function RecrutamentoDashboardVagas() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
-        <Select value={filters.status} onValueChange={v => { setFilters(f => ({ ...f, status: v })); setPage(1); }}>
+        <PeriodFilter preset={preset} setPreset={setPreset} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo} />
+        <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas</SelectItem>
@@ -155,21 +161,21 @@ export default function RecrutamentoDashboardVagas() {
       </div>
 
       {/* Funnel */}
-      {funnel[0].value > 0 && (
+      {funnel.length > 0 && funnel[0].value > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Funil Agregado</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-end gap-2 justify-center py-4">
+            <div className="flex items-end gap-2 justify-center py-4 overflow-x-auto">
               {funnel.map((f, i) => {
                 const maxVal = Math.max(...funnel.map(x => x.value), 1);
                 const h = Math.max((f.value / maxVal) * 180, 30);
                 const prevVal = i > 0 ? funnel[i - 1].value : 0;
                 const conv = prevVal > 0 ? ((f.value / prevVal) * 100).toFixed(1) : null;
                 return (
-                  <div key={f.name} className="flex flex-col items-center gap-1 flex-1 max-w-[200px]">
+                  <div key={f.name} className="flex flex-col items-center gap-1 flex-1 min-w-[80px] max-w-[160px]">
                     <span className="text-lg font-bold tabular-nums">{f.value}</span>
-                    <div className="w-full rounded-t-lg transition-all duration-700" style={{ height: h, backgroundColor: FUNNEL_COLORS[i] }} />
-                    <span className="text-xs font-medium">{f.name}</span>
+                    <div className="w-full rounded-t-lg transition-all duration-700" style={{ height: h, backgroundColor: FUNNEL_COLORS[i % FUNNEL_COLORS.length] }} />
+                    <span className="text-xs font-medium text-center">{f.name}</span>
                     {conv && <span className="text-[10px] text-muted-foreground">{conv}% conv.</span>}
                   </div>
                 );
