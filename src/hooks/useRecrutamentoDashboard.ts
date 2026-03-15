@@ -241,12 +241,31 @@ export function useRecrutamentoDashboard(vagas: EmpregareVaga[], filters: Recrut
   }), [rows]);
 
   const funnel = useMemo(() => {
+    // Aggregate real etapas across all vagas in the period
+    const etapaMap = new Map<string, number>();
+    for (const r of rows) {
+      const etapas = r.raw?.etapas || [];
+      for (const e of etapas) {
+        const nome = (e.nome ?? e.Nome ?? e.titulo ?? "").trim();
+        const nomeLower = nome.toLowerCase();
+        if (!nome || nomeLower === "todos" || nomeLower === "all") continue;
+        const qty = Number(e.qntde ?? e.Qntde ?? e.qtd ?? e.totalCandidatos ?? 0) || 0;
+        etapaMap.set(nome, (etapaMap.get(nome) || 0) + qty);
+      }
+    }
+
+    // If we have real etapas, use them
+    if (etapaMap.size > 0) {
+      return Array.from(etapaMap.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    // Fallback to simple funnel
     const totalCand = rows.reduce((s, r) => s + r.totalCandidaturas, 0);
-    const emAndamento = rows.reduce((s, r) => s + r.totalEmAndamento, 0);
     const contratados = rows.reduce((s, r) => s + r.totalContratados, 0);
     return [
       { name: "Candidaturas", value: totalCand },
-      { name: "Em Andamento", value: emAndamento },
       { name: "Contratados", value: contratados },
     ];
   }, [rows]);
