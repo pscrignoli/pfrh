@@ -364,7 +364,7 @@ export default function Recrutamento() {
             </div>
           ) : (
             <EmpregareVagasList
-              vagas={empregareVagas}
+              vagas={filteredEmpregareVagas}
               onSelect={(v) => {
                 setSelectedVaga(v);
                 setDrawerOpen(true);
