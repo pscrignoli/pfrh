@@ -265,7 +265,19 @@ export default function UserManagementTab() {
 
   const handleRevokeInvite = async (inv: InviteRow) => {
     try {
-      await (supabase as any).from("user_invites").update({ status: "revoked" }).eq("id", inv.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("invite-user", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: {
+          action: "revoke",
+          invite_id: inv.id,
+        },
+      });
+
+      if (res.error || res.data?.error) {
+        throw new Error(res.data?.error || res.error?.message || "Erro ao revogar convite");
+      }
+
       toast({ title: "Convite revogado." });
       await fetchData();
     } catch (e: any) {
