@@ -36,12 +36,11 @@ export default function RecrutamentoDashboardVagas() {
   const { companyId } = useCompany();
   const { vagas, loading } = useEmpregareVagas();
 
-  const [filters, setFilters] = useState<RecrutamentoFilters>({
-    dateFrom: subDays(new Date(), 365),
-    dateTo: new Date(),
-    status: "todas",
-    companyId: companyId,
-  });
+  // Period filter
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = usePeriodFilter("3m");
+  const filteredByPeriod = useMemo(() => filterVagasByPeriod(vagas, range), [vagas, range]);
+
+  const [statusFilter, setStatusFilter] = useState("todas");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string>("dataCadastro");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -50,9 +49,14 @@ export default function RecrutamentoDashboardVagas() {
   const [drawerVaga, setDrawerVaga] = useState<EmpregareVaga | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Update companyId filter when context changes
-  const effectiveFilters = useMemo(() => ({ ...filters, companyId }), [filters, companyId]);
-  const { rows, summary, distributions, funnel } = useRecrutamentoDashboard(vagas, effectiveFilters);
+  const filters = useMemo((): RecrutamentoFilters => ({
+    dateFrom: null, // already filtered by period
+    dateTo: null,
+    status: statusFilter,
+    companyId,
+  }), [statusFilter, companyId]);
+
+  const { rows, summary, distributions, funnel } = useRecrutamentoDashboard(filteredByPeriod, filters);
 
   // Search + sort
   const sorted = useMemo(() => {
