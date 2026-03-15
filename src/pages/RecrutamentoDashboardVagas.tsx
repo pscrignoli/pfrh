@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, subDays } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { Briefcase, CheckCircle2, XCircle, TrendingUp, AlertTriangle, Download, Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
