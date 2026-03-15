@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
     });
 
     if (inviteError) {
-      return new Response(JSON.stringify({ error: inviteError.message }), {
+      console.error("invite-user invite error:", inviteError);
+      return new Response(JSON.stringify({ error: "Erro ao enviar convite. Tente novamente." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
