@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -69,11 +69,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if email already exists
+    // Check if email already exists and has confirmed (active user)
     const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
     const existing = existingUsers?.find((u: any) => u.email === email);
-    if (existing) {
-      return new Response(JSON.stringify({ error: "Este e-mail já está cadastrado no sistema" }), {
+    
+    // If user exists AND has confirmed their email, they are an active user - block
+    if (existing && existing.email_confirmed_at) {
+      return new Response(JSON.stringify({ error: "Este e-mail já está cadastrado e ativo no sistema" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -118,17 +120,46 @@ Deno.serve(async (req) => {
     const inviteLink = linkData?.properties?.action_link;
     const newUserId = linkData?.user?.id;
 
-    // Create invite record with link
-    const { data: inviteRecord } = await adminClient.from("user_invites").insert({
-      email,
-      full_name,
-      role_id: roleData.id,
-      company_id: company_id || null,
-      invited_by: caller.id,
-      user_id: newUserId,
-      status: "pending",
-      invite_link: inviteLink,
-    }).select("id").single();
+    // Upsert invite record (update if same email exists with pending status)
+    const { data: existingInvite } = await adminClient
+      .from("user_invites")
+      .select("id")
+      .eq("email", email)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    let inviteId: string | null = null;
+
+    if (existingInvite) {
+      // Update existing pending invite with new link
+      const { data: updated } = await adminClient
+        .from("user_invites")
+        .update({
+          invite_link: inviteLink,
+          full_name,
+          role_id: roleData.id,
+          company_id: company_id || null,
+          user_id: newUserId,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .eq("id", existingInvite.id)
+        .select("id")
+        .single();
+      inviteId = updated?.id || existingInvite.id;
+    } else {
+      // Create new invite record
+      const { data: inviteRecord } = await adminClient.from("user_invites").insert({
+        email,
+        full_name,
+        role_id: roleData.id,
+        company_id: company_id || null,
+        invited_by: caller.id,
+        user_id: newUserId,
+        status: "pending",
+        invite_link: inviteLink,
+      }).select("id").single();
+      inviteId = inviteRecord?.id;
+    }
 
     // Pre-create user_profiles
     if (newUserId) {
@@ -144,7 +175,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       user_id: newUserId,
-      invite_id: inviteRecord?.id,
+      invite_id: inviteId,
       invite_link: inviteLink,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
