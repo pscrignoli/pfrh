@@ -123,7 +123,8 @@ export default function RecrutamentoDashboardVagas() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
-        <Select value={filters.status} onValueChange={v => { setFilters(f => ({ ...f, status: v })); setPage(1); }}>
+        <PeriodFilter preset={preset} setPreset={setPreset} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo} />
+        <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas</SelectItem>
