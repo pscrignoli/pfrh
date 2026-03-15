@@ -27,7 +27,6 @@ const mainItems = [
 const recrutamentoSubItems = [
   { title: "Vagas", url: "/recrutamento", icon: Briefcase, module: "recrutamento" },
   { title: "Dashboard Vagas", url: "/recrutamento/dashboard-vagas", icon: BarChart3, module: "recrutamento" },
-  { title: "Dashboard Requisições", url: "/recrutamento/dashboard-requisicoes", icon: ClipboardList, module: "recrutamento" },
 ];
 
 const saudeSubItems = [
