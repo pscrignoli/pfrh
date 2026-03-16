@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
   Palmtree, Calculator, HeartPulse, Upload, Briefcase,
-  HeartHandshake, UtensilsCrossed,
+  HeartHandshake, UtensilsCrossed, SmilePlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -32,8 +32,9 @@ const recrutamentoSubItems = [
 
 const beneficiosSubItems = [
   { title: "Saúde", url: "/beneficios/saude", icon: HeartPulse, module: "saude" },
-  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
+  { title: "Dental", url: "/beneficios/dental", icon: SmilePlus, module: "saude" },
   { title: "Vale Refeição", url: "/beneficios/vr", icon: UtensilsCrossed, module: "beneficios.vr" },
+  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
 ];
 
 const folhaSubItems = [
