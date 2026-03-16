@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useHealthPlans } from "@/hooks/useHealthPlans";
-import { useHealthImport, type MatchedRecord } from "@/hooks/useHealthImport";
+import { useHealthImport, type MatchedRecord, type ExistingImportInfo } from "@/hooks/useHealthImport";
 import { useCompany } from "@/contexts/CompanyContext";
 import { parseUnimedXls, type UnimedParseResult, type UnimedRecord } from "@/utils/parseUnimedXls";
 import { parseBradescoSaudePdf, type BradescoParseResult, type BradescoRecord } from "@/utils/parseBradescoSaudePdf";
@@ -31,9 +31,21 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+const fonteLabels: Record<string, string> = {
+  unimed: "Unimed",
+  bradesco: "Bradesco Saúde",
+  bradesco_saude: "Bradesco Saúde",
+  bradesco_dental: "Bradesco Dental",
+};
+
+function fonteToDbFonte(fonte: Fonte): string {
+  if (fonte === "bradesco_saude") return "bradesco";
+  return fonte;
+}
+
 export function HealthImportDialog({ open, onOpenChange }: Props) {
   const { plans } = useHealthPlans();
-  const { matchEmployees, importUnimed, importBradesco, importBradescoDental, importing, progress } = useHealthImport();
+  const { matchEmployees, checkExistingImport, deleteExistingImport, importUnimed, importBradesco, importBradescoDental, importing, progress } = useHealthImport();
   const { companyId } = useCompany();
 
   const [step, setStep] = useState<Step>("tipo");
@@ -45,6 +57,8 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
   const [conferencia, setConferencia] = useState<ConferenciaResult | null>(null);
   const [confLoading, setConfLoading] = useState(false);
   const [confDismissed, setConfDismissed] = useState<Set<number>>(new Set());
+  const [existingImport, setExistingImport] = useState<ExistingImportInfo | null>(null);
+  const [replacingImport, setReplacingImport] = useState(false);
 
   const reset = () => {
     setStep("tipo");
@@ -55,6 +69,8 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
     setFileName("");
     setConferencia(null);
     setConfDismissed(new Set());
+    setExistingImport(null);
+    setReplacingImport(false);
   };
 
   const handleClose = (val: boolean) => {
@@ -72,29 +88,44 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
 
       try {
         const buf = await file.arrayBuffer();
+        let result: UnimedParseResult | BradescoParseResult | BradescoDentalParseResult;
         if (fonte === "unimed") {
-          const result = parseUnimedXls(buf);
-          setParseResult(result);
-          const m = await matchEmployees(result.records);
-          setMatched(m);
+          result = parseUnimedXls(buf);
         } else if (fonte === "bradesco_saude") {
-          const result = await parseBradescoSaudePdf(buf);
-          setParseResult(result);
-          const m = await matchEmployees(result.records);
-          setMatched(m);
+          result = await parseBradescoSaudePdf(buf);
         } else {
-          const result = await parseBradescoDentalPdf(buf);
-          setParseResult(result);
-          const m = await matchEmployees(result.records);
-          setMatched(m);
+          result = await parseBradescoDentalPdf(buf);
         }
+        setParseResult(result);
+        const m = await matchEmployees(result.records);
+        setMatched(m);
+
+        // Check for existing import
+        const competenciaStr = result.competencia.toISOString().split("T")[0];
+        const dbFonte = fonteToDbFonte(fonte);
+        const existing = await checkExistingImport(competenciaStr, dbFonte);
+        setExistingImport(existing);
+
         setStep("preview");
       } catch (err: any) {
         toast.error("Erro ao processar arquivo: " + (err?.message ?? "formato inválido"));
       }
     },
-    [fonte, matchEmployees]
+    [fonte, matchEmployees, checkExistingImport]
   );
+
+  const handleReplaceExisting = async () => {
+    if (!parseResult || !existingImport) return;
+    setReplacingImport(true);
+    try {
+      await deleteExistingImport(existingImport.competencia, existingImport.fonte);
+      setExistingImport(null);
+      toast.success("Importação anterior removida. Prossiga com a importação.");
+    } catch (err: any) {
+      toast.error("Erro ao remover importação anterior: " + (err?.message ?? "erro"));
+    }
+    setReplacingImport(false);
+  };
 
   const handleGoToConferencia = async () => {
     if (!parseResult || !companyId) {
@@ -279,6 +310,39 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
         {/* STEP 3 - Preview */}
         {step === "preview" && parseResult && (
           <div className="space-y-4">
+            {/* Duplicate import warning */}
+            {existingImport && (
+              <div className="rounded-lg border border-amber-400 bg-amber-50/50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    ⚠️ Já existe uma importação de {fonteLabels[existingImport.fonte] || existingImport.fonte} para{" "}
+                    <span className="capitalize">{competenciaLabel}</span> com {existingImport.count} registros.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Deseja substituir a importação anterior? Os registros antigos serão removidos antes de importar os novos.
+                  </p>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleClose(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleReplaceExisting}
+                      disabled={replacingImport}
+                    >
+                      {replacingImport ? "Removendo..." : "Substituir importação anterior"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Competência detectada</p>
@@ -366,7 +430,7 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
 
             <div className="flex justify-between">
               <Button variant="ghost" onClick={() => setStep("upload")}>Voltar</Button>
-              <Button onClick={handleGoToConferencia} disabled={confLoading}>
+              <Button onClick={handleGoToConferencia} disabled={confLoading || !!existingImport}>
                 {confLoading ? "Conferindo..." : "Conferir com Folha →"}
               </Button>
             </div>

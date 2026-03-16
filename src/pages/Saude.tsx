@@ -8,18 +8,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   HeartPulse, DollarSign, Building2, Users, TrendingUp, TrendingDown,
-  AlertTriangle, Info, AlertCircle, Download, ShieldCheck,
+  AlertTriangle, Info, AlertCircle, Download, ShieldCheck, Trash2,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line,
 } from "recharts";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { SalarioProtegido } from "@/components/SalarioProtegido";
 import { useSalarioRestrito } from "@/components/SalarioProtegido";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompany } from "@/contexts/CompanyContext";
 import { ConferenciaFaturaFolha } from "@/components/saude/ConferenciaFaturaFolha";
 import * as XLSX from "xlsx";
 
@@ -43,7 +51,9 @@ const pct = (v: number) => `${v.toFixed(1)}%`;
 export default function Saude() {
   const [competencia, setCompetencia] = useState<string | null>(null);
   const [planoFilter, setPlanoFilter] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { canView } = usePermissions();
+  const { companyId } = useCompany();
 
   const {
     loading, competencias, summary, evolution, planSlices,
@@ -81,6 +91,26 @@ export default function Saude() {
     a.download = `saude_${currentCompetencia || "export"}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteImport = async () => {
+    if (!currentCompetencia || !companyId) return;
+    setDeleting(true);
+    try {
+      await (supabase.from("health_records" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId);
+      await (supabase.from("health_invoices" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId);
+      toast.success(`Importação de saúde de ${competenciaLabel} removida. Reimporte se necessário.`);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err?.message ?? "erro"));
+    }
+    setDeleting(false);
   };
 
   if (loading) {
@@ -125,7 +155,33 @@ export default function Saude() {
           </h1>
           <p className="text-muted-foreground capitalize">{competenciaLabel}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {records.length > 0 && currentCompetencia && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir importação
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir importação de saúde</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza? Isso remove {records.length} registros de saúde de{" "}
+                    <span className="capitalize font-medium">{competenciaLabel}</span>.
+                    Reimporte os arquivos se necessário.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteImport} disabled={deleting}>
+                    {deleting ? "Excluindo..." : "Excluir"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Select value={currentCompetencia ?? ""} onValueChange={v => setCompetencia(v)}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Competência" /></SelectTrigger>
             <SelectContent>

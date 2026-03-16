@@ -12,10 +12,48 @@ export interface MatchedRecord {
   matched: boolean;
 }
 
+export interface ExistingImportInfo {
+  count: number;
+  competencia: string;
+  fonte: string;
+}
+
 export function useHealthImport() {
   const { companyId } = useCompany();
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  async function checkExistingImport(
+    competencia: string,
+    fonte: string
+  ): Promise<ExistingImportInfo | null> {
+    if (!companyId) return null;
+    const { count } = await supabase
+      .from("health_records")
+      .select("id", { count: "exact", head: true })
+      .eq("competencia", competencia)
+      .eq("company_id", companyId)
+      .eq("fonte", fonte);
+
+    if (count && count > 0) {
+      return { count, competencia, fonte };
+    }
+    return null;
+  }
+
+  async function deleteExistingImport(competencia: string, fonte: string) {
+    if (!companyId) return;
+    await (supabase.from("health_records" as any) as any)
+      .delete()
+      .eq("competencia", competencia)
+      .eq("company_id", companyId)
+      .eq("fonte", fonte);
+    await (supabase.from("health_invoices" as any) as any)
+      .delete()
+      .eq("competencia", competencia)
+      .eq("company_id", companyId)
+      .eq("fonte", fonte);
+  }
 
   async function matchEmployees(
     records: (UnimedRecord | BradescoRecord | BradescoDentalRecord)[]
@@ -84,7 +122,7 @@ export function useHealthImport() {
         taxa_cartao: r.taxa_cartao, taxa_inscricao: r.taxa_inscricao,
         lancamento_manual: r.lancamento_manual, outros: r.outros, valor_total: r.valor_total,
         tipo_cobertura: "medico", fonte: "unimed",
-      }, { onConflict: "health_plan_id,cpf_beneficiario,competencia,tipo_cobertura" });
+      }, { onConflict: "health_records_unique_import" });
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
@@ -95,7 +133,7 @@ export function useHealthImport() {
       valor_fatura: result.totalGeral, total_parte_empresa: result.totalEmpresa,
       total_parte_colaborador: result.totalColaborador, total_coparticipacao: result.totalCopart,
       fonte: "unimed",
-    }, { onConflict: "health_plan_id,competencia" });
+    }, { onConflict: "health_invoices_unique_import" });
 
     setImporting(false);
     return { imported: matched.length, vidas: matched.length };
@@ -119,7 +157,7 @@ export function useHealthImport() {
         mensalidade: r.mensalidade, parte_empresa: r.mensalidade - r.parte_colaborador,
         parte_colaborador: r.parte_colaborador, valor_total: r.mensalidade,
         tipo_cobertura: r.tipo_cobertura, fonte: "bradesco",
-      }, { onConflict: "health_plan_id,cpf_beneficiario,competencia,tipo_cobertura" });
+      }, { onConflict: "health_records_unique_import" });
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
@@ -128,7 +166,7 @@ export function useHealthImport() {
       total_titulares: result.totalTitulares, total_dependentes: result.totalDependentes,
       total_vidas: result.totalVidas, valor_fatura: result.valorFatura,
       valor_iof: result.valorIof, valor_cobrado: result.valorCobrado, fonte: "bradesco",
-    }, { onConflict: "health_plan_id,competencia" });
+    }, { onConflict: "health_invoices_unique_import" });
 
     setImporting(false);
     return { imported: matched.length, vidas: matched.length };
@@ -152,7 +190,7 @@ export function useHealthImport() {
         mensalidade: r.valor_liquido, parte_empresa: r.valor_liquido - r.parte_colaborador,
         parte_colaborador: r.parte_colaborador, valor_total: r.valor_liquido,
         tipo_cobertura: "odontologico", fonte: "bradesco_dental",
-      }, { onConflict: "health_plan_id,cpf_beneficiario,competencia,tipo_cobertura" });
+      }, { onConflict: "health_records_unique_import" });
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
@@ -161,11 +199,11 @@ export function useHealthImport() {
       total_titulares: result.totalTitulares, total_dependentes: result.totalDependentes,
       total_vidas: result.totalVidas, valor_fatura: result.valorLiquido,
       valor_cobrado: result.valorLiquido, fonte: "bradesco_dental",
-    }, { onConflict: "health_plan_id,competencia" });
+    }, { onConflict: "health_invoices_unique_import" });
 
     setImporting(false);
     return { imported: matched.length, vidas: matched.length };
   }
 
-  return { matchEmployees, importUnimed, importBradesco, importBradescoDental, importing, progress };
+  return { matchEmployees, checkExistingImport, deleteExistingImport, importUnimed, importBradesco, importBradescoDental, importing, progress };
 }
