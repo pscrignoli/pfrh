@@ -11,11 +11,14 @@ import { conferirFaturaVsFolha, type ConferenciaResult, type ConferenciaAlerta }
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 
+type TipoFiltro = "todos" | "medico" | "odontologico";
+
 export function ConferenciaFaturaFolha() {
   const { companyId } = useCompany();
   const [loading, setLoading] = useState(true);
   const [competencias, setCompetencias] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
   const [result, setResult] = useState<ConferenciaResult | null>(null);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
@@ -41,10 +44,10 @@ export function ConferenciaFaturaFolha() {
     if (!selected || !companyId) return;
     setLoading(true);
     setDismissed(new Set());
-    const res = await conferirFaturaVsFolha(selected, companyId);
+    const res = await conferirFaturaVsFolha(selected, companyId, tipoFiltro);
     setResult(res);
     setLoading(false);
-  }, [selected, companyId]);
+  }, [selected, companyId, tipoFiltro]);
 
   useEffect(() => {
     if (selected) runConferencia();
@@ -112,16 +115,28 @@ export function ConferenciaFaturaFolha() {
             Cruzamento automático entre fatura do plano e folha de pagamento
           </p>
         </div>
-        <Select value={selected ?? ""} onValueChange={setSelected}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Competência" />
-          </SelectTrigger>
-          <SelectContent>
-            {competencias.map(c => (
-              <SelectItem key={c} value={c}>{competenciaLabel(c)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="medico">Saúde Médico</SelectItem>
+              <SelectItem value="odontologico">Dental</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={selected ?? ""} onValueChange={setSelected}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Competência" />
+            </SelectTrigger>
+            <SelectContent>
+              {competencias.map(c => (
+                <SelectItem key={c} value={c}>{competenciaLabel(c)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading && <Skeleton className="h-40" />}

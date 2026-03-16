@@ -104,7 +104,8 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
     setConfLoading(true);
     const competenciaStr = parseResult.competencia.toISOString().split("T")[0];
     try {
-      const res = await conferirFaturaVsFolha(competenciaStr, companyId);
+    const tipoCobertura = fonte === 'bradesco_dental' ? 'odontologico' as const : fonte === 'unimed' ? 'medico' as const : 'medico' as const;
+    const res = await conferirFaturaVsFolha(competenciaStr, companyId, tipoCobertura);
       setConferencia(res);
       setStep("conferencia");
     } catch {
