@@ -69,6 +69,7 @@ const App = () => (
                   <Route path="/folha/custo-pessoal" element={<ModuleGuard module="folha.custo"><CustoPessoal /></ModuleGuard>} />
                   <Route path="/beneficios/saude" element={<ModuleGuard module="saude"><Saude /></ModuleGuard>} />
                   <Route path="/beneficios/saude/importar" element={<ModuleGuard module="saude"><SaudeImportar /></ModuleGuard>} />
+                  <Route path="/beneficios/dental" element={<ModuleGuard module="saude"><Dental /></ModuleGuard>} />
                   <Route path="/beneficios/vr" element={<ModuleGuard module="beneficios.vr"><BeneficiosVR /></ModuleGuard>} />
                   {/* Legacy redirects */}
                   <Route path="/saude" element={<Navigate to="/beneficios/saude" replace />} />
