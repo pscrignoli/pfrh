@@ -12,11 +12,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Upload, CheckCircle2, AlertCircle, FileSpreadsheet, FileText,
-  AlertTriangle, Info, ShieldCheck,
+  AlertTriangle, Info, ShieldCheck, SmilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useHealthPlans } from "@/hooks/useHealthPlans";
-import { useHealthImport } from "@/hooks/useHealthImport";
+import { useHealthImport, type MatchedRecord } from "@/hooks/useHealthImport";
 import { useCompany } from "@/contexts/CompanyContext";
 import { parseUnimedXls, type UnimedParseResult, type UnimedRecord } from "@/utils/parseUnimedXls";
 import { parseBradescoSaudePdf, type BradescoParseResult, type BradescoRecord } from "@/utils/parseBradescoSaudePdf";
@@ -26,13 +26,6 @@ import { conferirFaturaVsFolha, type ConferenciaResult, type ConferenciaAlerta }
 type Step = "tipo" | "upload" | "preview" | "conferencia" | "resultado";
 type Fonte = "unimed" | "bradesco_saude" | "bradesco_dental";
 
-interface MatchedRecord {
-  record: UnimedRecord | BradescoRecord | BradescoDentalRecord;
-  employee_id: string | null;
-  employee_nome: string | null;
-  matched: boolean;
-}
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,12 +33,12 @@ interface Props {
 
 export function HealthImportDialog({ open, onOpenChange }: Props) {
   const { plans } = useHealthPlans();
-  const { matchEmployees, importUnimed, importBradesco, importing, progress } = useHealthImport();
+  const { matchEmployees, importUnimed, importBradesco, importBradescoDental, importing, progress } = useHealthImport();
   const { companyId } = useCompany();
 
   const [step, setStep] = useState<Step>("tipo");
   const [fonte, setFonte] = useState<Fonte>("unimed");
-  const [parseResult, setParseResult] = useState<UnimedParseResult | BradescoParseResult | null>(null);
+  const [parseResult, setParseResult] = useState<UnimedParseResult | BradescoParseResult | BradescoDentalParseResult | null>(null);
   const [matched, setMatched] = useState<MatchedRecord[]>([]);
   const [importResult, setImportResult] = useState<{ imported: number; vidas: number } | null>(null);
   const [fileName, setFileName] = useState("");
@@ -69,6 +62,8 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
     onOpenChange(val);
   };
 
+  const isPdf = fonte === "bradesco_saude" || fonte === "bradesco_dental";
+
   const handleFileUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -82,8 +77,13 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
           setParseResult(result);
           const m = await matchEmployees(result.records);
           setMatched(m);
-        } else {
+        } else if (fonte === "bradesco_saude") {
           const result = await parseBradescoSaudePdf(buf);
+          setParseResult(result);
+          const m = await matchEmployees(result.records);
+          setMatched(m);
+        } else {
+          const result = await parseBradescoDentalPdf(buf);
           setParseResult(result);
           const m = await matchEmployees(result.records);
           setMatched(m);
@@ -98,7 +98,6 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
 
   const handleGoToConferencia = async () => {
     if (!parseResult || !companyId) {
-      // Skip conferencia if no company
       handleImport();
       return;
     }
@@ -109,7 +108,6 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
       setConferencia(res);
       setStep("conferencia");
     } catch {
-      // If fails, proceed anyway
       setStep("conferencia");
       setConferencia(null);
     }
@@ -118,21 +116,24 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
 
   const handleImport = async () => {
     if (!parseResult) return;
-    const plan = plans.find((p) =>
-      fonte === "unimed"
-        ? p.fornecedor?.toLowerCase().includes("unimed")
-        : p.fornecedor?.toLowerCase().includes("bradesco")
-    );
+    const plan = plans.find((p) => {
+      const f = p.fornecedor?.toLowerCase() ?? "";
+      if (fonte === "unimed") return f.includes("unimed");
+      if (fonte === "bradesco_saude") return f.includes("bradesco") && !f.includes("dental");
+      return f.includes("bradesco") || f.includes("dental") || f.includes("odonto");
+    });
     if (!plan) {
-      toast.error("Plano de saúde não encontrado. Verifique os cadastros.");
+      toast.error("Plano não encontrado. Verifique os cadastros em Saúde > Planos.");
       return;
     }
     try {
       let result;
       if (fonte === "unimed") {
         result = await importUnimed(plan.id, parseResult as UnimedParseResult, matched);
-      } else {
+      } else if (fonte === "bradesco_saude") {
         result = await importBradesco(plan.id, parseResult as BradescoParseResult, matched);
+      } else {
+        result = await importBradescoDental(plan.id, parseResult as BradescoDentalParseResult, matched);
       }
       setImportResult(result);
       setStep("resultado");
@@ -165,11 +166,38 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
     ? conferencia.criticos.filter((_, i) => !confDismissed.has(i)).length
     : 0;
 
+  // Helpers to get display values from heterogeneous records
+  const getRecordMensalidade = (r: UnimedRecord | BradescoRecord | BradescoDentalRecord): number => {
+    if ("mensalidade" in r) return (r as any).mensalidade;
+    if ("valor_liquido" in r) return (r as BradescoDentalRecord).valor_liquido;
+    return 0;
+  };
+  const getRecordEmpresa = (r: UnimedRecord | BradescoRecord | BradescoDentalRecord): number => {
+    if ("parte_empresa" in r && "cpf_beneficiario" in r) return (r as UnimedRecord).parte_empresa;
+    if ("valor_liquido" in r) return (r as BradescoDentalRecord).valor_liquido - (r as BradescoDentalRecord).parte_colaborador;
+    if ("mensalidade" in r) return (r as BradescoRecord).mensalidade - (r as BradescoRecord).parte_colaborador;
+    return 0;
+  };
+  const getRecordColaborador = (r: UnimedRecord | BradescoRecord | BradescoDentalRecord): number => {
+    if ("parte_colaborador" in r) return (r as any).parte_colaborador;
+    return 0;
+  };
+  const getRecordPlano = (r: UnimedRecord | BradescoRecord | BradescoDentalRecord): string => {
+    if ("descricao_plano" in r) return (r as UnimedRecord).descricao_plano || "";
+    if ("codigo_plano" in r) return (r as any).codigo_plano || "";
+    return "";
+  };
+
+  // Total values for preview
+  const previewTotalMensalidade = matched.reduce((s, m) => s + getRecordMensalidade(m.record), 0);
+  const previewTotalEmpresa = matched.reduce((s, m) => s + getRecordEmpresa(m.record), 0);
+  const previewTotalColaborador = matched.reduce((s, m) => s + getRecordColaborador(m.record), 0);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Importar Fatura de Saúde</DialogTitle>
+          <DialogTitle>Importar Fatura de Benefícios</DialogTitle>
         </DialogHeader>
 
         {/* Step indicators */}
@@ -203,12 +231,22 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
                 </Label>
               </div>
               <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50">
-                <RadioGroupItem value="bradesco" id="bradesco" />
-                <Label htmlFor="bradesco" className="flex items-center gap-3 cursor-pointer flex-1">
+                <RadioGroupItem value="bradesco_saude" id="bradesco_saude" />
+                <Label htmlFor="bradesco_saude" className="flex items-center gap-3 cursor-pointer flex-1">
                   <FileText className="h-5 w-5 text-red-600" />
                   <div>
                     <p className="font-medium">Bradesco Saúde (PDF)</p>
-                    <p className="text-sm text-muted-foreground">Fatura mensal com detalhamento médico e dental</p>
+                    <p className="text-sm text-muted-foreground">Fatura médica mensal — Diretoria (5 titulares)</p>
+                  </div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50">
+                <RadioGroupItem value="bradesco_dental" id="bradesco_dental" />
+                <Label htmlFor="bradesco_dental" className="flex items-center gap-3 cursor-pointer flex-1">
+                  <SmilePlus className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Bradesco Dental (PDF)</p>
+                    <p className="text-sm text-muted-foreground">Fatura odontológica mensal — Odontoprev (~63 vidas)</p>
                   </div>
                 </Label>
               </div>
@@ -259,6 +297,14 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
+            {/* Dental summary */}
+            {fonte === "bradesco_dental" && parseResult && "valorBruto" in parseResult && (
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                <p className="font-medium">Resumo da fatura dental</p>
+                <p>Bruto: {fmt((parseResult as BradescoDentalParseResult).valorBruto)} – Estornos: {fmt((parseResult as BradescoDentalParseResult).valorEstorno)} = <strong>Líquido: {fmt((parseResult as BradescoDentalParseResult).valorLiquido)}</strong></p>
+              </div>
+            )}
+
             <div className="rounded-md border max-h-[400px] overflow-auto">
               <Table>
                 <TableHeader>
@@ -266,7 +312,7 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
                     <TableHead>Nome</TableHead>
                     <TableHead>Parentesco</TableHead>
                     <TableHead>Plano</TableHead>
-                    <TableHead className="text-right">Mensalidade</TableHead>
+                    <TableHead className="text-right">{fonte === "bradesco_dental" ? "Valor Líquido" : "Mensalidade"}</TableHead>
                     <TableHead className="text-right">Empresa</TableHead>
                     <TableHead className="text-right">Colaborador</TableHead>
                     <TableHead>Vínculo</TableHead>
@@ -275,23 +321,18 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
                 <TableBody>
                   {matched.map((m, i) => {
                     const r = m.record;
-                    const isUnimed = "parte_empresa" in r;
+                    const mensalidade = getRecordMensalidade(r);
+                    const isEstorno = mensalidade < 0;
                     return (
-                      <TableRow key={i}>
+                      <TableRow key={i} className={isEstorno ? "text-destructive" : ""}>
                         <TableCell className="font-medium text-sm">{r.nome_beneficiario}</TableCell>
                         <TableCell>
                           <Badge variant={r.parentesco === "titular" ? "default" : "secondary"} className="text-xs">{r.parentesco}</Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {isUnimed ? (r as UnimedRecord).descricao_plano : (r as BradescoRecord).codigo_plano}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">{fmt(r.mensalidade)}</TableCell>
-                        <TableCell className="text-right text-sm">
-                          {isUnimed ? fmt((r as UnimedRecord).parte_empresa) : fmt(r.mensalidade - r.parte_colaborador)}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {fmt(isUnimed ? (r as UnimedRecord).parte_colaborador : r.parte_colaborador)}
-                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{getRecordPlano(r)}</TableCell>
+                        <TableCell className="text-right text-sm">{fmt(mensalidade)}</TableCell>
+                        <TableCell className="text-right text-sm">{fmt(getRecordEmpresa(r))}</TableCell>
+                        <TableCell className="text-right text-sm">{fmt(getRecordColaborador(r))}</TableCell>
                         <TableCell>
                           {m.matched ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-amber-500" />}
                         </TableCell>
@@ -309,22 +350,16 @@ export function HealthImportDialog({ open, onOpenChange }: Props) {
                 <p className="text-lg font-bold">{matched.length}</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
-                <p className="text-muted-foreground">Mensalidade</p>
-                <p className="text-lg font-bold">
-                  {fmt("totalMensalidade" in parseResult ? (parseResult as UnimedParseResult).totalMensalidade : (parseResult as BradescoParseResult).valorFatura)}
-                </p>
+                <p className="text-muted-foreground">{fonte === "bradesco_dental" ? "Valor Líquido" : "Mensalidade"}</p>
+                <p className="text-lg font-bold">{fmt(previewTotalMensalidade)}</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
                 <p className="text-muted-foreground">Parte Empresa</p>
-                <p className="text-lg font-bold">
-                  {fmt("totalEmpresa" in parseResult ? (parseResult as UnimedParseResult).totalEmpresa : (parseResult as BradescoParseResult).valorFatura)}
-                </p>
+                <p className="text-lg font-bold">{fmt(previewTotalEmpresa)}</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
                 <p className="text-muted-foreground">Parte Colaborador</p>
-                <p className="text-lg font-bold">
-                  {fmt("totalColaborador" in parseResult ? (parseResult as UnimedParseResult).totalColaborador : 0)}
-                </p>
+                <p className="text-lg font-bold">{fmt(previewTotalColaborador)}</p>
               </div>
             </div>
 
