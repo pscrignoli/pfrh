@@ -20,10 +20,11 @@ import { useHealthImport } from "@/hooks/useHealthImport";
 import { useCompany } from "@/contexts/CompanyContext";
 import { parseUnimedXls, type UnimedParseResult, type UnimedRecord } from "@/utils/parseUnimedXls";
 import { parseBradescoSaudePdf, type BradescoParseResult, type BradescoRecord } from "@/utils/parseBradescoSaudePdf";
+import { parseBradescoDentalPdf, type BradescoDentalParseResult, type BradescoDentalRecord } from "@/utils/parseBradescoDentalPdf";
 import { conferirFaturaVsFolha, type ConferenciaResult, type ConferenciaAlerta } from "@/utils/conferirFaturaVsFolha";
 
 type Step = "tipo" | "upload" | "preview" | "conferencia" | "resultado";
-type Fonte = "unimed" | "bradesco";
+type Fonte = "unimed" | "bradesco_saude" | "bradesco_dental";
 
 interface MatchedRecord {
   record: UnimedRecord | BradescoRecord;
