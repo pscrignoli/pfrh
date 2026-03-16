@@ -65,7 +65,7 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
   const [deptCosts, setDeptCosts] = useState<DeptCost[]>([]);
   const [topEmployees, setTopEmployees] = useState<TopEmployee[]>([]);
   const [rawRecords, setRawRecords] = useState<any[]>([]);
-
+  const [deptDetails, setDeptDetails] = useState<DeptDetail[]>([]);
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
