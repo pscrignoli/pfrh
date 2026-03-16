@@ -148,13 +148,20 @@ export default function CustoPessoal() {
 
       {/* Summary Cards */}
       {currentMonth && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <SummaryCard
             title="Custo Total"
             value={currency(currentMonth.total)}
             subtitle={`${monthFull[currentMonth.mes]}/${currentMonth.ano}`}
             delta={deltaTotal}
             icon={<DollarSign className="h-4 w-4" />}
+          />
+          <SummaryCard
+            title="Salário Líquido"
+            value={currency(currentMonth.salario_liquido)}
+            subtitle="Cash Flow mensal"
+            delta={deltaLiquido}
+            icon={<Wallet className="h-4 w-4" />}
           />
           <SummaryCard
             title="Per Capita"
