@@ -386,6 +386,14 @@ export default function CustoPessoal() {
           </CardContent>
         </Card>
       )}
+
+      {/* Department detail accordion */}
+      {currentMonth && deptDetails.length > 0 && (
+        <DeptDetailAccordion
+          deptDetails={deptDetails}
+          mesLabel={`Mês: ${monthFull[currentMonth.mes]} ${currentMonth.ano}`}
+        />
+      )}
     </div>
   );
 }
