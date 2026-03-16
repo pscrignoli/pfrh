@@ -59,7 +59,7 @@ export default function CustoPessoal() {
 
   const {
     loading, monthsData, currentMonth, previousMonth,
-    deptCosts, topEmployees, costBreakdown, alerts, departamentos,
+    deptCosts, deptDetails, topEmployees, costBreakdown, alerts, departamentos,
   } = useCustoPessoal(ano, departamento);
 
   const deltaTotal = useMemo(() => {
