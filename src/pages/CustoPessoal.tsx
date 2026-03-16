@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DollarSign, Users, TrendingUp, TrendingDown, AlertTriangle,
-  Banknote, Shield, HeartPulse, UserCheck,
+  Banknote, Shield, HeartPulse, UserCheck, Wallet,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -71,7 +71,13 @@ export default function CustoPessoal() {
       Encargos: m.encargos,
       Benefícios: m.beneficios,
       Headcount: m.headcount,
+      "Líquido (Cash Flow)": m.salario_liquido,
     })), [monthsData]);
+
+  const deltaLiquido = useMemo(() => {
+    if (!currentMonth || !previousMonth || previousMonth.salario_liquido === 0) return null;
+    return ((currentMonth.salario_liquido - previousMonth.salario_liquido) / previousMonth.salario_liquido) * 100;
+  }, [currentMonth, previousMonth]);
 
   const pieData = useMemo(() => {
     if (!currentMonth) return [];
@@ -142,13 +148,20 @@ export default function CustoPessoal() {
 
       {/* Summary Cards */}
       {currentMonth && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <SummaryCard
             title="Custo Total"
             value={currency(currentMonth.total)}
             subtitle={`${monthFull[currentMonth.mes]}/${currentMonth.ano}`}
             delta={deltaTotal}
             icon={<DollarSign className="h-4 w-4" />}
+          />
+          <SummaryCard
+            title="Salário Líquido"
+            value={currency(currentMonth.salario_liquido)}
+            subtitle="Cash Flow mensal"
+            delta={deltaLiquido}
+            icon={<Wallet className="h-4 w-4" />}
           />
           <SummaryCard
             title="Per Capita"
