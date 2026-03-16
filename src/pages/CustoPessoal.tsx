@@ -121,7 +121,7 @@ export default function CustoPessoal() {
             Análise detalhada de custos com pessoal
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={String(ano)} onValueChange={v => setAno(Number(v))}>
             <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -135,6 +135,23 @@ export default function CustoPessoal() {
               {departamentos.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
+          {currentMonth && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => exportCustoPessoalXlsx(
+                costBreakdown,
+                currentMonth.total,
+                deptDetails,
+                `${monthFull[currentMonth.mes]}/${currentMonth.ano}`,
+                ""
+              )}
+            >
+              <Download className="h-4 w-4" />
+              Exportar XLSX
+            </Button>
+          )}
         </div>
       </div>
 
