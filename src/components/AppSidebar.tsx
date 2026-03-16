@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
   Palmtree, Calculator, HeartPulse, Upload, Briefcase,
+  HeartHandshake, UtensilsCrossed,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
