@@ -76,8 +76,8 @@ export function AppSidebar() {
   const recrutamentoActive = location.pathname.startsWith("/recrutamento");
   const [recrutamentoOpen, setRecrutamentoOpen] = useState(recrutamentoActive);
 
-  const saudeActive = location.pathname.startsWith("/saude");
-  const [saudeOpen, setSaudeOpen] = useState(saudeActive);
+  const beneficiosActive = location.pathname.startsWith("/beneficios");
+  const [beneficiosOpen, setBeneficiosOpen] = useState(beneficiosActive);
 
   const folhaActive =
     location.pathname === "/financeiro" ||
