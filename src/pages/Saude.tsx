@@ -51,7 +51,9 @@ const pct = (v: number) => `${v.toFixed(1)}%`;
 export default function Saude() {
   const [competencia, setCompetencia] = useState<string | null>(null);
   const [planoFilter, setPlanoFilter] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { canView } = usePermissions();
+  const { companyId } = useCompany();
 
   const {
     loading, competencias, summary, evolution, planSlices,
