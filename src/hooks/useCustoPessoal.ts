@@ -146,6 +146,36 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
         .sort((a, b) => b.total - a.total);
       setDeptCosts(depts);
 
+      // Dept detail breakdown for latest month
+      const INSS_RATE = 0.288;
+      const deptDetailMap = new Map<string, Omit<DeptDetail, 'departamento'>>();
+      for (const r of latestRecs) {
+        const dept = (r as any).employees?.departamento ?? "Não informado";
+        const e = deptDetailMap.get(dept) || {
+          headcount: 0, salarios: 0, inss_empresa: 0, fgts: 0, horas_extras: 0,
+          ferias_terco: 0, decimo_terceiro: 0, convenio_medico: 0, plano_odontologico: 0,
+          vale_transporte: 0, insalubridade: 0, adicional_noturno: 0, total: 0,
+        };
+        e.headcount += 1;
+        e.salarios += (r.salario ?? 0);
+        e.inss_empresa += ((r.inss_20 ?? 0) + (r.inss_13 ?? 0) + (r.inss_ferias ?? 0)) * INSS_RATE;
+        e.fgts += (r.fgts_8 ?? 0) + (r.fgts_13 ?? 0) + (r.fgts_ferias ?? 0);
+        e.horas_extras += (r.he_total ?? 0);
+        e.ferias_terco += (r.ferias ?? 0) + (r.terco_ferias ?? 0);
+        e.decimo_terceiro += (r.decimo_terceiro ?? 0);
+        e.convenio_medico += (r.convenio_medico ?? 0);
+        e.plano_odontologico += (r.plano_odontologico ?? 0);
+        e.vale_transporte += (r.vale_transporte ?? 0);
+        e.insalubridade += (r.insalubridade ?? 0);
+        e.adicional_noturno += (r.adicional_noturno ?? 0);
+        e.total += (r.total_geral ?? 0);
+        deptDetailMap.set(dept, e);
+      }
+      const details: DeptDetail[] = Array.from(deptDetailMap.entries())
+        .map(([departamento, d]) => ({ departamento, ...d }))
+        .sort((a, b) => b.total - a.total);
+      setDeptDetails(details);
+
       // Top 10
       const empMap = new Map<string, { nome: string; cargo: string; departamento: string; total: number }>();
       for (const r of latestRecs) {
