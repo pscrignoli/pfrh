@@ -94,12 +94,14 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
         const horas_extras = sum(r => (r.he_total ?? 0));
         const encargos = fgts + inss_empresa;
         const total = salarios + encargos + beneficios;
+        const salario_liquido = sum(r => (r.total_geral ?? 0));
 
         months.push({
           ano, mes,
           headcount: filtered.length,
           salarios, encargos, beneficios, fgts, inss_empresa,
           provisao_ferias, provisao_13, horas_extras, plano_saude, total,
+          salario_liquido,
         });
       }
 
