@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DollarSign, Users, TrendingUp, TrendingDown, AlertTriangle,
-  Banknote, Shield, HeartPulse, UserCheck,
+  Banknote, Shield, HeartPulse, UserCheck, Wallet,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
