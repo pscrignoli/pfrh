@@ -32,8 +32,9 @@ const recrutamentoSubItems = [
 
 const beneficiosSubItems = [
   { title: "Saúde", url: "/beneficios/saude", icon: HeartPulse, module: "saude" },
-  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
+  { title: "Dental", url: "/beneficios/dental", icon: SmilePlus, module: "saude" },
   { title: "Vale Refeição", url: "/beneficios/vr", icon: UtensilsCrossed, module: "beneficios.vr" },
+  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
 ];
 
 const folhaSubItems = [
