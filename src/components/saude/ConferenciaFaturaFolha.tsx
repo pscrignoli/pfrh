@@ -11,11 +11,14 @@ import { conferirFaturaVsFolha, type ConferenciaResult, type ConferenciaAlerta }
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 
+type TipoFiltro = "todos" | "medico" | "odontologico";
+
 export function ConferenciaFaturaFolha() {
   const { companyId } = useCompany();
   const [loading, setLoading] = useState(true);
   const [competencias, setCompetencias] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
   const [result, setResult] = useState<ConferenciaResult | null>(null);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
