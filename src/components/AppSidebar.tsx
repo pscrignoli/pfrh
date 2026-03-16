@@ -69,7 +69,7 @@ export function AppSidebar() {
   const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
   const visibleBottomItems = bottomItems.filter((item) => canView(item.module));
   const showRecrutamento = visibleRecrutamentoItems.length > 0;
-  const showSaude = visibleSaudeItems.length > 0;
+  const showBeneficios = visibleBeneficiosItems.length > 0;
   const showFolha = visibleFolhaItems.length > 0;
   const showConfig = canView("configuracoes");
 
