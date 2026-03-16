@@ -16,6 +16,7 @@ export interface MonthCostData {
   horas_extras: number;
   plano_saude: number;
   total: number;
+  salario_liquido: number;
 }
 
 export interface DeptCost {
