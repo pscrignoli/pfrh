@@ -39,9 +39,11 @@ export interface BasesFGTS {
 }
 
 export interface PlanoSaude {
-  mensalidade: number;
-  outros: number;
-  total: number;
+  mensalidade: number;        // rubrica 1817 (parte colaborador saúde)
+  odontologico: number;       // rubrica 1821 (parte colaborador odonto)
+  outras_despesas: number;    // rubrica 1819 (coparticipação/outras)
+  total: number;              // rubrica 4008 (total informativo)
+  beneficio_empresa: number;  // rubrica 1600 (parte empresa, informativo)
 }
 
 export interface FuncionarioParsed {
