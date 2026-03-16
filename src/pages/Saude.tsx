@@ -93,6 +93,26 @@ export default function Saude() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDeleteImport = async () => {
+    if (!currentCompetencia || !companyId) return;
+    setDeleting(true);
+    try {
+      await (supabase.from("health_records" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId);
+      await (supabase.from("health_invoices" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId);
+      toast.success(`Importação de saúde de ${competenciaLabel} removida. Reimporte se necessário.`);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err?.message ?? "erro"));
+    }
+    setDeleting(false);
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-4">
