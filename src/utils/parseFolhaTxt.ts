@@ -381,19 +381,28 @@ function parseEmployeeBlock(block: string): FuncionarioParsed | null {
   const bases = parseBases(lines);
 
   // Extract plano de saúde from rubricas informativas
-  const plano_saude: PlanoSaude = { mensalidade: 0, outros: 0, total: 0 };
+  const plano_saude: PlanoSaude = { mensalidade: 0, odontologico: 0, outras_despesas: 0, total: 0, beneficio_empresa: 0 };
   for (const r of rubricas) {
-    if (r.tipo === 4) {
-      if (r.codigo === 1817 || /Mensalidade.*Plano.*Saude/i.test(r.descricao)) {
-        plano_saude.mensalidade = r.valor;
-      }
-      if (r.codigo === 4008 || /Planos.*Saude.*Total/i.test(r.descricao)) {
-        plano_saude.total = r.valor;
-      }
+    // Rubrica 1817 tipo 3 = Mensalidade Plano Saúde (desconto colaborador)
+    if ((r.codigo === 1817 && r.tipo === 3) || (r.tipo === 3 && /Mensalidade.*Plano.*Sa[uú]d/i.test(r.descricao) && r.codigo !== 1821)) {
+      plano_saude.mensalidade = r.valor;
     }
-  }
-  if (plano_saude.total > plano_saude.mensalidade) {
-    plano_saude.outros = plano_saude.total - plano_saude.mensalidade;
+    // Rubrica 1821 tipo 3 = Mensalidade Plano Odontológico (desconto colaborador)
+    if ((r.codigo === 1821 && r.tipo === 3) || (r.tipo === 3 && /Mensalidade.*Plano.*Odont/i.test(r.descricao))) {
+      plano_saude.odontologico = r.valor;
+    }
+    // Rubrica 1819 tipo 3 = Outras Despesas Plano de Saúde
+    if ((r.codigo === 1819 && r.tipo === 3) || (r.tipo === 3 && /Outras.*Despesas.*Plano/i.test(r.descricao))) {
+      plano_saude.outras_despesas = r.valor;
+    }
+    // Rubrica 1600 tipo 4 = Benefício Plano de Saúde (parte empresa, informativo)
+    if ((r.codigo === 1600 && r.tipo === 4) || (r.tipo === 4 && /Beneficio.*Plano.*Sa[uú]d/i.test(r.descricao))) {
+      plano_saude.beneficio_empresa = r.valor;
+    }
+    // Rubrica 4008 tipo 4 = Total Planos de Saúde (consolidado informativo)
+    if ((r.codigo === 4008 && r.tipo === 4) || (r.tipo === 4 && /Planos.*Sa[uú]d.*Total/i.test(r.descricao))) {
+      plano_saude.total = r.valor;
+    }
   }
 
   return {
