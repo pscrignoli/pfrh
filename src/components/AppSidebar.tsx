@@ -151,7 +151,7 @@ export function AppSidebar() {
 
               {showRecrutamento && renderCollapsible("Recrutamento", UserSearch, recrutamentoOpen, setRecrutamentoOpen, recrutamentoActive, visibleRecrutamentoItems)}
               {showFolha && renderCollapsible("Fechamento da Folha", FileSpreadsheet, folhaOpen, setFolhaOpen, folhaActive, visibleFolhaItems)}
-              {showSaude && renderCollapsible("Saúde", HeartPulse, saudeOpen, setSaudeOpen, saudeActive, visibleSaudeItems)}
+              {showBeneficios && renderCollapsible("Benefícios", HeartHandshake, beneficiosOpen, setBeneficiosOpen, beneficiosActive, visibleBeneficiosItems)}
 
               {visibleBottomItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
