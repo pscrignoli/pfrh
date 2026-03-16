@@ -71,7 +71,13 @@ export default function CustoPessoal() {
       Encargos: m.encargos,
       Benefícios: m.beneficios,
       Headcount: m.headcount,
+      "Líquido (Cash Flow)": m.salario_liquido,
     })), [monthsData]);
+
+  const deltaLiquido = useMemo(() => {
+    if (!currentMonth || !previousMonth || previousMonth.salario_liquido === 0) return null;
+    return ((currentMonth.salario_liquido - previousMonth.salario_liquido) / previousMonth.salario_liquido) * 100;
+  }, [currentMonth, previousMonth]);
 
   const pieData = useMemo(() => {
     if (!currentMonth) return [];
