@@ -249,9 +249,9 @@ export async function parseBradescoDentalPdf(data: ArrayBuffer): Promise<Bradesc
         titularMap.set(certBase, nome);
       }
 
-      // Extract plano code (e.g. TNDP)
-      const planoMatch = afterCert.match(/\b([A-Z]{3,5}\d?)\b/);
-      const codigoPlano = planoMatch ? planoMatch[1] : "";
+      // Extract plano code - for dental invoices it's always TNDP/TNDE/TNDM
+      const planoMatch = afterCert.match(/\b(TNDP|TNDE|TNDM)\b/);
+      const codigoPlano = planoMatch ? planoMatch[1] : "TNDP";
 
       // Extract dates
       const dates = afterCert.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
