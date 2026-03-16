@@ -456,15 +456,26 @@ function parseRubricas(lines: string[]): Rubrica[] {
     // Skip column headers (second occurrence)
     if (/Codigo\s+T\s+Descricao/i.test(line)) continue;
 
-    // Try to parse full line as a single rubrica first
-    const fullRubrica = parseRubricaColumn(line);
-    if (fullRubrica) {
-      rubricas.push(fullRubrica);
-      continue;
+    // Try two-column layout FIRST (most lines in the TXT are two-column)
+    let foundTwoCol = false;
+    for (const splitPos of [55, 54, 56, 52, 58, 50, 60]) {
+      if (line.length <= splitPos) continue;
+      const leftPart = line.substring(0, splitPos);
+      const rightPart = line.substring(splitPos);
+      const leftRubrica = parseRubricaColumn(leftPart);
+      const rightRubrica = parseRubricaColumn(rightPart);
+      if (leftRubrica && rightRubrica) {
+        rubricas.push(leftRubrica);
+        rubricas.push(rightRubrica);
+        foundTwoCol = true;
+        break;
+      }
     }
+    if (foundTwoCol) continue;
 
-    // Parse two-column layout: try multiple split positions
-    for (const splitPos of [55, 54, 56, 52, 58]) {
+    // Fallback: try two-column with only one valid side
+    let foundSingleInTwoCol = false;
+    for (const splitPos of [55, 54, 56, 52, 58, 50, 60]) {
       if (line.length <= splitPos) continue;
       const leftPart = line.substring(0, splitPos);
       const rightPart = line.substring(splitPos);
@@ -473,8 +484,16 @@ function parseRubricas(lines: string[]): Rubrica[] {
       if (leftRubrica || rightRubrica) {
         if (leftRubrica) rubricas.push(leftRubrica);
         if (rightRubrica) rubricas.push(rightRubrica);
+        foundSingleInTwoCol = true;
         break;
       }
+    }
+    if (foundSingleInTwoCol) continue;
+
+    // Last resort: try full line as single rubrica
+    const fullRubrica = parseRubricaColumn(line);
+    if (fullRubrica) {
+      rubricas.push(fullRubrica);
     }
   }
 
