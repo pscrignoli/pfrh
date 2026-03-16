@@ -2,17 +2,27 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SmilePlus, DollarSign, Users, Building2, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { SmilePlus, DollarSign, Users, Building2, TrendingUp, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function Dental() {
   const [competencia, setCompetencia] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { companyId } = useCompany();
 
-  // Use the health dashboard but we'll filter to odontologico only
   const { loading, records, competencias, currentCompetencia } = useHealthDashboard(competencia, null);
 
   const dentalRecords = useMemo(
@@ -32,6 +42,34 @@ export default function Dental() {
   }, [dentalRecords]);
 
   const hasData = dentalRecords.length > 0;
+
+  const competenciaLabel = useMemo(() => {
+    if (!currentCompetencia) return "";
+    const d = new Date(currentCompetencia + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  }, [currentCompetencia]);
+
+  const handleDeleteImport = async () => {
+    if (!currentCompetencia || !companyId) return;
+    setDeleting(true);
+    try {
+      await (supabase.from("health_records" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId)
+        .eq("tipo_cobertura", "odontologico");
+      await (supabase.from("health_invoices" as any) as any)
+        .delete()
+        .eq("competencia", currentCompetencia)
+        .eq("company_id", companyId)
+        .eq("fonte", "bradesco_dental");
+      toast.success(`Importação dental de ${competenciaLabel} removida. Reimporte o arquivo se necessário.`);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err?.message ?? "erro"));
+    }
+    setDeleting(false);
+  };
 
   if (loading) {
     return (
@@ -53,24 +91,52 @@ export default function Dental() {
           <SmilePlus className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold">Plano Dental</h1>
         </div>
-        {competencias.length > 0 && (
-          <Select value={currentCompetencia ?? ""} onValueChange={setCompetencia}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Competência" />
-            </SelectTrigger>
-            <SelectContent>
-              {competencias.map((c) => {
-                const d = new Date(c + "T00:00:00");
-                const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-                return (
-                  <SelectItem key={c} value={c}>
-                    <span className="capitalize">{label}</span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center gap-2">
+          {hasData && currentCompetencia && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir importação
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir importação dental</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza? Isso remove {dentalRecords.length} registros odontológicos de{" "}
+                    <span className="capitalize font-medium">{competenciaLabel}</span>.
+                    Reimporte o arquivo se necessário.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteImport} disabled={deleting}>
+                    {deleting ? "Excluindo..." : "Excluir"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {competencias.length > 0 && (
+            <Select value={currentCompetencia ?? ""} onValueChange={setCompetencia}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Competência" />
+              </SelectTrigger>
+              <SelectContent>
+                {competencias.map((c) => {
+                  const d = new Date(c + "T00:00:00");
+                  const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                  return (
+                    <SelectItem key={c} value={c}>
+                      <span className="capitalize">{label}</span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {!hasData ? (
