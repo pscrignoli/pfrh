@@ -155,7 +155,33 @@ export default function Saude() {
           </h1>
           <p className="text-muted-foreground capitalize">{competenciaLabel}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {records.length > 0 && currentCompetencia && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Excluir importação
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir importação de saúde</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza? Isso remove {records.length} registros de saúde de{" "}
+                    <span className="capitalize font-medium">{competenciaLabel}</span>.
+                    Reimporte os arquivos se necessário.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteImport} disabled={deleting}>
+                    {deleting ? "Excluindo..." : "Excluir"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Select value={currentCompetencia ?? ""} onValueChange={v => setCompetencia(v)}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Competência" /></SelectTrigger>
             <SelectContent>
