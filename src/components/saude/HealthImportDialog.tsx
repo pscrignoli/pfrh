@@ -27,7 +27,7 @@ type Step = "tipo" | "upload" | "preview" | "conferencia" | "resultado";
 type Fonte = "unimed" | "bradesco_saude" | "bradesco_dental";
 
 interface MatchedRecord {
-  record: UnimedRecord | BradescoRecord;
+  record: UnimedRecord | BradescoRecord | BradescoDentalRecord;
   employee_id: string | null;
   employee_nome: string | null;
   matched: boolean;
