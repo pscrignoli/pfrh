@@ -26,6 +26,23 @@ export interface DeptCost {
   perCapita: number;
 }
 
+export interface DeptDetail {
+  departamento: string;
+  headcount: number;
+  salarios: number;
+  inss_empresa: number;
+  fgts: number;
+  horas_extras: number;
+  ferias_terco: number;
+  decimo_terceiro: number;
+  convenio_medico: number;
+  plano_odontologico: number;
+  vale_transporte: number;
+  insalubridade: number;
+  adicional_noturno: number;
+  total: number;
+}
+
 export interface TopEmployee {
   nome: string;
   cargo: string;
@@ -48,7 +65,7 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
   const [deptCosts, setDeptCosts] = useState<DeptCost[]>([]);
   const [topEmployees, setTopEmployees] = useState<TopEmployee[]>([]);
   const [rawRecords, setRawRecords] = useState<any[]>([]);
-
+  const [deptDetails, setDeptDetails] = useState<DeptDetail[]>([]);
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -128,6 +145,36 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
         }))
         .sort((a, b) => b.total - a.total);
       setDeptCosts(depts);
+
+      // Dept detail breakdown for latest month
+      const INSS_RATE = 0.288;
+      const deptDetailMap = new Map<string, Omit<DeptDetail, 'departamento'>>();
+      for (const r of latestRecs) {
+        const dept = (r as any).employees?.departamento ?? "Não informado";
+        const e = deptDetailMap.get(dept) || {
+          headcount: 0, salarios: 0, inss_empresa: 0, fgts: 0, horas_extras: 0,
+          ferias_terco: 0, decimo_terceiro: 0, convenio_medico: 0, plano_odontologico: 0,
+          vale_transporte: 0, insalubridade: 0, adicional_noturno: 0, total: 0,
+        };
+        e.headcount += 1;
+        e.salarios += (r.salario ?? 0);
+        e.inss_empresa += ((r.inss_20 ?? 0) + (r.inss_13 ?? 0) + (r.inss_ferias ?? 0)) * INSS_RATE;
+        e.fgts += (r.fgts_8 ?? 0) + (r.fgts_13 ?? 0) + (r.fgts_ferias ?? 0);
+        e.horas_extras += (r.he_total ?? 0);
+        e.ferias_terco += (r.ferias ?? 0) + (r.terco_ferias ?? 0);
+        e.decimo_terceiro += (r.decimo_terceiro ?? 0);
+        e.convenio_medico += (r.convenio_medico ?? 0);
+        e.plano_odontologico += (r.plano_odontologico ?? 0);
+        e.vale_transporte += (r.vale_transporte ?? 0);
+        e.insalubridade += (r.insalubridade ?? 0);
+        e.adicional_noturno += (r.adicional_noturno ?? 0);
+        e.total += (r.total_geral ?? 0);
+        deptDetailMap.set(dept, e);
+      }
+      const details: DeptDetail[] = Array.from(deptDetailMap.entries())
+        .map(([departamento, d]) => ({ departamento, ...d }))
+        .sort((a, b) => b.total - a.total);
+      setDeptDetails(details);
 
       // Top 10
       const empMap = new Map<string, { nome: string; cargo: string; departamento: string; total: number }>();
@@ -225,7 +272,7 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
 
   return {
     loading, monthsData, currentMonth, previousMonth,
-    deptCosts, topEmployees, costBreakdown, alerts, departamentos,
-    refetch: fetchData,
+    deptCosts, deptDetails, topEmployees, costBreakdown, alerts, departamentos,
+    rawRecords, refetch: fetchData,
   };
 }

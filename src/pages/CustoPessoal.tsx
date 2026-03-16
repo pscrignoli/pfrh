@@ -5,9 +5,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import {
   DollarSign, Users, TrendingUp, TrendingDown, AlertTriangle,
-  Banknote, Shield, HeartPulse, UserCheck, Wallet,
+  Banknote, Shield, HeartPulse, UserCheck, Wallet, Download,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -15,6 +16,8 @@ import {
   BarChart, Bar, ComposedChart, Line,
 } from "recharts";
 import { useCustoPessoal } from "@/hooks/useCustoPessoal";
+import DeptDetailAccordion from "@/components/custo-pessoal/DeptDetailAccordion";
+import { exportCustoPessoalXlsx } from "@/utils/exportCustoPessoalXlsx";
 
 const monthNames = [
   "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
@@ -56,7 +59,7 @@ export default function CustoPessoal() {
 
   const {
     loading, monthsData, currentMonth, previousMonth,
-    deptCosts, topEmployees, costBreakdown, alerts, departamentos,
+    deptCosts, deptDetails, topEmployees, costBreakdown, alerts, departamentos,
   } = useCustoPessoal(ano, departamento);
 
   const deltaTotal = useMemo(() => {
@@ -118,7 +121,7 @@ export default function CustoPessoal() {
             Análise detalhada de custos com pessoal
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={String(ano)} onValueChange={v => setAno(Number(v))}>
             <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -132,6 +135,23 @@ export default function CustoPessoal() {
               {departamentos.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
+          {currentMonth && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => exportCustoPessoalXlsx(
+                costBreakdown,
+                currentMonth.total,
+                deptDetails,
+                `${monthFull[currentMonth.mes]}/${currentMonth.ano}`,
+                ""
+              )}
+            >
+              <Download className="h-4 w-4" />
+              Exportar XLSX
+            </Button>
+          )}
         </div>
       </div>
 
@@ -365,6 +385,14 @@ export default function CustoPessoal() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Department detail accordion */}
+      {currentMonth && deptDetails.length > 0 && (
+        <DeptDetailAccordion
+          deptDetails={deptDetails}
+          mesLabel={`Mês: ${monthFull[currentMonth.mes]} ${currentMonth.ano}`}
+        />
       )}
     </div>
   );
