@@ -272,7 +272,7 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
 
   return {
     loading, monthsData, currentMonth, previousMonth,
-    deptCosts, topEmployees, costBreakdown, alerts, departamentos,
-    refetch: fetchData,
+    deptCosts, deptDetails, topEmployees, costBreakdown, alerts, departamentos,
+    rawRecords, refetch: fetchData,
   };
 }
