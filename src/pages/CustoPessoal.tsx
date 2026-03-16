@@ -5,9 +5,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import {
   DollarSign, Users, TrendingUp, TrendingDown, AlertTriangle,
-  Banknote, Shield, HeartPulse, UserCheck, Wallet,
+  Banknote, Shield, HeartPulse, UserCheck, Wallet, Download,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -15,6 +16,8 @@ import {
   BarChart, Bar, ComposedChart, Line,
 } from "recharts";
 import { useCustoPessoal } from "@/hooks/useCustoPessoal";
+import DeptDetailAccordion from "@/components/custo-pessoal/DeptDetailAccordion";
+import { exportCustoPessoalXlsx } from "@/utils/exportCustoPessoalXlsx";
 
 const monthNames = [
   "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
