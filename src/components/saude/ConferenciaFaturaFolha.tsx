@@ -44,10 +44,10 @@ export function ConferenciaFaturaFolha() {
     if (!selected || !companyId) return;
     setLoading(true);
     setDismissed(new Set());
-    const res = await conferirFaturaVsFolha(selected, companyId);
+    const res = await conferirFaturaVsFolha(selected, companyId, tipoFiltro);
     setResult(res);
     setLoading(false);
-  }, [selected, companyId]);
+  }, [selected, companyId, tipoFiltro]);
 
   useEffect(() => {
     if (selected) runConferencia();
