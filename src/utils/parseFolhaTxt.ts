@@ -723,8 +723,8 @@ export function mapParsedToPayrollFields(func: FuncionarioParsed): Record<string
     // Benefícios
     vale_transporte: rubricaByCode.get(1816) ?? 0,
     desconto_vale_transporte: rubricaByCode.get(1816) ?? 0,
-    convenio_medico: func.plano_saude.total,
-    plano_odontologico: 0,
+    convenio_medico: func.plano_saude.mensalidade,       // rubrica 1817
+    plano_odontologico: func.plano_saude.odontologico,   // rubrica 1821
 
     // Descontos
     falta: sumCodes(1826, 1827, 1828),
