@@ -8,18 +8,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   HeartPulse, DollarSign, Building2, Users, TrendingUp, TrendingDown,
-  AlertTriangle, Info, AlertCircle, Download, ShieldCheck,
+  AlertTriangle, Info, AlertCircle, Download, ShieldCheck, Trash2,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line,
 } from "recharts";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useHealthDashboard } from "@/hooks/useHealthDashboard";
 import { SalarioProtegido } from "@/components/SalarioProtegido";
 import { useSalarioRestrito } from "@/components/SalarioProtegido";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCompany } from "@/contexts/CompanyContext";
 import { ConferenciaFaturaFolha } from "@/components/saude/ConferenciaFaturaFolha";
 import * as XLSX from "xlsx";
 
