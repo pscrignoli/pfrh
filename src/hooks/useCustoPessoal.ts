@@ -26,6 +26,23 @@ export interface DeptCost {
   perCapita: number;
 }
 
+export interface DeptDetail {
+  departamento: string;
+  headcount: number;
+  salarios: number;
+  inss_empresa: number;
+  fgts: number;
+  horas_extras: number;
+  ferias_terco: number;
+  decimo_terceiro: number;
+  convenio_medico: number;
+  plano_odontologico: number;
+  vale_transporte: number;
+  insalubridade: number;
+  adicional_noturno: number;
+  total: number;
+}
+
 export interface TopEmployee {
   nome: string;
   cargo: string;
