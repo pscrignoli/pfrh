@@ -29,6 +29,7 @@ import RecrutamentoDashboardVagas from "@/pages/RecrutamentoDashboardVagas";
 import Aniversariantes from "@/pages/Aniversariantes";
 import Saude from "@/pages/Saude";
 import SaudeImportar from "@/pages/SaudeImportar";
+import Dental from "@/pages/Dental";
 import BeneficiosVR from "@/pages/BeneficiosVR";
 import AccessDenied from "@/pages/AccessDenied";
 
