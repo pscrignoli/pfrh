@@ -97,7 +97,7 @@ export default function Dashboard() {
         <KPICard title="Headcount" value={String(d.headcount)} delta={d.headcountDelta} deltaLabel="vs mês anterior" icon={<Users className="h-4 w-4" />} onClick={() => navigate("/colaboradores")} />
         <KPICard title="Folha Bruta" value={fmt(d.folhaBruta)} deltaPct={d.folhaDelta} deltaLabel="vs mês anterior" icon={<DollarSign className="h-4 w-4" />} onClick={() => navigate("/financeiro")} />
         <KPICard title="Encargos" value={fmt(d.encargos)} subtitle={`${pct(d.encargosPercentFolha)} da folha`} icon={<BarChart3 className="h-4 w-4" />} onClick={() => navigate("/folha/custo-pessoal")} />
-        <KPICard title="Saúde" value={fmt(d.saudeTotal)} subtitle={`${d.saudeVidas} vidas cobertas`} icon={<HeartPulse className="h-4 w-4" />} onClick={() => navigate("/saude")} />
+        <KPICard title="Saúde" value={fmt(d.saudeTotal)} subtitle={`${d.saudeVidas} vidas cobertas`} icon={<HeartPulse className="h-4 w-4" />} onClick={() => navigate("/beneficios/saude")} />
         <KPICard title="Custo Total" value={fmt(d.custoTotal)} subtitle={`Per capita: ${fmt(d.custoPerCapita)}`} icon={<TrendingUp className="h-4 w-4" />} onClick={() => navigate("/folha/custo-pessoal")} accent />
       </div>
 

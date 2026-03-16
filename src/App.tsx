@@ -29,6 +29,7 @@ import RecrutamentoDashboardVagas from "@/pages/RecrutamentoDashboardVagas";
 import Aniversariantes from "@/pages/Aniversariantes";
 import Saude from "@/pages/Saude";
 import SaudeImportar from "@/pages/SaudeImportar";
+import BeneficiosVR from "@/pages/BeneficiosVR";
 import AccessDenied from "@/pages/AccessDenied";
 
 import NotFound from "./pages/NotFound";
@@ -65,8 +66,12 @@ const App = () => (
                   <Route path="/aniversariantes" element={<ModuleGuard module="aniversariantes"><Aniversariantes /></ModuleGuard>} />
                   <Route path="/financeiro" element={<ModuleGuard module="folha"><Financeiro /></ModuleGuard>} />
                   <Route path="/folha/custo-pessoal" element={<ModuleGuard module="folha.custo"><CustoPessoal /></ModuleGuard>} />
-                  <Route path="/saude" element={<ModuleGuard module="saude"><Saude /></ModuleGuard>} />
-                  <Route path="/saude/importar" element={<ModuleGuard module="saude"><SaudeImportar /></ModuleGuard>} />
+                  <Route path="/beneficios/saude" element={<ModuleGuard module="saude"><Saude /></ModuleGuard>} />
+                  <Route path="/beneficios/saude/importar" element={<ModuleGuard module="saude"><SaudeImportar /></ModuleGuard>} />
+                  <Route path="/beneficios/vr" element={<ModuleGuard module="beneficios.vr"><BeneficiosVR /></ModuleGuard>} />
+                  {/* Legacy redirects */}
+                  <Route path="/saude" element={<Navigate to="/beneficios/saude" replace />} />
+                  <Route path="/saude/importar" element={<Navigate to="/beneficios/saude/importar" replace />} />
                   <Route path="/ferias" element={<ModuleGuard module="ferias"><Ferias /></ModuleGuard>} />
                   <Route path="/simulador-rescisao" element={<ModuleGuard module="simulador"><SimuladorRescisao /></ModuleGuard>} />
                   <Route path="/assistente" element={<ModuleGuard module="colaboradores"><Assistente /></ModuleGuard>} />

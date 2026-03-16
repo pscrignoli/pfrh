@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Clock, Users, UserSearch, Bot, Settings, LogOut,
   Shield, Cake, FileSpreadsheet, ChevronDown, FileText, BarChart3,
   Palmtree, Calculator, HeartPulse, Upload, Briefcase,
+  HeartHandshake, UtensilsCrossed,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -29,9 +30,10 @@ const recrutamentoSubItems = [
   { title: "Dashboard Vagas", url: "/recrutamento/dashboard-vagas", icon: BarChart3, module: "recrutamento" },
 ];
 
-const saudeSubItems = [
-  { title: "Dashboard", url: "/saude", icon: BarChart3, module: "saude" },
-  { title: "Importar Fatura", url: "/saude/importar", icon: Upload, module: "saude" },
+const beneficiosSubItems = [
+  { title: "Saúde", url: "/beneficios/saude", icon: HeartPulse, module: "saude" },
+  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
+  { title: "Vale Refeição", url: "/beneficios/vr", icon: UtensilsCrossed, module: "beneficios.vr" },
 ];
 
 const folhaSubItems = [
@@ -63,19 +65,19 @@ export function AppSidebar() {
 
   const visibleMainItems = mainItems.filter((item) => canView(item.module));
   const visibleRecrutamentoItems = recrutamentoSubItems.filter((item) => canView(item.module));
-  const visibleSaudeItems = saudeSubItems.filter((item) => canView(item.module));
+  const visibleBeneficiosItems = beneficiosSubItems.filter((item) => canView(item.module));
   const visibleFolhaItems = folhaSubItems.filter((item) => canView(item.module));
   const visibleBottomItems = bottomItems.filter((item) => canView(item.module));
   const showRecrutamento = visibleRecrutamentoItems.length > 0;
-  const showSaude = visibleSaudeItems.length > 0;
+  const showBeneficios = visibleBeneficiosItems.length > 0;
   const showFolha = visibleFolhaItems.length > 0;
   const showConfig = canView("configuracoes");
 
   const recrutamentoActive = location.pathname.startsWith("/recrutamento");
   const [recrutamentoOpen, setRecrutamentoOpen] = useState(recrutamentoActive);
 
-  const saudeActive = location.pathname.startsWith("/saude");
-  const [saudeOpen, setSaudeOpen] = useState(saudeActive);
+  const beneficiosActive = location.pathname.startsWith("/beneficios");
+  const [beneficiosOpen, setBeneficiosOpen] = useState(beneficiosActive);
 
   const folhaActive =
     location.pathname === "/financeiro" ||
@@ -149,7 +151,7 @@ export function AppSidebar() {
 
               {showRecrutamento && renderCollapsible("Recrutamento", UserSearch, recrutamentoOpen, setRecrutamentoOpen, recrutamentoActive, visibleRecrutamentoItems)}
               {showFolha && renderCollapsible("Fechamento da Folha", FileSpreadsheet, folhaOpen, setFolhaOpen, folhaActive, visibleFolhaItems)}
-              {showSaude && renderCollapsible("Saúde", HeartPulse, saudeOpen, setSaudeOpen, saudeActive, visibleSaudeItems)}
+              {showBeneficios && renderCollapsible("Benefícios", HeartHandshake, beneficiosOpen, setBeneficiosOpen, beneficiosActive, visibleBeneficiosItems)}
 
               {visibleBottomItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
