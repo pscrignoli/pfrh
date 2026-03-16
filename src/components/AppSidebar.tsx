@@ -30,9 +30,10 @@ const recrutamentoSubItems = [
   { title: "Dashboard Vagas", url: "/recrutamento/dashboard-vagas", icon: BarChart3, module: "recrutamento" },
 ];
 
-const saudeSubItems = [
-  { title: "Dashboard", url: "/saude", icon: BarChart3, module: "saude" },
-  { title: "Importar Fatura", url: "/saude/importar", icon: Upload, module: "saude" },
+const beneficiosSubItems = [
+  { title: "Saúde", url: "/beneficios/saude", icon: HeartPulse, module: "saude" },
+  { title: "Importar Fatura", url: "/beneficios/saude/importar", icon: Upload, module: "saude" },
+  { title: "Vale Refeição", url: "/beneficios/vr", icon: UtensilsCrossed, module: "beneficios.vr" },
 ];
 
 const folhaSubItems = [
