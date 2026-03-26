@@ -196,7 +196,14 @@ function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorT
     salario_min: v.salarioInicial ?? v.salario?.salarioInicial ?? null,
     salario_max: v.salarioFinal ?? v.salario?.salarioFinal ?? null,
     salario_combinar: v.salarioCombinar ?? v.salario?.salarioCombinar ?? false,
-    total_vagas: Number(v.nVaga ?? v.totalVagas ?? v.TotalVagas ?? 1) || 1,
+    total_vagas: (() => {
+      const cidades = v.vagaCidade ?? v.VagaCidade ?? [];
+      if (Array.isArray(cidades) && cidades.length > 0) {
+        const total = cidades.reduce((sum: number, c: any) => sum + (Number(c.nVaga ?? c.NVaga ?? 0) || 0), 0);
+        if (total > 0) return total;
+      }
+      return Number(v.nVaga ?? v.totalVagas ?? v.TotalVagas ?? 1) || 1;
+    })(),
     cidade: firstCity.cidadeNome ?? firstCity.CidadeNome ?? null,
     estado: firstCity.estadoNome ?? firstCity.EstadoNome ?? null,
     horario: v.horario ?? v.Horario ?? null,
