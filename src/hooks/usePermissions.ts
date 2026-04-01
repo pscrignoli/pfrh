@@ -30,8 +30,8 @@ export function usePermissions() {
 
       // Fetch user profile with role definition
       const { data: profile } = await (supabase as any)
-        .from("user_profiles")
-        .select("*, role_definitions(*)")
+        .from("rh_user_profiles")
+        .select("*, rh_role_definitions(*)")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -39,7 +39,7 @@ export function usePermissions() {
 
       // Fetch permissions for this role
       const { data: perms } = await (supabase as any)
-        .from("role_permissions")
+        .from("rh_role_permissions")
         .select("module, can_view, can_edit")
         .eq("role_id", profile.role_id);
 

@@ -159,7 +159,7 @@ export function TransmitPreviewDialog({ open, onClose, ano, mes, records, onTran
     }
     setWebhookLoading(true);
     supabase
-      .from("system_settings")
+      .from("rh_system_settings")
       .select("value")
       .eq("key", "controladoria_webhook_url")
       .maybeSingle()
@@ -221,7 +221,7 @@ export function TransmitPreviewDialog({ open, onClose, ano, mes, records, onTran
       }
 
       // Log to integration_logs
-      await supabase.from("integration_logs").insert({
+      await supabase.from("rh_integration_logs").insert({
         source: "folha_mensal",
         direction: "outbound",
         endpoint: logEndpoint,
@@ -236,7 +236,7 @@ export function TransmitPreviewDialog({ open, onClose, ano, mes, records, onTran
       if (logStatus === "success") {
         const ids = records.map(r => r.id);
         await supabase
-          .from("payroll_monthly_records")
+          .from("rh_payroll_monthly_records")
           .update({ status: "enviado" })
           .in("id", ids);
 

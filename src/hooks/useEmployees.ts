@@ -23,7 +23,7 @@ export function useEmployees(filters: Filters) {
     try {
       setLoading(true);
       let query = supabase
-        .from("employees")
+        .from("rh_employees")
         .select("*")
         .order("nome_completo");
 
@@ -55,7 +55,7 @@ export function useEmployees(filters: Filters) {
 
   const fetchDepartments = useCallback(async () => {
     let query = supabase
-      .from("departments")
+      .from("rh_departments")
       .select("name")
       .eq("status", "active")
       .order("name");
@@ -78,19 +78,19 @@ export function useEmployees(filters: Filters) {
 
   const createEmployee = async (data: EmployeeInsert) => {
     const payload = { ...data, company_id: companyId };
-    const { error } = await supabase.from("employees").insert(payload);
+    const { error } = await supabase.from("rh_employees").insert(payload);
     if (error) throw error;
     await fetchEmployees();
   };
 
   const updateEmployee = async (id: string, data: EmployeeUpdate) => {
-    const { error } = await supabase.from("employees").update(data).eq("id", id);
+    const { error } = await supabase.from("rh_employees").update(data).eq("id", id);
     if (error) throw error;
     await fetchEmployees();
   };
 
   const deleteEmployee = async (id: string) => {
-    const { error } = await supabase.from("employees").delete().eq("id", id);
+    const { error } = await supabase.from("rh_employees").delete().eq("id", id);
     if (error) throw error;
     await fetchEmployees();
   };

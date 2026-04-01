@@ -51,7 +51,7 @@ export default function Login() {
     // Check if user is active
     if (authData?.user) {
       const { data: profile } = await supabase
-        .from("user_profiles")
+        .from("rh_user_profiles")
         .select("is_active")
         .eq("user_id", authData.user.id)
         .maybeSingle();

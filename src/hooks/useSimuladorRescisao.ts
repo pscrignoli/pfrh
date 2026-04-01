@@ -183,13 +183,13 @@ export function useSimuladorRescisao() {
     try {
       const [empRes, histRes] = await Promise.all([
         supabase
-          .from("employees")
+          .from("rh_employees")
           .select("id, nome_completo, departamento, cargo, data_admissao, salario_base, status")
           .eq("company_id", companyId)
           .eq("status", "ativo")
           .order("nome_completo"),
         supabase
-          .from("rescisao_simulacoes")
+          .from("rh_rescisao_simulacoes")
           .select("*")
           .eq("company_id", companyId)
           .order("data_simulacao", { ascending: false })
@@ -208,7 +208,7 @@ export function useSimuladorRescisao() {
 
   const salvarSimulacao = async (employeeId: string, tipoRescisao: string, dataDemissao: string, valores: any) => {
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("rescisao_simulacoes").insert({
+    const { error } = await supabase.from("rh_rescisao_simulacoes").insert({
       employee_id: employeeId,
       company_id: companyId,
       tipo_rescisao: tipoRescisao,
@@ -222,7 +222,7 @@ export function useSimuladorRescisao() {
 
   const fetchFgtsEstimado = async (employeeId: string): Promise<number> => {
     const { data } = await supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("fgts_8")
       .eq("employee_id", employeeId)
       .eq("company_id", companyId!);

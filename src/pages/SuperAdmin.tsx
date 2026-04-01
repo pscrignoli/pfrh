@@ -80,7 +80,7 @@ function UsersRolesPanel() {
 
   const handleAddRole = async () => {
     if (!selectedUserId || !newRole) return;
-    const { error } = await supabase.from("user_roles").insert({
+    const { error } = await supabase.from("rh_user_roles").insert({
       user_id: selectedUserId,
       role: newRole as any,
     });
@@ -93,7 +93,7 @@ function UsersRolesPanel() {
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
+    const { error } = await supabase.from("rh_user_roles").delete().eq("id", roleId);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
@@ -211,10 +211,10 @@ function StatsPanel() {
   useEffect(() => {
     const fetchStats = async () => {
       const [employees, payroll, timeRecords, roles] = await Promise.all([
-        supabase.from("employees").select("id", { count: "exact", head: true }),
-        supabase.from("payroll_monthly_records").select("id", { count: "exact", head: true }),
-        supabase.from("time_records").select("id", { count: "exact", head: true }),
-        supabase.from("user_roles").select("id", { count: "exact", head: true }),
+        supabase.from("rh_employees").select("id", { count: "exact", head: true }),
+        supabase.from("rh_payroll_monthly_records").select("id", { count: "exact", head: true }),
+        supabase.from("rh_time_records").select("id", { count: "exact", head: true }),
+        supabase.from("rh_user_roles").select("id", { count: "exact", head: true }),
       ]);
       setStats({
         employees: employees.count ?? 0,
@@ -260,7 +260,7 @@ function DatabasePanel() {
   useEffect(() => {
     const fetch = async () => {
       const { data } = await supabase
-        .from("integration_logs")
+        .from("rh_integration_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);

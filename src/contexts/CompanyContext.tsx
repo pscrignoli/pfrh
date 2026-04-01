@@ -42,7 +42,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const fetchCompanies = useCallback(async () => {
     const { data } = await supabase
-      .from("companies")
+      .from("rh_companies")
       .select("*")
       .eq("status", "active");
     // P&F always first

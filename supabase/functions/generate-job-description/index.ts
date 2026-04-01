@@ -102,7 +102,7 @@ serve(async (req) => {
     // Level 1: match by title
     if (cargoLike.length > 0) {
       const { data } = await supabase
-        .from("vaga_descricoes")
+        .from("rh_vaga_descricoes")
         .select("titulo_cargo, descricao_html, requisitos_html, nivel_ingles, faixa_salarial_min, faixa_salarial_max")
         .ilike("titulo_cargo", cargoLike[0])
         .eq("company_id", company_id)
@@ -115,7 +115,7 @@ serve(async (req) => {
     // Level 2: match by department + level
     if (descricoesSimilares.length < 2 && departamento) {
       const { data } = await supabase
-        .from("vaga_descricoes")
+        .from("rh_vaga_descricoes")
         .select("titulo_cargo, descricao_html, requisitos_html")
         .eq("departamento", departamento)
         .eq("company_id", company_id)
@@ -131,7 +131,7 @@ serve(async (req) => {
     // 2) Current employees in similar role
     const cargoSearch = cargoTerms.length > 0 ? `%${cargoTerms[0]}%` : `%${titulo}%`;
     const { data: empData } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("nome_completo, formacao_academica, grau_escolaridade, cargo")
       .ilike("cargo", cargoSearch)
       .eq("company_id", company_id)
@@ -140,7 +140,7 @@ serve(async (req) => {
 
     // 3) Salary context
     const { data: salaryData } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("salario_base")
       .ilike("cargo", cargoSearch)
       .eq("company_id", company_id)

@@ -154,18 +154,18 @@ export default function Financeiro() {
       for (let i = 0; i < updates.length; i += batchSize) {
         const batch = updates.slice(i, i + batchSize);
         await Promise.all(batch.map(u =>
-          supabase.from("payroll_monthly_records").update(u.data as any).eq("id", u.id)
+          supabase.from("rh_payroll_monthly_records").update(u.data as any).eq("id", u.id)
         ));
       }
 
       // Mark records that were already complete as calculado too
       const unchangedIds = records.filter(r => !updates.find(u => u.id === r.id)).map(r => r.id);
       if (unchangedIds.length > 0) {
-        await supabase.from("payroll_monthly_records").update({ status: "calculado" }).in("id", unchangedIds);
+        await supabase.from("rh_payroll_monthly_records").update({ status: "calculado" }).in("id", unchangedIds);
       }
 
       // Log
-      await supabase.from("integration_logs").insert({
+      await supabase.from("rh_integration_logs").insert({
         source: "folha_mensal",
         direction: "internal",
         endpoint: "provisoes/calcular",

@@ -39,8 +39,8 @@ Deno.serve(async (req) => {
 
     // Check new role system first (user_profiles + role_definitions)
     const { data: callerProfile } = await adminClient
-      .from("user_profiles")
-      .select("role_id, role_definitions(name)")
+      .from("rh_user_profiles")
+      .select("role_id, rh_role_definitions(name)")
       .eq("user_id", caller.id)
       .maybeSingle();
 
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Fallback to old user_roles table
     if (!isAdmin) {
       const { data: oldRoles } = await adminClient
-        .from("user_roles")
+        .from("rh_user_roles")
         .select("role")
         .eq("user_id", caller.id);
       const oldRoleNames = (oldRoles ?? []).map((r: any) => r.role);
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     if (usersError) throw usersError;
 
     // Fetch all old roles (backward compat)
-    const { data: allOldRoles } = await adminClient.from("user_roles").select("*");
+    const { data: allOldRoles } = await adminClient.from("rh_user_roles").select("*");
 
     // Build response
     const result = users.map((u: any) => ({

@@ -20,7 +20,7 @@ export function useCandidates(vacancyId: string) {
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("candidates")
+      .from("rh_candidates")
       .select("*")
       .eq("vacancy_id", vacancyId)
       .order("created_at", { ascending: true });
@@ -35,7 +35,7 @@ export function useCandidates(vacancyId: string) {
 
     const channel = supabase
       .channel(`candidates-${vacancyId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "candidates", filter: `vacancy_id=eq.${vacancyId}` }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "rh_candidates", filter: `vacancy_id=eq.${vacancyId}` }, () => {
         fetchCandidates();
       })
       .subscribe();
@@ -44,7 +44,7 @@ export function useCandidates(vacancyId: string) {
   }, [fetchCandidates, vacancyId]);
 
   const createCandidate = async (candidate: { name: string; email?: string; phone?: string }) => {
-    const { error } = await supabase.from("candidates").insert({
+    const { error } = await supabase.from("rh_candidates").insert({
       ...candidate,
       vacancy_id: vacancyId,
     } as any);

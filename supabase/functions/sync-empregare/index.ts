@@ -23,13 +23,13 @@ function getServiceClient() {
 
 async function getSetting(key: string): Promise<string | null> {
   const sb = getServiceClient();
-  const { data } = await sb.from("system_settings").select("value").eq("key", key).maybeSingle();
+  const { data } = await sb.from("rh_system_settings").select("value").eq("key", key).maybeSingle();
   return data?.value ?? null;
 }
 
 async function logIntegration(endpoint: string, reqPayload: unknown, resPayload: unknown, status: "success" | "error", errorMessage?: string) {
   const sb = getServiceClient();
-  await sb.from("integration_logs").insert({
+  await sb.from("rh_integration_logs").insert({
     direction: "outbound",
     source: "empregare-sync",
     endpoint,
@@ -83,11 +83,11 @@ async function syncDepartments(bearer: string, format: string, empresaId: string
     if (!setorId || IGNORAR_SETORES.includes(setorId)) continue;
     const companyId = SETORES_BIO.includes(setorId) ? BIO_COMPANY_ID : PF_COMPANY_ID;
 
-    const { data: existing } = await sb.from("departments").select("id, name").eq("empregare_setor_id", setorId).maybeSingle();
+    const { data: existing } = await sb.from("rh_departments").select("id, name").eq("empregare_setor_id", setorId).maybeSingle();
     if (existing) {
-      if (existing.name !== nome) await sb.from("departments").update({ name: nome } as any).eq("id", existing.id);
+      if (existing.name !== nome) await sb.from("rh_departments").update({ name: nome } as any).eq("id", existing.id);
     } else {
-      await sb.from("departments").insert({ name: nome, company_id: companyId, empregare_setor_id: setorId, status: "active" } as any);
+      await sb.from("rh_departments").insert({ name: nome, company_id: companyId, empregare_setor_id: setorId, status: "active" } as any);
     }
     synced++;
   }
@@ -222,11 +222,11 @@ function buildVagaRecord(v: any, filialToCompany: Record<number, string>, setorT
 // ── Fetch maps ──
 async function fetchMaps() {
   const sb = getServiceClient();
-  const { data: companyMap } = await sb.from("empregare_company_map").select("*");
+  const { data: companyMap } = await sb.from("rh_empregare_company_map").select("*");
   const filialToCompany: Record<number, string> = {};
   for (const m of (companyMap || [])) filialToCompany[(m as any).empregare_filial_id] = (m as any).company_id;
 
-  const { data: deptMap } = await sb.from("departments").select("id, empregare_setor_id").not("empregare_setor_id", "is", null);
+  const { data: deptMap } = await sb.from("rh_departments").select("id, empregare_setor_id").not("empregare_setor_id", "is", null);
   const setorToDept: Record<number, string> = {};
   for (const d of (deptMap || [])) if ((d as any).empregare_setor_id) setorToDept[(d as any).empregare_setor_id] = d.id;
 
@@ -256,7 +256,7 @@ async function syncVagasPages(bearer: string, format: string, empresaId: string,
       const record = buildVagaRecord(v, filialToCompany, setorToDept);
       if (!record) continue;
 
-      const { error } = await sb.from("empregare_vagas").upsert(record as any, { onConflict: "empregare_id" });
+      const { error } = await sb.from("rh_empregare_vagas").upsert(record as any, { onConflict: "empregare_id" });
       if (error) await logIntegration("upsert empregare_vagas", { empregare_id: record.empregare_id }, { error: error.message }, "error", error.message);
       totalVagas++;
     }
@@ -272,7 +272,7 @@ async function syncVagasPages(bearer: string, format: string, empresaId: string,
 async function enrichOpenVacancies(bearer: string, format: string, empresaId: string): Promise<{ enriched: number }> {
   const sb = getServiceClient();
 
-  const { data: openVagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").eq("situacao", "Aberta");
+  const { data: openVagas } = await sb.from("rh_empregare_vagas").select("empregare_id, requisicao_id, company_id").eq("situacao", "Aberta");
   let enriched = 0;
 
   for (const vaga of (openVagas || [])) {
@@ -285,7 +285,7 @@ async function enrichOpenVacancies(bearer: string, format: string, empresaId: st
       const etapas = vagaData?.etapas ?? vagaData?.Etapas ?? vagaData?.vagaEtapa ?? [];
 
       if (etapas.length > 0) {
-        await sb.from("empregare_vagas").update({
+        await sb.from("rh_empregare_vagas").update({
           etapas: JSON.stringify(etapas),
           data_sync: new Date().toISOString(),
         } as any).eq("empregare_id", vagaId);
@@ -302,7 +302,7 @@ async function enrichOpenVacancies(bearer: string, format: string, empresaId: st
 // ── SYNC CANDIDATOS (contratados via requisicao) ──
 async function syncCandidatos(bearer: string, format: string, empresaId: string): Promise<{ synced: number }> {
   const sb = getServiceClient();
-  const { data: vagas } = await sb.from("empregare_vagas").select("empregare_id, requisicao_id, company_id").not("requisicao_id", "is", null).eq("situacao", "Aberta");
+  const { data: vagas } = await sb.from("rh_empregare_vagas").select("empregare_id, requisicao_id, company_id").not("requisicao_id", "is", null).eq("situacao", "Aberta");
   let synced = 0;
 
   for (const vaga of (vagas || [])) {
@@ -346,22 +346,22 @@ async function syncCandidatos(bearer: string, format: string, empresaId: string)
             data_sync: new Date().toISOString(),
           };
 
-          await sb.from("empregare_candidatos").upsert(record as any, { onConflict: "empregare_pessoa_id,empregare_vaga_id" });
+          await sb.from("rh_empregare_candidatos").upsert(record as any, { onConflict: "empregare_pessoa_id,empregare_vaga_id" });
 
-          const etapasVaga = await sb.from("empregare_vagas").select("etapas").eq("empregare_id", (vaga as any).empregare_id).maybeSingle();
+          const etapasVaga = await sb.from("rh_empregare_vagas").select("etapas").eq("empregare_id", (vaga as any).empregare_id).maybeSingle();
           const etapasArr = etapasVaga?.data?.etapas ? (typeof etapasVaga.data.etapas === "string" ? JSON.parse(etapasVaga.data.etapas as string) : etapasVaga.data.etapas) : [];
           const contratadoEtapa = etapasArr.find((e: any) => (e.nome ?? e.Nome ?? "").toLowerCase().includes("contratad"));
           const etapaNome = contratadoEtapa?.nome ?? contratadoEtapa?.Nome ?? "Contratados";
           const etapaOrdem = contratadoEtapa?.ordem ?? contratadoEtapa?.Ordem ?? 99;
 
-          const { data: existingCard } = await sb.from("empregare_kanban_cards")
+          const { data: existingCard } = await sb.from("rh_empregare_kanban_cards")
             .select("id")
             .eq("empregare_vaga_id", (vaga as any).empregare_id)
             .eq("empregare_pessoa_id", pessoaId)
             .maybeSingle();
 
           if (!existingCard) {
-            await sb.from("empregare_kanban_cards").insert({
+            await sb.from("rh_empregare_kanban_cards").insert({
               empregare_vaga_id: (vaga as any).empregare_id,
               empregare_pessoa_id: pessoaId,
               company_id: (vaga as any).company_id,
@@ -437,7 +437,7 @@ Deno.serve(async (req) => {
     }
 
     const sb = getServiceClient();
-    await sb.from("system_settings").upsert(
+    await sb.from("rh_system_settings").upsert(
       { key: "empregare_last_sync", value: new Date().toISOString(), updated_at: new Date().toISOString() },
       { onConflict: "key" }
     );

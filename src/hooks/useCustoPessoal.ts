@@ -70,8 +70,8 @@ export function useCustoPessoal(ano: number, departamento?: string | null) {
     setLoading(true);
     try {
       let query = supabase
-        .from("payroll_monthly_records")
-        .select("*, employees!inner(nome_completo, departamento, cargo)")
+        .from("rh_payroll_monthly_records")
+        .select("*, rh_employees!inner(nome_completo, departamento, cargo)")
         .eq("ano", ano)
         .order("mes");
 

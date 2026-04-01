@@ -59,7 +59,7 @@ export function usePresencaData(filters: FilterOptions) {
 
   const fetchLiveStatus = useCallback(async () => {
     let empQuery = supabase
-      .from("employees")
+      .from("rh_employees")
       .select("id, nome_completo, cargo, departamento")
       .eq("status", "ativo");
 
@@ -72,7 +72,7 @@ export function usePresencaData(filters: FilterOptions) {
     // Get today's time records for these employees
     const empIds = emps.map((e) => e.id);
     const { data: todayRecords } = await supabase
-      .from("time_records")
+      .from("rh_time_records")
       .select("*")
       .eq("record_date", today)
       .in("employee_id", empIds);
@@ -114,8 +114,8 @@ export function usePresencaData(filters: FilterOptions) {
     const startDate = getDateFilter();
 
     let query = supabase
-      .from("time_records")
-      .select("*, employees!inner(nome_completo, company_id)")
+      .from("rh_time_records")
+      .select("*, rh_employees!inner(nome_completo, company_id)")
       .gte("record_date", startDate)
       .order("record_date", { ascending: false })
       .order("clock_in", { ascending: false });
@@ -158,7 +158,7 @@ export function usePresencaData(filters: FilterOptions) {
 
     const channel = supabase
       .channel("presenca-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "time_records" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rh_time_records" }, () => fetchAll())
       .subscribe();
 
     return () => {

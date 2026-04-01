@@ -144,7 +144,7 @@ export function useHealthDashboard(competencia: string | null, planoFilter: stri
 
     // Fetch plans
     const { data: plansData } = await supabase
-      .from("health_plans" as any)
+      .from("rh_health_plans" as any)
       .select("id, nome, fornecedor")
       .eq("company_id", companyId)
       .eq("ativo", true);
@@ -152,7 +152,7 @@ export function useHealthDashboard(competencia: string | null, planoFilter: stri
 
     // Fetch all competencias
     const { data: compData } = await supabase
-      .from("health_records" as any)
+      .from("rh_health_records" as any)
       .select("competencia")
       .eq("company_id", companyId)
       .order("competencia", { ascending: false });
@@ -168,7 +168,7 @@ export function useHealthDashboard(competencia: string | null, planoFilter: stri
 
     // Fetch current month records
     let query = supabase
-      .from("health_records" as any)
+      .from("rh_health_records" as any)
       .select("*")
       .eq("company_id", companyId)
       .eq("competencia", targetComp);
@@ -182,7 +182,7 @@ export function useHealthDashboard(competencia: string | null, planoFilter: stri
     const prevIdx = uniqueComps.indexOf(targetComp);
     if (prevIdx >= 0 && prevIdx < uniqueComps.length - 1) {
       let prevQuery = supabase
-        .from("health_records" as any)
+        .from("rh_health_records" as any)
         .select("*")
         .eq("company_id", companyId)
         .eq("competencia", uniqueComps[prevIdx + 1]);
@@ -195,14 +195,14 @@ export function useHealthDashboard(competencia: string | null, planoFilter: stri
 
     // Fetch invoices
     const { data: invData } = await supabase
-      .from("health_invoices" as any)
+      .from("rh_health_invoices" as any)
       .select("*")
       .eq("company_id", companyId);
     setInvoices((invData as any) ?? []);
 
     // Fetch employees for dept/cargo matching
     const { data: empData } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("id, nome_completo, departamento, cargo")
       .eq("company_id", companyId);
     setEmployees(empData ?? []);

@@ -29,7 +29,7 @@ export function useHealthImport() {
   ): Promise<ExistingImportInfo | null> {
     if (!companyId) return null;
     const { count } = await supabase
-      .from("health_records")
+      .from("rh_health_records")
       .select("id", { count: "exact", head: true })
       .eq("competencia", competencia)
       .eq("company_id", companyId)
@@ -43,12 +43,12 @@ export function useHealthImport() {
 
   async function deleteExistingImport(competencia: string, fonte: string) {
     if (!companyId) return;
-    await (supabase.from("health_records" as any) as any)
+    await (supabase.from("rh_health_records" as any) as any)
       .delete()
       .eq("competencia", competencia)
       .eq("company_id", companyId)
       .eq("fonte", fonte);
-    await (supabase.from("health_invoices" as any) as any)
+    await (supabase.from("rh_health_invoices" as any) as any)
       .delete()
       .eq("competencia", competencia)
       .eq("company_id", companyId)
@@ -61,7 +61,7 @@ export function useHealthImport() {
     if (!companyId) return records.map((r) => ({ record: r, employee_id: null, employee_nome: null, matched: false }));
 
     const { data: employees } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("id, nome_completo, numero_cpf")
       .eq("company_id", companyId);
 
@@ -111,7 +111,7 @@ export function useHealthImport() {
     for (let i = 0; i < matched.length; i++) {
       const m = matched[i];
       const r = m.record as UnimedRecord;
-      await (supabase.from("health_records" as any) as any).upsert({
+      await (supabase.from("rh_health_records" as any) as any).upsert({
         health_plan_id: planId, company_id: companyId, employee_id: m.employee_id,
         competencia: competenciaStr, nome_beneficiario: r.nome_beneficiario,
         cpf_beneficiario: r.cpf_beneficiario, data_nascimento: r.data_nascimento,
@@ -126,7 +126,7 @@ export function useHealthImport() {
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
-    await (supabase.from("health_invoices" as any) as any).upsert({
+    await (supabase.from("rh_health_invoices" as any) as any).upsert({
       health_plan_id: planId, company_id: companyId, competencia: competenciaStr,
       total_titulares: result.totalTitulares, total_dependentes: result.totalDependentes,
       total_vidas: result.totalTitulares + result.totalDependentes,
@@ -148,7 +148,7 @@ export function useHealthImport() {
     for (let i = 0; i < matched.length; i++) {
       const m = matched[i];
       const r = m.record as BradescoRecord;
-      await (supabase.from("health_records" as any) as any).upsert({
+      await (supabase.from("rh_health_records" as any) as any).upsert({
         health_plan_id: planId, company_id: companyId, employee_id: m.employee_id,
         competencia: competenciaStr, nome_beneficiario: r.nome_beneficiario,
         data_nascimento: r.data_nascimento, sexo: r.sexo, parentesco: r.parentesco,
@@ -161,7 +161,7 @@ export function useHealthImport() {
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
-    await (supabase.from("health_invoices" as any) as any).upsert({
+    await (supabase.from("rh_health_invoices" as any) as any).upsert({
       health_plan_id: planId, company_id: companyId, competencia: competenciaStr,
       total_titulares: result.totalTitulares, total_dependentes: result.totalDependentes,
       total_vidas: result.totalVidas, valor_fatura: result.valorFatura,
@@ -181,7 +181,7 @@ export function useHealthImport() {
     for (let i = 0; i < matched.length; i++) {
       const m = matched[i];
       const r = m.record as BradescoDentalRecord;
-      await (supabase.from("health_records" as any) as any).upsert({
+      await (supabase.from("rh_health_records" as any) as any).upsert({
         health_plan_id: planId, company_id: companyId, employee_id: m.employee_id,
         competencia: competenciaStr, nome_beneficiario: r.nome_beneficiario,
         data_nascimento: r.data_nascimento, sexo: r.sexo, parentesco: r.parentesco,
@@ -194,7 +194,7 @@ export function useHealthImport() {
       setProgress(Math.round(((i + 1) / total) * 100));
     }
 
-    await (supabase.from("health_invoices" as any) as any).upsert({
+    await (supabase.from("rh_health_invoices" as any) as any).upsert({
       health_plan_id: planId, company_id: companyId, competencia: competenciaStr,
       total_titulares: result.totalTitulares, total_dependentes: result.totalDependentes,
       total_vidas: result.totalVidas, valor_fatura: result.valorLiquido,

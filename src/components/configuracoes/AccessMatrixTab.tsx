@@ -92,8 +92,8 @@ export default function AccessMatrixTab() {
 
   const fetchData = useCallback(async () => {
     const [rolesRes, permsRes] = await Promise.all([
-      (supabase as any).from("role_definitions").select("*").order("created_at"),
-      (supabase as any).from("role_permissions").select("*"),
+      (supabase as any).from("rh_role_definitions").select("*").order("created_at"),
+      (supabase as any).from("rh_role_permissions").select("*"),
     ]);
     setRoles(rolesRes.data ?? []);
     setPermissions(permsRes.data ?? []);
@@ -142,7 +142,7 @@ export default function AccessMatrixTab() {
       };
 
       const { data: savedPerm, error } = await (supabase as any)
-        .from("role_permissions")
+        .from("rh_role_permissions")
         .upsert(payload, { onConflict: "role_id,module" })
         .select()
         .single();

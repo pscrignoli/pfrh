@@ -82,8 +82,8 @@ export function ComparativoSheet({ open, onClose, ano, mes, currentRecords, onSt
     if (!companyId) return;
     setLoading(true);
     let q = supabase
-      .from("payroll_monthly_records")
-      .select("*, employees!inner(nome_completo)")
+      .from("rh_payroll_monthly_records")
+      .select("*, rh_employees!inner(nome_completo)")
       .eq("ano", prev.ano)
       .eq("mes", prev.mes)
       .eq("company_id", companyId);
@@ -179,11 +179,11 @@ export function ComparativoSheet({ open, onClose, ano, mes, currentRecords, onSt
     try {
       const ids = currentRecords.map(r => r.id);
       await supabase
-        .from("payroll_monthly_records")
+        .from("rh_payroll_monthly_records")
         .update({ status: "conferido" })
         .in("id", ids);
 
-      await supabase.from("integration_logs").insert({
+      await supabase.from("rh_integration_logs").insert({
         source: "folha_mensal",
         direction: "internal",
         endpoint: "comparativo/conferido",

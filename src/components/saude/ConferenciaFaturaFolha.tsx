@@ -27,7 +27,7 @@ export function ConferenciaFaturaFolha() {
     async function load() {
       if (!companyId) return;
       const { data } = await supabase
-        .from("health_records")
+        .from("rh_health_records")
         .select("competencia")
         .eq("company_id", companyId)
         .order("competencia", { ascending: false });

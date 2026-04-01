@@ -18,7 +18,7 @@ export function useDepartments(onlyActive = false) {
   const fetchDepartments = useCallback(async () => {
     setLoading(true);
     let query = supabase
-      .from("departments")
+      .from("rh_departments")
       .select("*")
       .order("name");
 
@@ -36,19 +36,19 @@ export function useDepartments(onlyActive = false) {
   }, [fetchDepartments]);
 
   const createDepartment = async (name: string, code?: string) => {
-    const { error } = await supabase.from("departments").insert({ name, code: code || null, company_id: companyId } as any);
+    const { error } = await supabase.from("rh_departments").insert({ name, code: code || null, company_id: companyId } as any);
     if (error) throw error;
     await fetchDepartments();
   };
 
   const updateDepartment = async (id: string, updates: { name?: string; code?: string; status?: string }) => {
-    const { error } = await supabase.from("departments").update(updates as any).eq("id", id);
+    const { error } = await supabase.from("rh_departments").update(updates as any).eq("id", id);
     if (error) throw error;
     await fetchDepartments();
   };
 
   const deleteDepartment = async (id: string) => {
-    const { error } = await supabase.from("departments").delete().eq("id", id);
+    const { error } = await supabase.from("rh_departments").delete().eq("id", id);
     if (error) throw error;
     await fetchDepartments();
   };

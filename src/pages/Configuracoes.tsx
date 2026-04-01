@@ -39,7 +39,7 @@ function IntegrationTab({ readOnly }: { readOnly?: boolean }) {
 
   useEffect(() => {
     supabase
-      .from("system_settings")
+      .from("rh_system_settings")
       .select("value")
       .eq("key", "controladoria_api_url")
       .maybeSingle()
@@ -53,7 +53,7 @@ function IntegrationTab({ readOnly }: { readOnly?: boolean }) {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("system_settings")
+        .from("rh_system_settings")
         .upsert(
           { key: "controladoria_api_url", value: url, updated_by: user?.id } as any,
           { onConflict: "key" }
@@ -114,7 +114,7 @@ function KnowledgeBaseTab({ readOnly }: { readOnly?: boolean }) {
 
   const fetchDocs = useCallback(async () => {
     const { data } = await supabase
-      .from("document_embeddings")
+      .from("rh_document_embeddings")
       .select("*")
       .order("created_at", { ascending: false });
     setDocs(data ?? []);
@@ -141,7 +141,7 @@ function KnowledgeBaseTab({ readOnly }: { readOnly?: boolean }) {
         .from("hr_documents")
         .getPublicUrl(filePath);
 
-      await supabase.from("document_embeddings").insert({
+      await supabase.from("rh_document_embeddings").insert({
         source_document: file.name,
         content: `Documento enviado: ${file.name}. URL: ${urlData.publicUrl}. Aguardando vetorização.`,
         metadata: { file_path: filePath, url: urlData.publicUrl, size: file.size } as any,
@@ -173,7 +173,7 @@ function KnowledgeBaseTab({ readOnly }: { readOnly?: boolean }) {
   const handleDelete = async (doc: DocEmbedding) => {
     if (!confirm("Tem certeza que deseja remover este documento?")) return;
     try {
-      await supabase.from("document_embeddings").delete().eq("id", doc.id);
+      await supabase.from("rh_document_embeddings").delete().eq("id", doc.id);
       const meta = (doc as any).metadata;
       if (meta?.file_path) {
         await supabase.storage.from("hr_documents").remove([meta.file_path]);

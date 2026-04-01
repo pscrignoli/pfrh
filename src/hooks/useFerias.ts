@@ -78,17 +78,17 @@ export function useFerias(filters: { search: string; departamento: string | null
     try {
       const [empRes, ferRes, deptRes] = await Promise.all([
         supabase
-          .from("employees")
+          .from("rh_employees")
           .select("id, nome_completo, departamento, cargo, data_admissao, salario_base, status")
           .eq("company_id", companyId)
           .eq("status", "ativo")
           .order("nome_completo"),
         supabase
-          .from("ferias")
+          .from("rh_ferias")
           .select("*")
           .eq("company_id", companyId),
         supabase
-          .from("departments")
+          .from("rh_departments")
           .select("name")
           .eq("company_id", companyId)
           .eq("status", "active")
@@ -230,7 +230,7 @@ export function useFerias(filters: { search: string; departamento: string | null
     const dataFim = new Date(dataInicio);
     dataFim.setDate(dataFim.getDate() + data.dias_gozo - 1);
 
-    const { error } = await supabase.from("ferias").insert({
+    const { error } = await supabase.from("rh_ferias").insert({
       ...data,
       company_id: companyId,
       data_fim: dataFim.toISOString().split("T")[0],

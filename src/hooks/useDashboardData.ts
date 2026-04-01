@@ -29,7 +29,7 @@ export function useDashboardData(): DashboardData {
 
     // Headcount
     let hcQuery = supabase
-      .from("employees")
+      .from("rh_employees")
       .select("*", { count: "exact", head: true })
       .eq("status", "ativo");
     if (companyId) hcQuery = hcQuery.eq("company_id", companyId);
@@ -38,7 +38,7 @@ export function useDashboardData(): DashboardData {
 
     // Current month payroll
     let prQuery = supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("total_geral, he_total, salario_gratificacao, encargos, beneficios")
       .eq("ano", currentYear)
       .eq("mes", currentMonth);
@@ -67,7 +67,7 @@ export function useDashboardData(): DashboardData {
     }
 
     let evoQuery = supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("ano, mes, total_geral")
       .gte("ano", months[0].ano)
       .order("ano")
@@ -91,8 +91,8 @@ export function useDashboardData(): DashboardData {
 
     const channel = supabase
       .channel("dashboard-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "employees" }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "payroll_monthly_records" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rh_employees" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rh_payroll_monthly_records" }, () => fetchAll())
       .subscribe();
 
     return () => {

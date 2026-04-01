@@ -72,7 +72,7 @@ export function useBirthdayData() {
   const fetch = useCallback(async () => {
     setLoading(true);
     let query = supabase
-      .from("employees")
+      .from("rh_employees")
       .select("id, nome_completo, departamento, cargo, data_nascimento, data_admissao, company_id")
       .eq("status", "ativo")
       .not("data_nascimento", "is", null);
