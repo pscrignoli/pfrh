@@ -160,7 +160,7 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
     if (!addForm.nome.trim()) { toast.error("Informe o nome."); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("empregare_candidatos").insert({
+      const { error } = await supabase.from("rh_empregare_candidatos").insert({
         empregare_pessoa_id: -Date.now(), // negative = manual
         empregare_vaga_id: vaga.empregare_id,
         nome: addForm.nome.trim(),
@@ -182,7 +182,7 @@ export default function EmpregareVagaDrawer({ vaga, open, onOpenChange }: Props)
 
   const openContratadoDetail = async (empregareVagaId: number) => {
     const { data } = await supabase
-      .from("empregare_candidatos")
+      .from("rh_empregare_candidatos")
       .select("*")
       .eq("empregare_vaga_id", empregareVagaId)
       .not("data_contratacao", "is", null)

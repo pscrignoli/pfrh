@@ -99,9 +99,9 @@ export default function UserManagementTab() {
       const authUsers = res.data ?? [];
 
       const [profilesRes, rolesRes, invitesRes] = await Promise.all([
-        (supabase as any).from("user_profiles").select("*, role_definitions(*)"),
-        (supabase as any).from("role_definitions").select("*").order("created_at"),
-        (supabase as any).from("user_invites").select("*, role_definitions(display_name)").order("created_at", { ascending: false }),
+        (supabase as any).from("rh_user_profiles").select("*, rh_role_definitions(*)"),
+        (supabase as any).from("rh_role_definitions").select("*").order("created_at"),
+        (supabase as any).from("rh_user_invites").select("*, rh_role_definitions(display_name)").order("created_at", { ascending: false }),
       ]);
 
       const profiles = profilesRes.data ?? [];
@@ -160,9 +160,9 @@ export default function UserManagementTab() {
     setSaving(u.id);
     try {
       if (u.profile_id) {
-        await (supabase as any).from("user_profiles").update({ role_id: newRoleId }).eq("id", u.profile_id);
+        await (supabase as any).from("rh_user_profiles").update({ role_id: newRoleId }).eq("id", u.profile_id);
       } else {
-        await (supabase as any).from("user_profiles").insert({ user_id: u.id, role_id: newRoleId });
+        await (supabase as any).from("rh_user_profiles").insert({ user_id: u.id, role_id: newRoleId });
       }
       toast({ title: `Perfil de ${u.name || u.email} atualizado.` });
       await fetchData();
@@ -180,9 +180,9 @@ export default function UserManagementTab() {
     setSaving(u.id);
     try {
       if (u.profile_id) {
-        await (supabase as any).from("user_profiles").update({ is_active: !u.is_active }).eq("id", u.profile_id);
+        await (supabase as any).from("rh_user_profiles").update({ is_active: !u.is_active }).eq("id", u.profile_id);
       } else {
-        await (supabase as any).from("user_profiles").insert({ user_id: u.id, is_active: !u.is_active });
+        await (supabase as any).from("rh_user_profiles").insert({ user_id: u.id, is_active: !u.is_active });
       }
       toast({ title: `Usuário ${u.is_active ? "desativado" : "ativado"}.` });
       await fetchData();

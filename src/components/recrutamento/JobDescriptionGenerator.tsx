@@ -154,7 +154,7 @@ export function JobDescriptionGenerator({ open, onClose }: Props) {
     if (!result) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("vaga_descricoes" as any).insert({
+      const { error } = await supabase.from("rh_vaga_descricoes" as any).insert({
         company_id: companyId,
         titulo_cargo: titulo,
         departamento,

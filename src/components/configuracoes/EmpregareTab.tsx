@@ -93,7 +93,7 @@ function DiagnosticsCard() {
 
   useEffect(() => {
     supabase
-      .from("integration_logs")
+      .from("rh_integration_logs")
       .select("id, created_at, endpoint, status, error_message, response_payload")
       .eq("source", "empregare")
       .order("created_at", { ascending: false })
@@ -190,8 +190,8 @@ export default function EmpregareTab() {
   // Load saved config
   useEffect(() => {
     Promise.all([
-      supabase.from("system_settings").select("value").eq("key", "empregare_api_token").maybeSingle(),
-      supabase.from("system_settings").select("value").eq("key", "empregare_empresa_id").maybeSingle(),
+      supabase.from("rh_system_settings").select("value").eq("key", "empregare_api_token").maybeSingle(),
+      supabase.from("rh_system_settings").select("value").eq("key", "empregare_empresa_id").maybeSingle(),
     ]).then(([tokenRes, empresaRes]) => {
       if (tokenRes.data?.value) setApiToken(tokenRes.data.value);
       if (empresaRes.data?.value) setEmpresaId(empresaRes.data.value);
@@ -217,7 +217,7 @@ export default function EmpregareTab() {
             })
           )
         ),
-        supabase.from("system_settings").select("value").eq("key", "empregare_auth_format").maybeSingle(),
+        supabase.from("rh_system_settings").select("value").eq("key", "empregare_auth_format").maybeSingle(),
       ]);
 
       let vagasCount: number | null = null;
@@ -252,7 +252,7 @@ export default function EmpregareTab() {
   // Check if already connected on mount
   useEffect(() => {
     supabase
-      .from("system_settings")
+      .from("rh_system_settings")
       .select("value")
       .eq("key", "empregare_auth_format")
       .maybeSingle()

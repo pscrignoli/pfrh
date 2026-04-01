@@ -52,7 +52,7 @@ export default function RecrutamentoKanban() {
 
   useEffect(() => {
     if (!id) return;
-    supabase.from("vacancies").select("title, opened_at").eq("id", id).single().then(({ data }) => {
+    supabase.from("rh_vacancies").select("title, opened_at").eq("id", id).single().then(({ data }) => {
       if (data) {
         setVacancyTitle(data.title);
         setVacancyOpenedAt((data as any).opened_at);

@@ -55,7 +55,7 @@ export function useEmpregareVagas() {
   const fetchVagas = useCallback(async () => {
     setLoading(true);
     let query = supabase
-      .from("empregare_vagas")
+      .from("rh_empregare_vagas")
       .select("*")
       .order("data_cadastro", { ascending: false });
 
@@ -76,7 +76,7 @@ export function useEmpregareVagas() {
 
   const fetchLastSync = useCallback(async () => {
     const { data } = await supabase
-      .from("system_settings")
+      .from("rh_system_settings")
       .select("value")
       .eq("key", "empregare_last_sync")
       .maybeSingle();
@@ -105,7 +105,7 @@ export function useEmpregareVagas() {
 
   const fetchKanbanCards = useCallback(async (empregareVagaId: number): Promise<EmpregareKanbanCard[]> => {
     const { data, error } = await supabase
-      .from("empregare_kanban_cards")
+      .from("rh_empregare_kanban_cards")
       .select("*")
       .eq("empregare_vaga_id", empregareVagaId)
       .order("etapa_ordem", { ascending: true });
@@ -121,10 +121,10 @@ export function useEmpregareVagas() {
     };
 
     if (card.id) {
-      const { error } = await supabase.from("empregare_kanban_cards").update(payload as any).eq("id", card.id);
+      const { error } = await supabase.from("rh_empregare_kanban_cards").update(payload as any).eq("id", card.id);
       if (error) throw error;
     } else {
-      const { error } = await supabase.from("empregare_kanban_cards").insert(payload as any);
+      const { error } = await supabase.from("rh_empregare_kanban_cards").insert(payload as any);
       if (error) throw error;
     }
   }, [companyId]);

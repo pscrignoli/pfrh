@@ -43,11 +43,11 @@ export function FechamentoDialog({ open, onClose, ano, mes, recordIds, currentSt
       const newStatus = isReopen ? "conferido" : "fechado";
 
       await supabase
-        .from("payroll_monthly_records")
+        .from("rh_payroll_monthly_records")
         .update({ status: newStatus })
         .in("id", recordIds);
 
-      await supabase.from("integration_logs").insert({
+      await supabase.from("rh_integration_logs").insert({
         source: "folha_mensal",
         direction: "internal",
         endpoint: isReopen ? "fechamento/reabrir" : "fechamento/fechar",

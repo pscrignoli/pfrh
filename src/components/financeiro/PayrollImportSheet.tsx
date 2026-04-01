@@ -163,7 +163,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     let cancelled = false;
     setCheckingExisting(true);
     supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .eq("ano", ano)
@@ -228,7 +228,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
     setLoadingEmployees(true);
 
     const { data: employees } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("id, numero_funcional, nome_completo, cargo, status")
       .eq("company_id", companyId)
       .not("numero_funcional", "is", null);
@@ -314,7 +314,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
 
     let folhaAnterior: PreviousRecord[] = [];
     const { data: prevData } = await supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("employee_id, salario_base, salario, fgts_8, he_total, total_folha")
       .eq("company_id", companyId)
       .eq("ano", prevAno)
@@ -324,7 +324,7 @@ export function PayrollImportSheet({ open, onClose, onImported }: Props) {
       // Get employee numero_funcional mapping
       const empIds = prevData.map(r => r.employee_id);
       const { data: emps } = await supabase
-        .from("employees")
+        .from("rh_employees")
         .select("id, numero_funcional, nome_completo")
         .in("id", empIds);
 

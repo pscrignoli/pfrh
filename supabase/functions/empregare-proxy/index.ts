@@ -20,7 +20,7 @@ function getServiceClient() {
 async function getSetting(key: string): Promise<string | null> {
   const sb = getServiceClient();
   const { data } = await sb
-    .from("system_settings")
+    .from("rh_system_settings")
     .select("value")
     .eq("key", key)
     .maybeSingle();
@@ -30,7 +30,7 @@ async function getSetting(key: string): Promise<string | null> {
 async function setSetting(key: string, value: string): Promise<void> {
   const sb = getServiceClient();
   await sb
-    .from("system_settings")
+    .from("rh_system_settings")
     .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
 }
 
@@ -42,7 +42,7 @@ async function logIntegration(
   errorMessage?: string
 ) {
   const sb = getServiceClient();
-  await sb.from("integration_logs").insert({
+  await sb.from("rh_integration_logs").insert({
     company_id: null,
     direction: "outbound",
     source: "empregare",

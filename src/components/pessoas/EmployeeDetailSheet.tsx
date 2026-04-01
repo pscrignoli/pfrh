@@ -70,7 +70,7 @@ export function EmployeeDetailSheet({ employee, open, onClose, onEdit, onDelete 
     if (!employee?.id || !open) { setHealthRecords([]); return; }
     (async () => {
       const { data } = await supabase
-        .from("health_records" as any)
+        .from("rh_health_records" as any)
         .select("*")
         .eq("employee_id", employee.id)
         .order("competencia", { ascending: false })

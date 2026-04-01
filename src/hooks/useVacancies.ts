@@ -31,8 +31,8 @@ export function useVacancies() {
   const fetchVacancies = useCallback(async () => {
     setLoading(true);
     let query = supabase
-      .from("vacancies")
-      .select("*, departments(name), candidates(id)")
+      .from("rh_vacancies")
+      .select("*, rh_departments(name), rh_candidates(id)")
       .order("created_at", { ascending: false });
 
     if (companyId) query = query.eq("company_id", companyId);
@@ -58,7 +58,7 @@ export function useVacancies() {
 
     const channel = supabase
       .channel("vacancies-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "vacancies" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "rh_vacancies" }, () => {
         fetchVacancies();
       })
       .subscribe();
@@ -86,7 +86,7 @@ export function useVacancies() {
     }
 
     const { data, error } = await withTimeout(
-      () => supabase.from("vacancies").insert([payload] as any).select("id").single(),
+      () => supabase.from("rh_vacancies").insert([payload] as any).select("id").single(),
       12000
     ) as any;
 

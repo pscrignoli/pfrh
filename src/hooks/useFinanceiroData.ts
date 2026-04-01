@@ -17,8 +17,8 @@ export function useFinanceiroData(ano: number, mes: number) {
 
   const fetchRecords = useCallback(async () => {
     let query = supabase
-      .from("payroll_monthly_records")
-      .select("*, employees!inner(nome_completo)")
+      .from("rh_payroll_monthly_records")
+      .select("*, rh_employees!inner(nome_completo)")
       .eq("ano", ano)
       .eq("mes", mes)
       .order("cargo");
@@ -36,7 +36,7 @@ export function useFinanceiroData(ano: number, mes: number) {
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
-      .from("integration_logs")
+      .from("rh_integration_logs")
       .select("*")
       .eq("source", "folha_mensal")
       .order("created_at", { ascending: false })
@@ -76,7 +76,7 @@ export function useFinanceiroData(ano: number, mes: number) {
         beneficios: r.beneficios,
       }));
 
-      await supabase.from("integration_logs").insert({
+      await supabase.from("rh_integration_logs").insert({
         source: "folha_mensal",
         direction: "outbound",
         endpoint: "/api/v1/controladoria/folha",
@@ -88,7 +88,7 @@ export function useFinanceiroData(ano: number, mes: number) {
 
       const ids = records.map((r) => r.id);
       await supabase
-        .from("payroll_monthly_records")
+        .from("rh_payroll_monthly_records")
         .update({ status: "enviado" })
         .in("id", ids);
 

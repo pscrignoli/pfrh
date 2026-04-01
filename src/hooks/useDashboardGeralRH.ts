@@ -147,29 +147,29 @@ export function useDashboardGeralRH(
     const prevAno = prevDate.getFullYear();
 
     // ─── PARALLEL FETCH: all independent queries at once ───
-    let empQ = supabase.from("employees").select("id, nome_completo, status, data_admissao, data_demissao, data_nascimento, departamento, cargo, genero, grau_escolaridade, cursando, company_id, salario_base");
+    let empQ = supabase.from("rh_employees").select("id, nome_completo, status, data_admissao, data_demissao, data_nascimento, departamento, cargo, genero, grau_escolaridade, cursando, company_id, salario_base");
     if (companyId) empQ = empQ.eq("company_id", companyId);
 
-    let compQ = supabase.from("payroll_monthly_records").select("mes, ano").order("ano", { ascending: false }).order("mes", { ascending: false });
+    let compQ = supabase.from("rh_payroll_monthly_records").select("mes, ano").order("ano", { ascending: false }).order("mes", { ascending: false });
     if (companyId) compQ = compQ.eq("company_id", companyId);
 
     // Fetch current + previous month payroll in one go — also fetch sparkline data (6 months back)
     const sparklineStart = new Date(ano, mes - 7, 1); // 6 months before
-    let allPayrollQ = supabase.from("payroll_monthly_records")
+    let allPayrollQ = supabase.from("rh_payroll_monthly_records")
       .select("*")
       .gte("ano", sparklineStart.getFullYear())
       .order("ano").order("mes")
       .limit(5000);
     if (companyId) allPayrollQ = allPayrollQ.eq("company_id", companyId);
 
-    let hlQ = supabase.from("health_invoices").select("valor_fatura, valor_cobrado, total_vidas").eq("competencia", `${ano}-${String(mes).padStart(2, "0")}-01`);
+    let hlQ = supabase.from("rh_health_invoices").select("valor_fatura, valor_cobrado, total_vidas").eq("competencia", `${ano}-${String(mes).padStart(2, "0")}-01`);
     if (companyId) hlQ = hlQ.eq("company_id", companyId);
 
     // Férias: fetch ALL records (not filtered by status) to correctly determine em_gozo vs programada
-    let ferQ = supabase.from("ferias").select("*");
+    let ferQ = supabase.from("rh_ferias").select("*");
     if (companyId) ferQ = ferQ.eq("company_id", companyId);
 
-    let vagaQ = supabase.from("empregare_vagas").select("situacao, total_contratados, dias_andamento, meta_encerramento_data");
+    let vagaQ = supabase.from("rh_empregare_vagas").select("situacao, total_contratados, dias_andamento, meta_encerramento_data");
     if (companyId) vagaQ = vagaQ.eq("company_id", companyId);
 
     const [empRes, compRes, allPayrollRes, hlRes, ferRes, vagaRes] = await Promise.all([

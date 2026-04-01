@@ -23,7 +23,7 @@ export function useHealthPlans() {
     if (!companyId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("health_plans" as any)
+      .from("rh_health_plans" as any)
       .select("*")
       .eq("company_id", companyId)
       .eq("ativo", true)

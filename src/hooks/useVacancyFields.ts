@@ -17,7 +17,7 @@ export function useVacancyFields(vacancyId: string | undefined) {
     if (!vacancyId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("vacancy_fields" as any)
+      .from("rh_vacancy_fields" as any)
       .select("*")
       .eq("vacancy_id", vacancyId)
       .order("sort_order", { ascending: true });

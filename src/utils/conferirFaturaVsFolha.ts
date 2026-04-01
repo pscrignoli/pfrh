@@ -43,8 +43,8 @@ export async function conferirFaturaVsFolha(
 
   // 1. Fetch health_records (fatura) - titulares only, filtered by tipo
   let qTitulares = supabase
-    .from("health_records")
-    .select("*, employees!health_records_employee_id_fkey(id, nome_completo, numero_cpf, cargo, departamento)")
+    .from("rh_health_records")
+    .select("*, rh_employees!fk_rh_health_records_employee_id(id, nome_completo, numero_cpf, cargo, departamento)")
     .eq("competencia", competencia)
     .eq("company_id", companyId)
     .eq("parentesco", "titular");
@@ -55,7 +55,7 @@ export async function conferirFaturaVsFolha(
 
   // All records (including dependentes) for informativo checks
   let qAll = supabase
-    .from("health_records")
+    .from("rh_health_records")
     .select("*")
     .eq("competencia", competencia)
     .eq("company_id", companyId);
@@ -68,7 +68,7 @@ export async function conferirFaturaVsFolha(
   const prevDate = new Date(ano, mes - 2, 1);
   const prevCompetencia = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}-01`;
   let qPrev = supabase
-    .from("health_records")
+    .from("rh_health_records")
     .select("nome_beneficiario, cpf_beneficiario, parentesco, codigo_plano, titular_cpf")
     .eq("competencia", prevCompetencia)
     .eq("company_id", companyId);
@@ -79,8 +79,8 @@ export async function conferirFaturaVsFolha(
 
   // 2. Fetch payroll for same month
   const { data: folhaRecords } = await supabase
-    .from("payroll_monthly_records")
-    .select("*, employees!payroll_monthly_records_employee_id_fkey(id, nome_completo, numero_cpf, cargo)")
+    .from("rh_payroll_monthly_records")
+    .select("*, rh_employees!fk_rh_payroll_monthly_records_employee_id(id, nome_completo, numero_cpf, cargo)")
     .eq("mes", mes)
     .eq("ano", ano)
     .eq("company_id", companyId);

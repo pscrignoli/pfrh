@@ -173,7 +173,7 @@ async function enrichWithEmpregare(
 
   // Fetch unlinked hired candidates
   const { data: candidatos, error: fetchErr } = await supabase
-    .from("empregare_candidatos")
+    .from("rh_empregare_candidatos")
     .select("*")
     .eq("status", "contratado")
     .eq("company_id", companyId);
@@ -214,7 +214,7 @@ async function enrichWithEmpregare(
     updates.cadastro_completo = isCadastroCompleto(empData);
 
     const { error: updErr } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .update(updates as any)
       .eq("id", emp.id);
 
@@ -248,7 +248,7 @@ export async function importFolhaTxt(
 
   // 1. Fetch existing employees by numero_funcional for this company
   const { data: existingEmployees, error: fetchErr } = await supabase
-    .from("employees")
+    .from("rh_employees")
     .select("id, numero_funcional, nome_completo, cargo")
     .eq("company_id", companyId)
     .not("numero_funcional", "is", null);
@@ -307,7 +307,7 @@ export async function importFolhaTxt(
 
       if (Object.keys(updates).length > 0) {
         const { error: updErr } = await supabase
-          .from("employees")
+          .from("rh_employees")
           .update(updates as any)
           .eq("id", employeeId);
 
@@ -322,7 +322,7 @@ export async function importFolhaTxt(
       const newEmployee = buildEmployeeFields(func, companyId, parsed.empresa.nome);
 
       const { data: created, error: createErr } = await supabase
-        .from("employees")
+        .from("rh_employees")
         .insert(newEmployee as any)
         .select("id")
         .single();
@@ -355,7 +355,7 @@ export async function importFolhaTxt(
   for (let i = 0; i < payrollRecords.length; i += batchSize) {
     const batch = payrollRecords.slice(i, i + batchSize);
     const { error: upsertErr } = await supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .upsert(batch as any, { onConflict: "employee_id,ano,mes" });
 
     if (upsertErr) {

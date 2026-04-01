@@ -75,7 +75,7 @@ export function EmployeeImportDialog({ open, onClose, onComplete }: Props) {
       }
 
       // Fetch existing employees for this company
-      let query = supabase.from("employees").select("*");
+      let query = supabase.from("rh_employees").select("*");
       if (companyId) query = query.eq("company_id", companyId);
       const { data: existing } = await query;
 
@@ -122,7 +122,7 @@ export function EmployeeImportDialog({ open, onClose, onComplete }: Props) {
             updates.cadastro_completo = isCadastroCompleto({ ...row.existingEmployee, ...updates });
             if (Object.keys(updates).length > 0) {
               const { error } = await supabase
-                .from("employees")
+                .from("rh_employees")
                 .update(updates)
                 .eq("id", row.existingEmployee.id);
               if (error) throw error;
@@ -137,7 +137,7 @@ export function EmployeeImportDialog({ open, onClose, onComplete }: Props) {
           } else {
             const payload = buildInsertPayload(row.xlsxData, companyId);
             payload.cadastro_completo = isCadastroCompleto(payload);
-            const { error } = await supabase.from("employees").insert(payload as any);
+            const { error } = await supabase.from("rh_employees").insert(payload as any);
             if (error) throw error;
             res.created++;
           }

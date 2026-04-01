@@ -39,13 +39,13 @@ serve(async (req) => {
 
     // Fetch context: active employee count and recent payroll summary
     const { count: headcount } = await supabase
-      .from("employees")
+      .from("rh_employees")
       .select("*", { count: "exact", head: true })
       .eq("status", "ativo");
 
     const now = new Date();
     const { data: payrollSummary } = await supabase
-      .from("payroll_monthly_records")
+      .from("rh_payroll_monthly_records")
       .select("total_geral, he_total, salario, encargos, beneficios")
       .eq("ano", now.getFullYear())
       .eq("mes", now.getMonth() + 1)

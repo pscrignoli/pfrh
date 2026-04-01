@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     const { data: callerProfile } = await adminClient
-      .from("user_profiles")
-      .select("role_id, role_definitions(name)")
+      .from("rh_user_profiles")
+      .select("role_id, rh_role_definitions(name)")
       .eq("user_id", caller.id)
       .maybeSingle();
 
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       }
 
       const { error: revokeError } = await adminClient
-        .from("user_invites")
+        .from("rh_user_invites")
         .update({ status: "revoked" })
         .eq("id", inviteId)
         .in("status", ["pending", "expired"]);
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("user_invites")
+        .from("rh_user_invites")
         .update({ status: "accepted", accepted_at: new Date().toISOString() })
         .eq("email", acceptEmail)
         .eq("status", "pending");
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: roleData } = await adminClient
-      .from("role_definitions")
+      .from("rh_role_definitions")
       .select("id")
       .eq("name", role_name)
       .single();
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
     const newUserId = linkData?.user?.id ?? existing?.id ?? null;
 
     const { data: latestInvite } = await adminClient
-      .from("user_invites")
+      .from("rh_user_invites")
       .select("id, status")
       .eq("email", email)
       .neq("status", "accepted")
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
 
     if (latestInvite) {
       const { data: updated } = await adminClient
-        .from("user_invites")
+        .from("rh_user_invites")
         .update({
           full_name,
           role_id: roleData.id,
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
       inviteId = updated?.id ?? latestInvite.id;
     } else {
       const { data: created } = await adminClient
-        .from("user_invites")
+        .from("rh_user_invites")
         .insert({
           email,
           full_name,
@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
 
     if (newUserId) {
       await adminClient
-        .from("user_profiles")
+        .from("rh_user_profiles")
         .upsert(
           {
             user_id: newUserId,

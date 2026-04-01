@@ -97,11 +97,11 @@ export default function Saude() {
     if (!currentCompetencia || !companyId) return;
     setDeleting(true);
     try {
-      await (supabase.from("health_records" as any) as any)
+      await (supabase.from("rh_health_records" as any) as any)
         .delete()
         .eq("competencia", currentCompetencia)
         .eq("company_id", companyId);
-      await (supabase.from("health_invoices" as any) as any)
+      await (supabase.from("rh_health_invoices" as any) as any)
         .delete()
         .eq("competencia", currentCompetencia)
         .eq("company_id", companyId);

@@ -14,7 +14,7 @@ export function useCandidateFieldValues(candidateId: string | undefined) {
     if (!candidateId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("candidate_field_values" as any)
+      .from("rh_candidate_field_values" as any)
       .select("field_id, value")
       .eq("candidate_id", candidateId);
 

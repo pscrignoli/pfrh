@@ -17,8 +17,8 @@ interface ExportOptions {
 export async function exportCandidatesExcel({ vacancyId, vacancyTitle }: ExportOptions) {
   // 1. Fetch candidates
   let candidatesQuery = supabase
-    .from("candidates")
-    .select("*, vacancies(title, opened_at)")
+    .from("rh_candidates")
+    .select("*, rh_vacancies(title, opened_at)")
     .order("created_at", { ascending: true });
 
   if (vacancyId) {
@@ -33,7 +33,7 @@ export async function exportCandidatesExcel({ vacancyId, vacancyTitle }: ExportO
   const vacancyIds = [...new Set(candidates.map((c: any) => c.vacancy_id))];
 
   const { data: allFields, error: fErr } = await supabase
-    .from("vacancy_fields" as any)
+    .from("rh_vacancy_fields" as any)
     .select("*")
     .in("vacancy_id", vacancyIds)
     .order("sort_order", { ascending: true });
@@ -45,7 +45,7 @@ export async function exportCandidatesExcel({ vacancyId, vacancyTitle }: ExportO
   // 3. Fetch all field values for these candidates
   const candidateIds = candidates.map((c: any) => c.id);
   const { data: allValues, error: vErr } = await supabase
-    .from("candidate_field_values" as any)
+    .from("rh_candidate_field_values" as any)
     .select("candidate_id, field_id, value")
     .in("candidate_id", candidateIds);
 
